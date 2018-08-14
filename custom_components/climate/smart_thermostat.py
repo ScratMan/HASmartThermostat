@@ -471,7 +471,8 @@ class SmartThermostat(ClimateDevice):
             self.control_output = self.pidController.calc(self._cur_temp,
             self._target_temp)
         _LOGGER.info("Obtained current control output. %s", self.control_output)
-        set_controlvalue();
+        self.set_controlvalue();
+
     def set_controlvalue(self):
         """Set Outputvalue for heater"""
         if self.pwm:
@@ -481,11 +482,11 @@ class SmartThermostat(ClimateDevice):
                     self._heater_turn_on()
                     self.time_changed = time.time()
             elif self.control_output > 0:
-                pwm_switch(self.pwm * self.control_output / self.maxOut, self.pwm * (self.maxOut - self.control_output) / self.maxOut, time.time() - self.time_changed)
+                self.pwm_switch(self.pwm * self.control_output / self.maxOut, self.pwm * (self.maxOut - self.control_output) / self.maxOut, time.time() - self.time_changed)
             elif self.control_output < 0:
-                pwm_switch(self.pwm * self.control_output / self.minOut, self.pwm * self.minOut / self.control_outpu, time.time() - self.time_changedt)
+                self.pwm_switch(self.pwm * self.control_output / self.minOut, self.pwm * self.minOut / self.control_outpu, time.time() - self.time_changedt)
             else:
-                if active:
+                if self._active:
                     _LOGGER.info("Turning off heater %s", self.heater_entity_id)
                     self._heater_turn_off()
                     self.time_changed = time.time()
@@ -493,6 +494,7 @@ class SmartThermostat(ClimateDevice):
             _LOGGER.info("Change state off heater %s to %s", self.heater_entity_id, self.control_output)
             self.hass.states.async_set(self.heater_entity_id, self.control_output)
 
+        
     def pwm_switch(self, time_on, time_off, time_passed):
         """turn off and on the heater proportionally to controlvalue."""
         if self._is_device_active:
