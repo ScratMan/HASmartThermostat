@@ -6,7 +6,7 @@ missing feature test repository
 ### Installation:
 1. go to <conf-dir> default /homeassistant/.homeassistant/ (it's where your configuration.yalm is)
 2. clone this repository
-3. Go into pid_controller/pid_controller and run sudo python3 setup.py install
+3. Go into pid_controller/ and run **sudo python3 setup.py install**
 4. Set up the smart_thermostat and have fun
 
 ### Usage:
