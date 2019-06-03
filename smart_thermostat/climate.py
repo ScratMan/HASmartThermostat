@@ -200,7 +200,7 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
 
         if self._keep_alive:
             async_track_time_interval(
-                hass, self._async_keep_alive, self._keep_alive)
+                hass, self._async_control_heating, self._keep_alive)
 
         sensor_state = hass.states.get(sensor_entity_id)
         if sensor_state and sensor_state.state != STATE_UNKNOWN:
@@ -388,12 +388,6 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
         self.async_schedule_update_ha_state()
 
     @callback
-    def _async_keep_alive(self, time):
-        """Call at constant intervals for keep-alive purposes."""
-        if self._active:
-            self._async_control_heating()
-
-    @callback
     def _async_update_temp(self, state):
         """Update thermostat with latest state from sensor."""
         try:
@@ -403,19 +397,34 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
 
     async def _async_control_heating(self, time=None, force=False):
         """Run PID controller, optional autotune for faster integration"""
+        async with self._temp_lock:
+            if not self._active and None not in (self._cur_temp, self._target_temp
+                                                 ):
+                self._active = True
+                _LOGGER.info("Obtained current and target temperature. "
+                             "Smart thermostat active. %s, %s",
+                             self._cur_temp, self._target_temp)
 
-        if not self._active and None not in (self._cur_temp, self._target_temp
-                                             ):
-            self._active = True
-            _LOGGER.info("Obtained current and target temperature. "
-                         "Smart thermostat active. %s, %s",
-                         self._cur_temp, self._target_temp)
-        if not self._active:
-            return
+            if not self._active or not self._enabled:
+                return
 
-        if not self._enabled:
-            return
-        self.calc_output()
+            #if not force and time is None:
+            #    # If the `force` argument is True, we
+            #    # ignore `min_cycle_duration`.
+            #    # If the `time` argument is not none, we were invoked for
+            #    # keep-alive purposes, and `min_cycle_duration` is irrelevant.
+            #    if self.min_cycle_duration:
+            #        if self._is_device_active:
+            #            current_state = STATE_ON
+            #        else:
+            #            current_state = STATE_OFF
+            #        long_enough = condition.state(
+            #            self.hass, self.heater_entity_id, current_state,
+            #            self.min_cycle_duration)
+            #        if not long_enough:
+            #            return
+
+            self.calc_output()
 
     @property
     def _is_device_active(self):
