@@ -1,0 +1,11 @@
+{
+  "domain": "smart_thermostat",
+  "name": "Smart thermostat",
+  "documentation": "https://github.com/fabiannydegger/custom_components",
+  "requirements": [],
+  "dependencies": [
+    "sensor",
+    "switch"
+  ],
+  "codeowners": []
+}

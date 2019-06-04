@@ -4,9 +4,9 @@ missing feature test repository
 ## PID controller thermostat
 
 ### Installation:
-1. go to <conf-dir> default /homeassistant/.homeassistant/ (it's where your configuration.yalm is)
-2. clone this repository
-3. Go into pid_controller/ and run **sudo python3 setup.py install**
+1. Go to <conf-dir> default /homeassistant/.homeassistant/ (it's where your configuration.yaml is)
+2. Create <conf-dir>/custom_components/ directory if it does not already exist
+3. Clone this repository content into <conf-dir>/custom_components/
 4. Set up the smart_thermostat and have fun
 
 ### Usage:
@@ -20,7 +20,7 @@ You can use the autotune feature to set the PID parameters.
 Issue! I'couldn't yet save the settings to the configuration.yaml file.
 The PID parmaters set by the autotune won't be stored and the process restarts everytime hassio is restarted.
 To save the parameters read log, it will be shown like this:
-LOGGER.info("Set Kd, Ki, Kd. Smart thermostat now runs on PID Controller." self.kp , self.ki, self.kd)
+LOGGER.info("Set Kp, Ki, Kd. Smart thermostat now runs on PID Controller." self.kp , self.ki, self.kd)
 
 ### Parameters:
 
