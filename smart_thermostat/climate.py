@@ -1,9 +1,6 @@
-"""
-Adds support for smart (PID) thermostat units.
-
+"""Adds support for smart (PID) thermostat units.
 For more details about this platform, please refer to the documentation at
-https://github.com/fabiannydegger/custom_components/
-"""
+https://github.com/fabiannydegger/custom_components/"""
 import asyncio
 import logging
 import time
@@ -134,7 +131,7 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
                  min_temp, max_temp, target_temp, ac_mode, min_cycle_duration,
                  cold_tolerance, hot_tolerance, keep_alive,
                  initial_operation_mode, away_temp, precision,
-				 difference, kp, ki, kd, pwm, autotune, noiseband):
+                 difference, kp, ki, kd, pwm, autotune, noiseband):
         """Initialize the thermostat."""
         self.hass = hass
         self._name = name
@@ -173,9 +170,9 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
         self._support_flags = SUPPORT_FLAGS
         if away_temp is not None:
             self._support_flags = SUPPORT_FLAGS | SUPPORT_AWAY_MODE
-        self.difference = difference
         self._away_temp = away_temp
         self._is_away = False
+        self.difference = difference
         self.kp = kp
         self.ki = ki
         self.kd = kd
@@ -398,8 +395,8 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
     async def _async_control_heating(self, time=None, force=False):
         """Run PID controller, optional autotune for faster integration"""
         async with self._temp_lock:
-            if not self._active and None not in (self._cur_temp, self._target_temp
-                                                 ):
+            if not self._active and None not in (self._cur_temp,
+                                                 self._target_temp):
                 self._active = True
                 _LOGGER.info("Obtained current and target temperature. "
                              "Smart thermostat active. %s, %s",
@@ -468,7 +465,7 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
         self._is_away = False
         self._target_temp = self._saved_target_temp
         await self._async_control_heating(force=True)
-        await self.async_update_ha_state()
+	await self.async_update_ha_state()
 
     def calc_output(self):
         """calculate controll output and handle autotune"""
