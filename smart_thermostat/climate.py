@@ -465,7 +465,7 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
         self._is_away = False
         self._target_temp = self._saved_target_temp
         await self._async_control_heating(force=True)
-	await self.async_update_ha_state()
+        await self.async_update_ha_state()
 
     def calc_output(self):
         """calculate controll output and handle autotune"""
