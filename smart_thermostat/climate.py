@@ -1,3 +1,7 @@
+"""Adds support for smart (PID) thermostat units.
+For more details about this platform, please refer to the documentation at
+https://github.com/fabiannydegger/custom_components/"""
+
 import asyncio
 import logging
 import time
