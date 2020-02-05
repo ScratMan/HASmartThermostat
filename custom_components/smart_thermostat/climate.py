@@ -477,7 +477,7 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
                 self.kp = params.Kp
                 self.ki = params.Ki
                 self.kd = params.Kd
-                _LOGGER.info("Set Kd, Ki, Kd. "
+                _LOGGER.warning("Set Kd, Ki, Kd. "
                              "Smart thermostat now runs on PID Controller. %s,  %s,  %s",
                              self.kp , self.ki, self.kd)
                 self.pidController = pid_controller.PIDArduino(self._keep_alive.seconds, self.kp, self.ki,
