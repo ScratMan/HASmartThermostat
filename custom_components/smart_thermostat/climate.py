@@ -332,7 +332,7 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
         elif hvac_mode == HVAC_MODE_OFF:
             self._hvac_mode = HVAC_MODE_OFF
             if self._is_device_active:
-                await self._async_async_heater_turn_off()
+                await self._async_heater_turn_off()
         else:
             _LOGGER.error("Unrecognized hvac mode: %s", hvac_mode)
             return
