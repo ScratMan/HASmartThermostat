@@ -1,0 +1,6 @@
+{
+  "name": "Smart thermostat (PID)",
+  "country": "US",
+  "domains": ["switch", "sensor"],
+  "homeassistant": "0.104.2"
+}

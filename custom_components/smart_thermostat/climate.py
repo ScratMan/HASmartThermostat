@@ -332,7 +332,7 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
         elif hvac_mode == HVAC_MODE_OFF:
             self._hvac_mode = HVAC_MODE_OFF
             if self._is_device_active:
-                await self._async_async_heater_turn_off()
+                await self._async_heater_turn_off()
         else:
             _LOGGER.error("Unrecognized hvac mode: %s", hvac_mode)
             return
@@ -477,7 +477,7 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
                 self.kp = params.Kp
                 self.ki = params.Ki
                 self.kd = params.Kd
-                _LOGGER.info("Set Kd, Ki, Kd. "
+                _LOGGER.warning("Set Kd, Ki, Kd. "
                              "Smart thermostat now runs on PID Controller. %s,  %s,  %s",
                              self.kp , self.ki, self.kd)
                 self.pidController = pid_controller.PIDArduino(self._keep_alive.seconds, self.kp, self.ki,
