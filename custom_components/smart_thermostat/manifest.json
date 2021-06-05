@@ -7,5 +7,6 @@
     "sensor",
     "switch"
   ],
-  "codeowners": []
+  "codeowners": [],
+  "version":"1.0.0"
 }
