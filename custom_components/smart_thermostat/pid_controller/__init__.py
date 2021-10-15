@@ -88,7 +88,7 @@ class PIDArduino(object):
         # Remember some variables for next time
         self._last_input = input_val
         self._last_calc_timestamp = now
-        return self._last_output
+        return self._last_output, p, i, d
 
 # Based on a fork of Arduino PID AutoTune Library
 # See https://github.com/t0mpr1c3/Arduino-PID-AutoTune-Library
