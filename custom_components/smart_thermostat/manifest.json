@@ -1,12 +1,9 @@
 {
   "domain": "smart_thermostat",
   "name": "Smart thermostat",
-  "documentation": "https://github.com/fabiannydegger/custom_components",
+  "documentation": "https://github.com/ScratMan/custom_components",
   "requirements": [],
-  "dependencies": [
-    "sensor",
-    "switch"
-  ],
+  "dependencies": [],
   "codeowners": [],
-  "version":"1.0.0"
+  "version":"0.0.1"
 }
