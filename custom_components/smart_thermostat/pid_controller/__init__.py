@@ -42,6 +42,9 @@ class PIDArduino(object):
         self._integral = 0
         self._last_input = 0
         self._last_output = 0
+        self._last_p = 0
+        self._last_i = 0
+        self._last_d = 0
         self._last_calc_timestamp = 0
         self._time = time
 
@@ -58,7 +61,7 @@ class PIDArduino(object):
         now = self._time() * 1000
 
         if (now - self._last_calc_timestamp) < self._sampletime:
-            return self._last_output
+            return self._last_output, self._last_p, self._last_i, self._last_d
 
         # Compute all the working error variables
         error = setpoint - input_val
@@ -70,25 +73,25 @@ class PIDArduino(object):
             self._integral = min(self._integral, self._out_max)
             self._integral = max(self._integral, self._out_min)
 
-        p = self._Kp * error
-        i = self._integral
-        d = -(self._Kd * input_diff)
+        self._last_p = self._Kp * error
+        self._last_i = self._integral
+        self._last_d = -(self._Kd * input_diff)
 
         # Compute PID Output
-        self._last_output = p + i + d
+        self._last_output = self._last_p + self._last_i + self._last_d
         self._last_output = min(self._last_output, self._out_max)
         self._last_output = max(self._last_output, self._out_min)
 
         # Log some debug info
-        self._logger.debug('P: {0}'.format(p))
-        self._logger.debug('I: {0}'.format(i))
-        self._logger.debug('D: {0}'.format(d))
+        self._logger.debug('P: {0}'.format(self._last_p))
+        self._logger.debug('I: {0}'.format(self._last_i))
+        self._logger.debug('D: {0}'.format(self._last_d))
         self._logger.debug('output: {0}'.format(self._last_output))
 
         # Remember some variables for next time
         self._last_input = input_val
         self._last_calc_timestamp = now
-        return self._last_output, p, i, d
+        return self._last_output, self._last_p, self._last_i, self._last_d
 
 # Based on a fork of Arduino PID AutoTune Library
 # See https://github.com/t0mpr1c3/Arduino-PID-AutoTune-Library
