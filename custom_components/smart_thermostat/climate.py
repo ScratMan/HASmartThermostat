@@ -347,15 +347,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         await self._async_control_heating(force=True)
         await self.async_update_ha_state()
 
-    @asyncio.coroutine
-    def async_set_pid(self, kp, ki, kd):
+    async def async_set_pid(self, kp, ki, kd):
         """Set PID parameters."""
 
         self.kp = kp
         self.ki = ki
         self.kd = kd
-        self._async_control_heating()
-        yield from self.async_update_ha_state()
+        await self._async_control_heating()
+        await self.async_update_ha_state()
 
     @property
     def min_temp(self):
