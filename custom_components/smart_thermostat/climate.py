@@ -30,7 +30,6 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TOLERANCE = 0.3
 DEFAULT_NAME = 'Smart Thermostat'
-#To Do: set default for pt1
 DEFAULT_DIFFERENCE = 100
 DEFAULT_PWM = 0
 DEFAULT_KP = 0
@@ -92,8 +91,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 })
 
 
-async def async_setup_platform(hass, config, async_add_entities,
-                               discovery_info=None):
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the generic thermostat platform."""
     name = config.get(CONF_NAME)
     heater_entity_id = config.get(CONF_HEATER)
@@ -170,6 +168,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self.ki = ki
         self.kd = kd
         self.pwm = pwm
+        self.control_output = 0
         self.autotune = autotune
         self.sensor_entity_id = sensor_entity_id
         self.time_changed = time.time()
@@ -204,9 +203,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             if sensor_state and sensor_state.state != STATE_UNKNOWN:
                 self._async_update_temp(sensor_state)
 
-        self.hass.bus.async_listen_once(
-            EVENT_HOMEASSISTANT_START, _async_startup)
-
+        self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _async_startup)
 
         # Check If we have an old state
         old_state = await self.async_get_last_state()
@@ -286,6 +283,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         if self.ac_mode:
             return CURRENT_HVAC_COOL
         return CURRENT_HVAC_HEAT
+
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
@@ -313,7 +311,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def pid_parm(self):
         """Return the pid parameters of the thermostat."""
-        return (self.kp, self.ki, self.kd)
+        return self.kp, self.ki, self.kd
 
     @property
     def pid_control_output(self):
@@ -380,7 +378,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             return
 
         self._async_update_temp(new_state)
-        #await self._async_control_heating()
+        # await self._async_control_heating()
         await self.async_update_ha_state()
 
     @callback
@@ -411,7 +409,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             if not self._active or self._hvac_mode == HVAC_MODE_OFF:
                 return
 
-            #if not force and time is None:
+            # if not force and time is None:
             #    # If the `force` argument is True, we
             #    # ignore `min_cycle_duration`.
             #    # If the `time` argument is not none, we were invoked for
@@ -464,32 +462,29 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._target_temp = self._saved_target_temp
             await self._async_control_heating(force=True)
 
-
         await self.async_update_ha_state()
 
     async def calc_output(self):
         """calculate control output and handle autotune"""
-        if self.autotune != "none" :
+        if self.autotune != "none":
             if self.pidAutotune.run(self._cur_temp):
                 params = self.pidAutotune.get_pid_parameters(self.autotune)
                 self.kp = params.Kp
                 self.ki = params.Ki
                 self.kd = params.Kd
-                _LOGGER.warning("Set Kp, Ki, Kd. "
-                             "Smart thermostat now runs on PID Controller. %s,  %s,  %s",
-                             self.kp , self.ki, self.kd)
-                self.pidController = pid_controller.PIDArduino(self._keep_alive.seconds, self.kp, self.ki,
-                self.kd, self.minOut, self.maxOut, time.time)
+                _LOGGER.warning("Set Kp, Ki, Kd. Smart thermostat now runs on PID Controller. %s,  %s,  %s", self.kp,
+                                self.ki, self.kd)
+                self.pidController = pid_controller.PIDArduino(self._keep_alive.seconds, self.kp, self.ki, self.kd,
+                                                               self.minOut, self.maxOut, time.time)
                 self.autotune = "none"
             self.control_output = self.pidAutotune.output
         else:
-            self.control_output = self.pidController.calc(self._cur_temp,
-            self._target_temp)
+            self.control_output = self.pidController.calc(self._cur_temp, self._target_temp)
         _LOGGER.info("Obtained current control output. %s", self.control_output)
-        await self.set_controlvalue();
+        await self.set_control_value()
 
-    async def set_controlvalue(self):
-        """Set Outputvalue for heater"""
+    async def set_control_value(self):
+        """Set Output value for heater"""
         if self.pwm:
             if self.control_output == self.difference or self.control_output == -self.difference:
                 if not self._is_device_active:
@@ -514,7 +509,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self.hass.states.async_set(self.heater_entity_id, self.control_output)
 
     async def pwm_switch(self, time_on, time_off, time_passed):
-        """turn off and on the heater proportionally to controlvalue."""
+        """turn off and on the heater proportionally to control_value."""
         if self._is_device_active:
             if time_on < time_passed:
                 _LOGGER.info("Turning off AC %s", self.heater_entity_id)
