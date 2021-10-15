@@ -479,10 +479,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                                                                self.minOut, self.maxOut, time.time)
                 self.autotune = "none"
             self.control_output = self.pidAutotune.output
+            p = i = d = "N/A"
         else:
-            self.control_output = self.pidController.calc(self._cur_temp, self._target_temp)
+            self.control_output, p, i, d = self.pidController.calc(self._cur_temp, self._target_temp)
         if self.control_output != self._last_control_output:
-            _LOGGER.info("Obtained current control output. %s", self.control_output)
+            _LOGGER.info("Obtained current control output. %s (p=%s, i=%s, d=%s)", self.control_output, p, i, d)
         await self.set_control_value()
         self._last_control_output = self.control_output
 
