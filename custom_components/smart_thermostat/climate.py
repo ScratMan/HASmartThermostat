@@ -169,6 +169,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self.kd = kd
         self.pwm = pwm
         self.control_output = 0
+        self._last_control_output = 0
         self.autotune = autotune
         self.sensor_entity_id = sensor_entity_id
         self.time_changed = time.time()
@@ -176,7 +177,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self.pidAutotune = pid_controller.PIDAutotune(self._target_temp, self.difference, self._keep_alive.seconds,
                                                           self._keep_alive.seconds, self.minOut, self.maxOut, noiseband,
                                                           time.time)
-            _LOGGER.warning("Autotune will run with the next Setpoint Value you set. Changes, submited after doesn't "
+            _LOGGER.warning("Autotune will run with the next Setpoint Value you set. Changes, submitted after doesn't "
                             "have any effect until it's finished")
         else:
             self.pidController = pid_controller.PIDArduino(self._keep_alive.seconds, self.kp, self.ki, self.kd,
@@ -480,15 +481,18 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self.control_output = self.pidAutotune.output
         else:
             self.control_output = self.pidController.calc(self._cur_temp, self._target_temp)
-        _LOGGER.info("Obtained current control output. %s", self.control_output)
+        if self.control_output != self._last_control_output:
+            _LOGGER.info("Obtained current control output. %s", self.control_output)
         await self.set_control_value()
+        self._last_control_output = self.control_output
 
     async def set_control_value(self):
         """Set Output value for heater"""
         if self.pwm:
             if self.control_output == self.difference or self.control_output == -self.difference:
                 if not self._is_device_active:
-                    _LOGGER.info("Turning on AC %s", self.heater_entity_id)
+                    if self.control_output != self._last_control_output:
+                        _LOGGER.info("Turning on %s", self.heater_entity_id)
                     await self._async_heater_turn_on()
                     self.time_changed = time.time()
             elif self.control_output > 0:
@@ -501,25 +505,29 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                                       time.time() - self.time_changed)
             else:
                 if self._active:
-                    _LOGGER.info("Turning off heater %s", self.heater_entity_id)
+                    if self.control_output != self._last_control_output:
+                        _LOGGER.info("Turning off %s", self.heater_entity_id)
                     await self._async_heater_turn_off()
                     self.time_changed = time.time()
         else:
-            _LOGGER.info("Change state of heater %s to %s", self.heater_entity_id, self.control_output)
+            if self.control_output != self._last_control_output:
+                _LOGGER.info("Change state of %s to %s", self.heater_entity_id, self.control_output)
             self.hass.states.async_set(self.heater_entity_id, self.control_output)
 
     async def pwm_switch(self, time_on, time_off, time_passed):
         """turn off and on the heater proportionally to control_value."""
         if self._is_device_active:
             if time_on < time_passed:
-                _LOGGER.info("Turning off AC %s", self.heater_entity_id)
+                if self.control_output != self._last_control_output:
+                    _LOGGER.info("Turning off %s", self.heater_entity_id)
                 await self._async_heater_turn_off()
                 self.time_changed = time.time()
             else:
                 _LOGGER.info("Time until %s turns off: %s sec", self.heater_entity_id, time_on - time_passed)
         else:
             if time_off < time_passed:
-                _LOGGER.info("Turning on AC %s", self.heater_entity_id)
+                if self.control_output != self._last_control_output:
+                    _LOGGER.info("Turning on %s", self.heater_entity_id)
                 await self._async_heater_turn_on()
                 self.time_changed = time.time()
             else:
