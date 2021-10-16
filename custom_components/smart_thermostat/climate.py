@@ -153,6 +153,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self.maxOut = difference
         self._active = False
         self._cur_temp = None
+        self._cur_temp_time = None
+        self._previous_temp = None
+        self._previous_temp_time = None
         self._temp_lock = asyncio.Lock()
         self._min_temp = min_temp
         self._max_temp = max_temp
@@ -384,8 +387,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         if new_state is None:
             return
 
+        self._previous_temp_time = self._cur_temp_time
+        self._cur_temp_time = time.time()
         self._async_update_temp(new_state)
-        # await self._async_control_heating()
+        await self._async_control_heating()
         await self.async_update_ha_state()
 
     @callback
@@ -399,6 +404,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     def _async_update_temp(self, state):
         """Update thermostat with latest state from sensor."""
         try:
+            self._previous_temp = self._cur_temp
             self._cur_temp = float(state.state)
         except ValueError as ex:
             _LOGGER.error("Unable to update from sensor: %s", ex)
@@ -487,7 +493,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self.control_output = self.pidAutotune.output
             p = i = d = "N/A"
         else:
-            self.control_output, p, i, d = self.pidController.calc(self._cur_temp, self._target_temp)
+            self.control_output, p, i, d = self.pidController.calc(self._cur_temp, self._target_temp,
+                                                                   self._cur_temp_time, self._previous_temp_time)
         if self.control_output != self._last_control_output:
             _LOGGER.info("Obtained current control output. %s (p=%s, i=%s, d=%s)", self.control_output, p, i, d)
         await self.set_control_value()

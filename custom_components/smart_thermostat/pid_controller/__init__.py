@@ -34,8 +34,10 @@ class PIDArduino(object):
 
         self._logger = logging.getLogger(type(self).__name__)
         self._Kp = kp
-        self._Ki = ki * sampletime
-        self._Kd = kd / sampletime
+        self._Ki = ki
+        # self._Ki = ki * sampletime
+        self._Kd = kd
+        # self._Kd = kd / sampletime
         self._sampletime = sampletime * 1000
         self._out_min = out_min
         self._out_max = out_max
@@ -48,7 +50,7 @@ class PIDArduino(object):
         self._last_calc_timestamp = 0
         self._time = time
 
-    def calc(self, input_val, setpoint):
+    def calc(self, input_val, setpoint, sample_time, last_sample_time):
         """Adjusts and holds the given setpoint.
 
         Args:
@@ -60,22 +62,25 @@ class PIDArduino(object):
         """
         now = self._time() * 1000
 
-        if (now - self._last_calc_timestamp) < self._sampletime:
-            return self._last_output, self._last_p, self._last_i, self._last_d
+        # if (now - self._last_calc_timestamp) < self._sampletime:
+        #     return self._last_output, self._last_p, self._last_i, self._last_d
 
         # Compute all the working error variables
         error = setpoint - input_val
         input_diff = input_val - self._last_input
+        dt = sample_time - last_sample_time
 
         # In order to prevent windup, only integrate if the process is not saturated
         if self._last_output < self._out_max and self._last_output > self._out_min:
-            self._integral += self._Ki * error
+            self._integral += self._Ki * error / dt
+            # self._integral += self._Ki * error
             self._integral = min(self._integral, self._out_max)
             self._integral = max(self._integral, self._out_min)
 
         self._last_p = self._Kp * error
         self._last_i = self._integral
-        self._last_d = -(self._Kd * input_diff)
+        self._last_d = -(self._Kd * input_diff) / dt
+        # self._last_d = -(self._Kd * input_diff)
 
         # Compute PID Output
         self._last_output = self._last_p + self._last_i + self._last_d
