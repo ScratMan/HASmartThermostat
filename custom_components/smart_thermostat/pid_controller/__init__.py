@@ -68,7 +68,11 @@ class PIDArduino(object):
         # Compute all the working error variables
         error = setpoint - input_val
         input_diff = input_val - self._last_input
-        dt = sample_time - last_sample_time
+        try:
+            dt = sample_time - last_sample_time
+        except TypeError:
+            dt = 0
+        dt = max(dt, self._sampletime)
 
         # In order to prevent windup, only integrate if the process is not saturated
         if self._last_output < self._out_max and self._last_output > self._out_min:
