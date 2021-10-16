@@ -72,7 +72,7 @@ class PIDArduino(object):
             dt = sample_time - last_sample_time
         except TypeError:
             dt = 0
-        dt = max(dt, self._sampletime)
+        dt = max(dt, self._sampletime / 1000.0)
 
         # In order to prevent windup, only integrate if the process is not saturated
         if self._last_output < self._out_max and self._last_output > self._out_min:
