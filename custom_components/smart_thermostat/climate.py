@@ -172,7 +172,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self.kd = kd
         self.pwm = pwm
         self.p = self.i = self.d = 0
-        self.hass.custom_attributes = {}
+        # self.hass.custom_attributes = {}
         self.control_output = 0
         self._last_control_output = 0
         self._force_on = False
@@ -326,18 +326,18 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         """Return the pid control output of the thermostat."""
         return self.control_output
 
-    @property
-    def device_state_attributes(self):
-        """Return the state attributes of the sensor."""
-        return self.hass.custom_attributes
+    # @property
+    # def device_state_attributes(self):
+    #     """Return the state attributes of the sensor."""
+    #     return self.hass.custom_attributes
 
-    def update(self):
-        attributes = dict()
-        attributes['control_output'] = self.pid_control_output
-        attributes['p'] = self.p
-        attributes['i'] = self.i
-        attributes['d'] = self.d
-        self.hass.custom_attributes = attributes
+    # def update(self):
+    #     attributes = dict()
+    #     attributes['control_output'] = self.pid_control_output
+    #     attributes['p'] = self.p
+    #     attributes['i'] = self.i
+    #     attributes['d'] = self.d
+    #     self.hass.custom_attributes = attributes
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set hvac mode."""
