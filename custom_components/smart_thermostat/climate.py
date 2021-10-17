@@ -171,6 +171,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self.ki = ki
         self.kd = kd
         self.pwm = pwm
+        self.p = self.i = self.d = 0
+        self.hass.custom_attributes = {}
         self.control_output = 0
         self._last_control_output = 0
         self._force_on = False
@@ -323,6 +325,19 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     def pid_control_output(self):
         """Return the pid control output of the thermostat."""
         return self.control_output
+
+    @property
+    def device_state_attributes(self):
+        """Return the state attributes of the sensor."""
+        return self.hass.custom_attributes
+
+    def update(self):
+        attributes = dict()
+        attributes['control_output'] = self.pid_control_output
+        attributes['p'] = self.p
+        attributes['i'] = self.i
+        attributes['d'] = self.d
+        self.hass.custom_attributes = attributes
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set hvac mode."""
@@ -495,12 +510,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                                                                self.minOut, self.maxOut, time.time)
                 self.autotune = "none"
             self.control_output = self.pidAutotune.output
-            p = i = d = "N/A"
+            self.p = self.i = self.d = 0
         else:
-            self.control_output, p, i, d = self.pidController.calc(self._cur_temp, self._target_temp,
+            self.control_output, self.p, self.i, self.d = self.pidController.calc(self._cur_temp, self._target_temp,
                                                                    self._cur_temp_time, self._previous_temp_time)
         if self.control_output != self._last_control_output:
-            _LOGGER.info("Obtained current control output. %s (p=%s, i=%s, d=%s)", self.control_output, p, i, d)
+            _LOGGER.info("Obtained current control output. %s (p=%s, i=%s, d=%s)", self.control_output, self.p, self.i,
+                         self.d)
         await self.set_control_value()
         self._last_control_output = self.control_output
 
