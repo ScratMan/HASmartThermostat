@@ -71,8 +71,7 @@ class PIDArduino(object):
         try:
             dt = sample_time - last_sample_time
         except TypeError:
-            dt = 0
-        dt = max(dt, self._sampletime / 1000.0)
+            dt = self._sampletime / 1000.0
 
         # In order to prevent windup, only integrate if the process is not saturated
         if self._last_output < self._out_max and self._last_output > self._out_min:
@@ -100,7 +99,7 @@ class PIDArduino(object):
         # Remember some variables for next time
         self._last_input = input_val
         self._last_calc_timestamp = now
-        return self._last_output, self._last_p, self._last_i, self._last_d
+        return self._last_output, error, dt, self._last_p, self._last_i, self._last_d
 
 # Based on a fork of Arduino PID AutoTune Library
 # See https://github.com/t0mpr1c3/Arduino-PID-AutoTune-Library
