@@ -75,7 +75,7 @@ class PIDArduino(object):
 
         # In order to prevent windup, only integrate if the process is not saturated
         if self._last_output < self._out_max and self._last_output > self._out_min:
-            self._integral += self._Ki * error / dt
+            self._integral += self._Ki * error * dt
             # self._integral += self._Ki * error
             self._integral = min(self._integral, self._out_max)
             self._integral = max(self._integral, self._out_min)
@@ -99,7 +99,7 @@ class PIDArduino(object):
         # Remember some variables for next time
         self._last_input = input_val
         self._last_calc_timestamp = now
-        return self._last_output, error, dt, self._last_p, self._last_i, self._last_d
+        return self._last_output, error, dt, self._last_p, self._last_i, self._last_d, self._Kp, self._Ki, self._Kd
 
 # Based on a fork of Arduino PID AutoTune Library
 # See https://github.com/t0mpr1c3/Arduino-PID-AutoTune-Library

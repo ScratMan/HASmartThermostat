@@ -187,6 +187,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.warning("Autotune will run with the next Setpoint Value you set. Changes, submitted after doesn't "
                             "have any effect until it's finished")
         else:
+            _LOGGER.debug("PID Gains: kp = %s, ki = %s, kd = %s", self.kp, self.ki, self.kd)
             self.pidController = pid_controller.PIDArduino(self._keep_alive.seconds, self.kp, self.ki, self.kd,
                                                            self.minOut, self.maxOut, time.time)
 
@@ -405,8 +406,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._previous_temp_time = self._cur_temp_time
         self._cur_temp_time = time.time()
         self._async_update_temp(new_state)
-        _LOGGER.debug("Received new temperature sensor input at timestamp %s (before %s): %s (before %s)",
-                      self._cur_temp_time, self._previous_temp_time, self._cur_temp, self._previous_temp)
+        # _LOGGER.debug("Received new temperature sensor input at timestamp %s (before %s): %s (before %s)",
+        #               self._cur_temp_time, self._previous_temp_time, self._cur_temp, self._previous_temp)
         await self._async_control_heating()
         await self.async_update_ha_state()
 
@@ -512,15 +513,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                                                                self.minOut, self.maxOut, time.time)
                 self.autotune = "none"
             self.control_output = self.pidAutotune.output
-            self.p = self.i = self.d = error = dt = 0
+            self.p = self.i = self.d = error = dt = Kp = Ki = Kd = 0
         else:
-            self.control_output, error, dt, self.p, self.i, self.d = self.pidController.calc(self._cur_temp,
+            self.control_output, error, dt, self.p, self.i, self.d, Kp, Ki, Kd = self.pidController.calc(self._cur_temp,
                                                                                              self._target_temp,
                                                                                              self._cur_temp_time,
                                                                                              self._previous_temp_time)
         if self.control_output != self._last_control_output:
-            _LOGGER.info("Obtained current control output. %s (error= %s, dt = %s, p=%s, i=%s, d=%s)",
-                         self.control_output, error, dt, self.p, self.i, self.d)
+            _LOGGER.info("Obtained current control output. %s (error= %s, dt = %s, p=%s, i=%s, d=%s, Kp=%s, Ki=%s, "
+                         "Kd=%s)", self.control_output, error, dt, self.p, self.i, self.d, Kp, Ki, Kd)
         await self.set_control_value()
         self._last_control_output = self.control_output
 
