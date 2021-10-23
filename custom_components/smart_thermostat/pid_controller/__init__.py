@@ -85,7 +85,10 @@ class PID(object):
 
         # Compute all the working error variables
         self.error = set_point - input_val
-        self._input_diff = self._input - self._last_input
+        if self._last_input is not None:
+            self._input_diff = self._input - self._last_input
+        else:
+            self._input_diff = 0
         if self._last_input_time is not None:
             self.dt = self._input_time - self._last_input_time
         else:
