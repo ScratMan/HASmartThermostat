@@ -337,9 +337,34 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         return self.kp, self.ki, self.kd
 
     @property
+    def pid_control_p(self):
+        """Return the P output of PID controller."""
+        return self.p
+
+    @property
+    def pid_control_i(self):
+        """Return the I output of PID controller."""
+        return self.i
+
+    @property
+    def pid_control_d(self):
+        """Return the D output of PID controller."""
+        return self.d
+
+    @property
     def pid_control_output(self):
         """Return the pid control output of the thermostat."""
         return self.control_output
+
+    @property
+    def device_state_attributes(self):
+        """attributes to include in entity"""
+        return {
+            "control_output": self.control_output,
+            "pid_p": self.pid_control_p,
+            "pid_i": self.pid_control_i,
+            "pid_d": self.pid_control_d,
+        }
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set hvac mode."""
@@ -517,9 +542,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         else:
             self.control_output = self.pidController.calc(self._current_temp, self._target_temp, self._cur_temp_time,
                                                           self._previous_temp_time)
+        self.p = self.pidController.P
+        self.i = self.pidController.I
+        self.d = self.pidController.D
         _LOGGER.debug("Obtained current control output. %.2f (error = %.2f, dt = %.2f, p=%.2f, i=%.2f, d=%.2f)",
-                      self.control_output, self.pidController.error, self.pidController.dt, self.pidController.P,
-                      self.pidController.I, self.pidController.D)
+                      self.control_output, self.pidController.error, self.pidController.dt, self.p, self.i, self.d)
         await self.set_control_value()
         self._last_control_output = self.control_output
 
