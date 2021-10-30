@@ -57,6 +57,8 @@ DEFAULT_KI = 0
 DEFAULT_KD = 0
 DEFAULT_AUTOTUNE = "none"
 DEFAULT_NOISEBAND = 0.5
+DEFAULT_SAMPLING_PERIOD = 0
+DEFAULT_LOOKBACK = 7200
 
 CONF_HEATER = "heater"
 CONF_SENSOR = "target_sensor"
@@ -68,6 +70,7 @@ CONF_MIN_DUR = "min_cycle_duration"
 CONF_COLD_TOLERANCE = "cold_tolerance"
 CONF_HOT_TOLERANCE = "hot_tolerance"
 CONF_KEEP_ALIVE = "keep_alive"
+CONF_SAMPLING_PERIOD = "sampling_period"
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
 CONF_AWAY_TEMP = "away_temp"
 CONF_PRECISION = "precision"
@@ -78,6 +81,7 @@ CONF_KD = "kd"
 CONF_PWM = "pwm"
 CONF_AUTOTUNE = "autotune"
 CONF_NOISEBAND = "noiseband"
+CONF_LOOKBACK = "lookback"
 
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE
 
@@ -94,6 +98,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
         vol.Optional(CONF_TARGET_TEMP): vol.Coerce(float),
         vol.Required(CONF_KEEP_ALIVE): vol.All(cv.time_period, cv.positive_timedelta),
+        vol.Optional(CONF_SAMPLING_PERIOD, default=DEFAULT_SAMPLING_PERIOD): vol.All(cv.time_period,
+                                                                                     cv.positive_timedelta),
         vol.Optional(CONF_INITIAL_HVAC_MODE): vol.In(
             [HVAC_MODE_COOL, HVAC_MODE_HEAT, HVAC_MODE_OFF]
         ),
@@ -110,6 +116,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         ),
         vol.Optional(CONF_AUTOTUNE, default=DEFAULT_AUTOTUNE): cv.string,
         vol.Optional(CONF_NOISEBAND, default=DEFAULT_NOISEBAND): vol.Coerce(float),
+        vol.Optional(CONF_LOOKBACK, default=DEFAULT_LOOKBACK): vol.All(cv.time_period, cv.positive_timedelta),
     }
 )
 
@@ -127,6 +134,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     cold_tolerance = config.get(CONF_COLD_TOLERANCE)
     hot_tolerance = config.get(CONF_HOT_TOLERANCE)
     keep_alive = config.get(CONF_KEEP_ALIVE)
+    sampling_period = config.get(CONF_SAMPLING_PERIOD)
     initial_hvac_mode = config.get(CONF_INITIAL_HVAC_MODE)
     away_temp = config.get(CONF_AWAY_TEMP)
     precision = config.get(CONF_PRECISION)
@@ -138,19 +146,20 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     pwm = config.get(CONF_PWM)
     autotune = config.get(CONF_AUTOTUNE)
     noiseband = config.get(CONF_NOISEBAND)
+    lookback = config.get(CONF_LOOKBACK)
 
     async_add_entities([SmartThermostat(
         name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode, min_cycle_duration,
-        cold_tolerance, hot_tolerance, keep_alive, initial_hvac_mode, away_temp, precision, unit, difference, kp, ki,
-        kd, pwm, autotune, noiseband)])
+        cold_tolerance, hot_tolerance, keep_alive, sampling_period, initial_hvac_mode, away_temp, precision, unit,
+        difference, kp, ki, kd, pwm, autotune, noiseband, lookback)])
 
 
 class SmartThermostat(ClimateEntity, RestoreEntity):
     """Representation of a Smart Thermostat device."""
 
     def __init__(self, name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode,
-                 min_cycle_duration, cold_tolerance, hot_tolerance, keep_alive, initial_hvac_mode, away_temp,
-                 precision, unit, difference, kp, ki, kd, pwm, autotune, noiseband):
+                 min_cycle_duration, cold_tolerance, hot_tolerance, keep_alive, sampling_period, initial_hvac_mode,
+                 away_temp, precision, unit, difference, kp, ki, kd, pwm, autotune, noiseband, lookback):
         """Initialize the thermostat."""
         self._name = name
         self.heater_entity_id = heater_entity_id
@@ -160,6 +169,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._cold_tolerance = cold_tolerance
         self._hot_tolerance = hot_tolerance
         self._keep_alive = keep_alive
+        self._sampling_period = sampling_period.seconds
         self._hvac_mode = initial_hvac_mode
         self._saved_target_temp = target_temp or away_temp
         self._temp_precision = precision
@@ -196,18 +206,20 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._force_on = False
         self._force_off = False
         self.autotune = autotune
+        self._lookback = lookback.seconds
         self.sensor_entity_id = sensor_entity_id
         self.time_changed = time.time()
         self._last_sensor_update = time.time()
         if self.autotune != "none":
-            self.pidAutotune = pid_controller.PIDAutotune(self._target_temp, self.difference, self._keep_alive.seconds,
-                                                          self._keep_alive.seconds, self.minOut, self.maxOut, noiseband,
+            self.pidAutotune = pid_controller.PIDAutotune(self._target_temp, self.difference, self._sampling_period,
+                                                          self._lookback, self.minOut, self.maxOut, noiseband,
                                                           time.time)
             _LOGGER.warning("Autotune will run with the next Setpoint Value you set. Changes, submitted after doesn't "
                             "have any effect until it's finished")
         else:
             _LOGGER.debug("PID Gains: kp = %s, ki = %s, kd = %s", self.kp, self.ki, self.kd)
-            self.pidController = pid_controller.PID(self.kp, self.ki, self.kd, self.minOut, self.maxOut)
+            self.pidController = pid_controller.PID(self.kp, self.ki, self.kd, self.minOut, self.maxOut,
+                                                    self._sampling_period)
             self.pidController.mode = "AUTO"
 
     async def async_added_to_hass(self):
@@ -465,7 +477,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             if not self._active or self._hvac_mode == HVAC_MODE_OFF:
                 return
 
-            if calc_pid:
+            if calc_pid or self._sampling_period != 0:
                 await self.calc_output()
             if time.time() - self._last_sensor_update > 10800:
                 # sensor not updated for more than 3 hours, considered as stall, set to 0 for safety
@@ -529,8 +541,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self.control_output = self.pidAutotune.output
             self.p = self.i = self.d = 0
         else:
-            self.control_output = self.pidController.calc(self._current_temp, self._target_temp, self._cur_temp_time,
-                                                          self._previous_temp_time)
+            if self.pidController.sampling_period == 0:
+                self.control_output = self.pidController.calc(self._current_temp, self._target_temp,
+                                                              self._cur_temp_time, self._previous_temp_time)
+            else:
+                self.control_output = self.pidController.calc(self._current_temp, self._target_temp)
         self.p = self.pidController.P
         self.i = self.pidController.I
         self.d = self.pidController.D

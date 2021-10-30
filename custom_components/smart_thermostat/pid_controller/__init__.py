@@ -9,7 +9,7 @@ from collections import deque, namedtuple
 class PID(object):
     error: float
 
-    def __init__(self, kp, ki, kd, out_min=float('-inf'), out_max=float('+inf')):
+    def __init__(self, kp, ki, kd, out_min=float('-inf'), out_max=float('+inf'), sampling_period=0):
         """A proportional-integral-derivative controller.
             :param kp: Proportional coefficient.
             :type kp: float
@@ -21,6 +21,8 @@ class PID(object):
             :type out_min: float
             :param out_max: Upper output limit.
             :type out_max: float
+            :param sampling_period: time period between two PID calculations in seconds
+            :type sampling_period: float
         """
         if kp is None:
             raise ValueError('kp must be specified')
@@ -52,6 +54,7 @@ class PID(object):
         self.I = 0
         self.D = 0
         self._mode = 'AUTO'
+        self.sampling_period = sampling_period
 
     @property
     def mode(self):
@@ -62,7 +65,7 @@ class PID(object):
         assert mode.upper() in ['AUTO', 'OFF']
         self._mode = mode.upper()
 
-    def calc(self, input_val, set_point, input_time, last_input_time):
+    def calc(self, input_val, set_point, input_time=None, last_input_time=None):
         """Adjusts and holds the given setpoint.
 
         Args:
@@ -74,13 +77,25 @@ class PID(object):
         Returns:
             A value between `out_min` and `out_max`.
         """
-        if self.mode == 'OFF':
-            return self._last_output
+        if self.mode == 'OFF':  # If PID is off, don't update and return the last value
+            return self.output
+        if self.sampling_period != 0 and self._last_input_time is not None and \
+                time() - self._last_input_time < self.sampling_period:
+            return self.output  # If last sample is too young, keep last output value
+
         self._last_input = self._input
-        self._last_input_time = last_input_time
+        if self.sampling_period == 0:
+            self._last_input_time = last_input_time
+        else:
+            self._last_input_time = self._input_time
         self._last_output = self.output
+
+        # Refresh with actual values
         self._input = input_val
-        self._input_time = input_time
+        if self.sampling_period == 0:
+            self._input_time = input_time
+        else:
+            self._input_time = time()
         self._set_point = set_point
 
         # Compute all the working error variables
@@ -171,7 +186,7 @@ class PIDAutotune(object):
         self._time = time
         self._logger = logging.getLogger(type(self).__name__)
         self._inputs = deque(maxlen=round(lookback / sampletime))
-        self._sampletime = sampletime * 1000
+        self._sampletime = sampletime
         self._setpoint = setpoint
         self._outputstep = out_step
         self._noiseband = noiseband
@@ -226,7 +241,7 @@ class PIDAutotune(object):
         Returns:
             `true` if tuning is finished, otherwise `false`.
         """
-        now = self._time() * 1000
+        now = self._time()
 
         if (self._state == PIDAutotune.STATE_OFF
                 or self._state == PIDAutotune.STATE_SUCCEEDED
@@ -336,7 +351,7 @@ class PIDAutotune(object):
             # calculate ultimate period in seconds
             period1 = self._peak_timestamps[3] - self._peak_timestamps[1]
             period2 = self._peak_timestamps[4] - self._peak_timestamps[2]
-            self._Pu = 0.5 * (period1 + period2) / 1000.0
+            self._Pu = 0.5 * (period1 + period2)
             return True
         return False
 
