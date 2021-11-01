@@ -1,6 +1,6 @@
 {
   "name": "Smart thermostat (PID)",
-  "country": "US",
-  "domains": ["switch", "sensor"],
+  "domains": ["climate"],
+  "render_readme": true,
   "homeassistant": "0.104.2"
 }

@@ -361,7 +361,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         """attributes to include in entity"""
         if self.autotune != "none":
             return {
-                "control_output": 0,
+                "control_output": self.control_output,
                 "pid_p": 0,
                 "pid_i": 0,
                 "pid_d": 0,

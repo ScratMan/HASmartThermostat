@@ -1,9 +1,10 @@
 {
   "domain": "smart_thermostat",
   "name": "Smart thermostat",
-  "documentation": "https://github.com/ScratMan/custom_components",
+  "documentation": "https://github.com/ScratMan/HASmartThermostat",
+  "issue_tracker": "https://github.com/ScratMan/HASmartThermostat/issues",
   "requirements": [],
   "dependencies": [],
-  "codeowners": [],
-  "version":"0.0.2"
+  "codeowners": ["@ScratMan"],
+  "version": "2021.11.1"
 }
