@@ -1,0 +1,13 @@
+- name: HACS Action
+  # You may pin to the exact commit or the version.
+  # uses: hacs/action@669a92901c858c7724eca7cf8e3de59d376b10e7
+  uses: hacs/action@21.2.2
+  with:
+    # A space seperated list of ignored checks, for valid entries see README.md
+    ignore: # optional, default is 
+    # The category of repository
+    category: 
+    # The full name of repository
+    repository: # optional
+    # Post a comment to the PR with the result of the checks
+    comment: # optional, default is true
