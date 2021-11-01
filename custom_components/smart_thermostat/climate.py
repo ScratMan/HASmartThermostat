@@ -199,9 +199,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self.time_changed = time.time()
         self._last_sensor_update = time.time()
         if self.autotune != "none":
-            self.pidAutotune = pid_controller.PIDAutotune(self._target_temp, self.difference, self._sampling_period,
-                                                          self._lookback, self.minOut, self.maxOut, noiseband,
-                                                          time.time)
+            self.pidAutotune = pid_controller.PIDAutotune(self._target_temp, self.difference,
+                                                          max(1, self._sampling_period), self._lookback, self.minOut,
+                                                          self.maxOut, noiseband, time.time)
             _LOGGER.warning("Autotune will run with the next Setpoint Value you set. Changes, submitted after doesn't "
                             "have any effect until it's finished")
         else:
@@ -544,18 +544,20 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                                                         self._sampling_period)
                 self.autotune = "none"
             self.control_output = self.pidAutotune.output
-            self.p = self.i = self.d = 0
+            self.p = self.i = self.d = error = dt = 0
         else:
             if self.pidController.sampling_period == 0:
                 self.control_output = self.pidController.calc(self._current_temp, self._target_temp,
                                                               self._cur_temp_time, self._previous_temp_time)
             else:
                 self.control_output = self.pidController.calc(self._current_temp, self._target_temp)
-        self.p = self.pidController.P
-        self.i = self.pidController.I
-        self.d = self.pidController.D
+            self.p = self.pidController.P
+            self.i = self.pidController.I
+            self.d = self.pidController.D
+            error = self.pidController.error
+            dt = self.pidController.dt
         _LOGGER.debug("Obtained current control output. %.2f (error = %.2f, dt = %.2f, p=%.2f, i=%.2f, d=%.2f)",
-                      self.control_output, self.pidController.error, self.pidController.dt, self.p, self.i, self.d)
+                      self.control_output, error, dt, self.p, self.i, self.d)
 
     async def set_control_value(self):
         """Set Output value for heater"""
