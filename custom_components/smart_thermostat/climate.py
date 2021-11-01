@@ -524,7 +524,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 self.kd = params.Kd
                 _LOGGER.warning("Set Kp, Ki, Kd. Smart thermostat now runs on PID Controller. %s,  %s,  %s", self.kp,
                                 self.ki, self.kd)
-                self.pidController = pid_controller.PID(self.kp, self.ki, self.kd, self.minOut, self.maxOut)
+                self.pidController = pid_controller.PID(self.kp, self.ki, self.kd, self.minOut, self.maxOut,
+                                                        self._sampling_period)
                 self.autotune = "none"
             self.control_output = self.pidAutotune.output
             self.p = self.i = self.d = 0
