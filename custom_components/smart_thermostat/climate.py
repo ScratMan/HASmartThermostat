@@ -359,12 +359,28 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def device_state_attributes(self):
         """attributes to include in entity"""
-        return {
-            "control_output": self.control_output,
-            "pid_p": self.pid_control_p,
-            "pid_i": self.pid_control_i,
-            "pid_d": self.pid_control_d,
-        }
+        if self.autotune != "none":
+            return {
+                "control_output": 0,
+                "pid_p": 0,
+                "pid_i": 0,
+                "pid_d": 0,
+                "autotune_status": self.pidAutotune.state,
+                "Kp": self.kp,
+                "Ki": self.ki,
+                "Kd": self.kd,
+            }
+        else:
+            return {
+                "control_output": self.control_output,
+                "pid_p": self.pid_control_p,
+                "pid_i": self.pid_control_i,
+                "pid_d": self.pid_control_d,
+                "autotune_status": 'off',
+                "Kp": self.kp,
+                "Ki": self.ki,
+                "Kd": self.kd,
+            }
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set hvac mode."""
