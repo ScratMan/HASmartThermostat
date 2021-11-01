@@ -6,5 +6,6 @@
   "requirements": [],
   "dependencies": [],
   "codeowners": ["@ScratMan"],
-  "version": "2021.11.1"
+  "version": "2021.11.1",
+  "iot_class": "local_push"
 }
