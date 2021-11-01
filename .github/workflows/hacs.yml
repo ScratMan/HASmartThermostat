@@ -1,15 +1,18 @@
 name: HACS Action
-  # You may pin to the exact commit or the version.
-  # uses: hacs/action@669a92901c858c7724eca7cf8e3de59d376b10e7
 
 on:
   push:
   pull_request:
   schedule:
-    - cron:  '0 0 * * *'
+    - cron: "0 0 * * *"
 
 jobs:
-  validate:
+  hacs:
+    name: HACS Action
     runs-on: "ubuntu-latest"
     steps:
-      - uses: hacs/action@21.2.2
+      - uses: "actions/checkout@v2"
+      - name: HACS Action
+        uses: "hacs/action@main"
+        with:
+          category: "integration"
