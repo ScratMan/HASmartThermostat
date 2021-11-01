@@ -66,9 +66,6 @@ CONF_MIN_TEMP = "min_temp"
 CONF_MAX_TEMP = "max_temp"
 CONF_TARGET_TEMP = "target_temp"
 CONF_AC_MODE = "ac_mode"
-CONF_MIN_DUR = "min_cycle_duration"
-CONF_COLD_TOLERANCE = "cold_tolerance"
-CONF_HOT_TOLERANCE = "hot_tolerance"
 CONF_KEEP_ALIVE = "keep_alive"
 CONF_SAMPLING_PERIOD = "sampling_period"
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
@@ -91,11 +88,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_SENSOR): cv.entity_id,
         vol.Optional(CONF_AC_MODE): cv.boolean,
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_MIN_DUR): vol.All(cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-        vol.Optional(CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
-        vol.Optional(CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
         vol.Optional(CONF_TARGET_TEMP): vol.Coerce(float),
         vol.Required(CONF_KEEP_ALIVE): vol.All(cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_SAMPLING_PERIOD, default=DEFAULT_SAMPLING_PERIOD): vol.All(cv.time_period,
@@ -130,9 +124,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     max_temp = config.get(CONF_MAX_TEMP)
     target_temp = config.get(CONF_TARGET_TEMP)
     ac_mode = config.get(CONF_AC_MODE)
-    min_cycle_duration = config.get(CONF_MIN_DUR)
-    cold_tolerance = config.get(CONF_COLD_TOLERANCE)
-    hot_tolerance = config.get(CONF_HOT_TOLERANCE)
     keep_alive = config.get(CONF_KEEP_ALIVE)
     sampling_period = config.get(CONF_SAMPLING_PERIOD)
     initial_hvac_mode = config.get(CONF_INITIAL_HVAC_MODE)
@@ -149,8 +140,8 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     lookback = config.get(CONF_LOOKBACK)
 
     async_add_entities([SmartThermostat(
-        name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode, min_cycle_duration,
-        cold_tolerance, hot_tolerance, keep_alive, sampling_period, initial_hvac_mode, away_temp, precision, unit,
+        name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode,
+        keep_alive, sampling_period, initial_hvac_mode, away_temp, precision, unit,
         difference, kp, ki, kd, pwm, autotune, noiseband, lookback)])
 
 
@@ -158,16 +149,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     """Representation of a Smart Thermostat device."""
 
     def __init__(self, name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode,
-                 min_cycle_duration, cold_tolerance, hot_tolerance, keep_alive, sampling_period, initial_hvac_mode,
+                 keep_alive, sampling_period, initial_hvac_mode,
                  away_temp, precision, unit, difference, kp, ki, kd, pwm, autotune, noiseband, lookback):
         """Initialize the thermostat."""
         self._name = name
         self.heater_entity_id = heater_entity_id
         self.sensor_entity_id = sensor_entity_id
         self.ac_mode = ac_mode
-        self.min_cycle_duration = min_cycle_duration
-        self._cold_tolerance = cold_tolerance
-        self._hot_tolerance = hot_tolerance
         self._keep_alive = keep_alive
         self._sampling_period = sampling_period.seconds
         self._hvac_mode = initial_hvac_mode
