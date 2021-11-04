@@ -8,7 +8,7 @@ Create a virtual thermostat with accurate and reactive temperature control throu
 Any heater or air conditioner unit with ON/OFF switch or pilot wire can be controlled using a pulse width modulation 
 that depends on the temperature error and its variation over time.
 
-![](climate_chart.png?raw=true)
+![](https://github.com/ScratMan/HASmartThermostat/blob/master/climate_chart.png?raw=true)
 
 ## Installation:
 I recommend using HACS for easier installation.
