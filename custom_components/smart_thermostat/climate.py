@@ -43,6 +43,12 @@ from homeassistant.components.climate.const import (
     HVAC_MODE_OFF,
     PRESET_AWAY,
     PRESET_NONE,
+    PRESET_ECO,
+    PRESET_BOOST,
+    PRESET_COMFORT,
+    PRESET_HOME,
+    PRESET_SLEEP,
+    PRESET_ACTIVITY,
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
 )
@@ -71,6 +77,12 @@ CONF_KEEP_ALIVE = "keep_alive"
 CONF_SAMPLING_PERIOD = "sampling_period"
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
 CONF_AWAY_TEMP = "away_temp"
+CONF_ECO_TEMP = "eco_temp"
+CONF_BOOST_TEMP = "boost_temp"
+CONF_COMFORT_TEMP = "comfort_temp"
+CONF_HOME_TEMP = "home_temp"
+CONF_SLEEP_TEMP = "sleep_temp"
+CONF_ACTIVITY_TEMP = "activity_temp"
 CONF_PRECISION = "precision"
 CONF_DIFFERENCE = "difference"
 CONF_KP = "kp"
@@ -99,6 +111,12 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
             [HVAC_MODE_COOL, HVAC_MODE_HEAT, HVAC_MODE_OFF]
         ),
         vol.Optional(CONF_AWAY_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_ECO_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_BOOST_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_COMFORT_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_HOME_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_SLEEP_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_ACTIVITY_TEMP): vol.Coerce(float),
         vol.Optional(CONF_PRECISION): vol.In(
             [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
         ),
@@ -129,6 +147,12 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     sampling_period = config.get(CONF_SAMPLING_PERIOD)
     initial_hvac_mode = config.get(CONF_INITIAL_HVAC_MODE)
     away_temp = config.get(CONF_AWAY_TEMP)
+    eco_temp = config.get(CONF_ECO_TEMP)
+    boost_temp = config.get(CONF_BOOST_TEMP)
+    comfort_temp = config.get(CONF_COMFORT_TEMP)
+    home_temp = config.get(CONF_HOME_TEMP)
+    sleep_temp = config.get(CONF_SLEEP_TEMP)
+    activity_temp = config.get(CONF_ACTIVITY_TEMP)
     precision = config.get(CONF_PRECISION)
     unit = hass.config.units.temperature_unit
     difference = config.get(CONF_DIFFERENCE)
@@ -141,17 +165,18 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     lookback = config.get(CONF_LOOKBACK)
 
     async_add_entities([SmartThermostat(
-        name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode,
-        keep_alive, sampling_period, initial_hvac_mode, away_temp, precision, unit,
-        difference, kp, ki, kd, pwm, autotune, noiseband, lookback)])
+        name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode, keep_alive, sampling_period,
+        initial_hvac_mode, away_temp, eco_temp, boost_temp, comfort_temp, home_temp, sleep_temp, activity_temp,
+        precision, unit, difference, kp, ki, kd, pwm, autotune, noiseband, lookback)])
 
 
 class SmartThermostat(ClimateEntity, RestoreEntity):
     """Representation of a Smart Thermostat device."""
 
-    def __init__(self, name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode,
-                 keep_alive, sampling_period, initial_hvac_mode,
-                 away_temp, precision, unit, difference, kp, ki, kd, pwm, autotune, noiseband, lookback):
+    def __init__(self, name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode, keep_alive,
+                 sampling_period, initial_hvac_mode, away_temp, eco_temp, boost_temp, comfort_temp, home_temp,
+                 sleep_temp, activity_temp, precision, unit, difference, kp, ki, kd, pwm, autotune, noiseband,
+                 lookback):
         """Initialize the thermostat."""
         self._name = name
         self.heater_entity_id = heater_entity_id
@@ -183,8 +208,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._support_flags = SUPPORT_FLAGS
         if away_temp:
             self._support_flags = SUPPORT_FLAGS | SUPPORT_PRESET_MODE
+        self._attr_preset_mode = 'none'
         self._away_temp = away_temp
-        self._is_away = False
+        self._eco_temp = eco_temp
+        self._boost_temp = boost_temp
+        self._comfort_temp = comfort_temp
+        self._home_temp = home_temp
+        self._sleep_temp = sleep_temp
+        self._activity_temp = activity_temp
+        # self._is_away = False
         self.difference = difference
         self.kp = kp
         self.ki = ki
@@ -245,8 +277,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                     _LOGGER.warning("Undefined target temperature, falling back to %s", self._target_temp)
                 else:
                     self._target_temp = float(old_state.attributes[ATTR_TEMPERATURE])
-            if old_state.attributes.get(ATTR_PRESET_MODE) == PRESET_AWAY:
-                self._is_away = True
+            else:
+                if old_state.attributes[ATTR_TEMPERATURE]:
+                    self._target_temp = float(old_state.attributes[ATTR_TEMPERATURE])
+            # if old_state.attributes.get(ATTR_PRESET_MODE) == PRESET_AWAY:
+            #     self._is_away = True
+            if old_state.attributes.get(ATTR_PRESET_MODE) is not None:
+                self._attr_preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
             if not self._hvac_mode and old_state.state:
                 self._hvac_mode = old_state.state
 
@@ -321,16 +358,24 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def preset_mode(self):
         """Return the current preset mode, e.g., home, away, temp."""
-        if self._is_away:
-            return PRESET_AWAY
-        return None
+        return self._attr_preset_mode
 
     @property
     def preset_modes(self):
         """Return a list of available preset modes."""
-        if self._away_temp:
-            return [PRESET_NONE, PRESET_AWAY]
-        return None
+        preset_modes = [PRESET_NONE]
+        for mode, preset_mode_temp in [
+            (PRESET_AWAY, self._away_temp),
+            (PRESET_ECO, self._eco_temp),
+            (PRESET_BOOST, self._boost_temp),
+            (PRESET_COMFORT, self._comfort_temp),
+            (PRESET_HOME, self._home_temp),
+            (PRESET_SLEEP, self._sleep_temp),
+            (PRESET_ACTIVITY, self._activity_temp),
+            ]:
+            if preset_mode_temp:
+                preset_modes.append(mode)
+        return preset_modes
 
     @property
     def pid_parm(self):
@@ -513,16 +558,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         """Set new preset mode.
         This method must be run in the event loop and returns a coroutine.
         """
-        if preset_mode == PRESET_AWAY and not self._is_away:
-            self._is_away = True
+        if preset_mode != PRESET_NONE and self.preset_mode == PRESET_NONE:
+            # self._is_away = True
             self._saved_target_temp = self._target_temp
-            self._target_temp = self._away_temp
-            await self._async_control_heating(calc_pid=True)
-        elif preset_mode != PRESET_AWAY and self._is_away:
-            self._is_away = False
+            self._target_temp = eval('self._{}_temp'.format(preset_mode))
+        elif preset_mode == PRESET_NONE and self.preset_mode != PRESET_NONE:
+            # self._is_away = False
             self._target_temp = self._saved_target_temp
-            await self._async_control_heating(calc_pid=True)
-
+        else:
+            self._target_temp = eval('self._{}_temp'.format(preset_mode))
+        self._attr_preset_mode = preset_mode
+        await self._async_control_heating(calc_pid=True)
         await self.async_update_ha_state()
 
     async def calc_output(self):
