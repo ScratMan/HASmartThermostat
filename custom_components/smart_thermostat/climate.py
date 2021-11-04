@@ -5,7 +5,6 @@ https://github.com/fabiannydegger/custom_components/"""
 import asyncio
 import logging
 import time
-from ast import literal_eval
 import custom_components.smart_thermostat.pid_controller as pid_controller
 
 import voluptuous as vol
@@ -379,6 +378,23 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         return preset_modes
 
     @property
+    def presets(self):
+        """Return a dict of available preset and temperatures."""
+        presets = {}
+        for mode, preset_mode_temp in [
+            (PRESET_AWAY, self._away_temp),
+            (PRESET_ECO, self._eco_temp),
+            (PRESET_BOOST, self._boost_temp),
+            (PRESET_COMFORT, self._comfort_temp),
+            (PRESET_HOME, self._home_temp),
+            (PRESET_SLEEP, self._sleep_temp),
+            (PRESET_ACTIVITY, self._activity_temp),
+            ]:
+            if preset_mode_temp:
+                presets.update({mode: preset_mode_temp})
+        return presets
+
+    @property
     def pid_parm(self):
         """Return the pid parameters of the thermostat."""
         return self.kp, self.ki, self.kd
@@ -559,15 +575,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         """Set new preset mode.
         This method must be run in the event loop and returns a coroutine.
         """
+        if preset_mode not in self.preset_modes:
+            return None
         if preset_mode != PRESET_NONE and self.preset_mode == PRESET_NONE:
             # self._is_away = True
             self._saved_target_temp = self._target_temp
-            self._target_temp = literal_eval('self._{}_temp'.format(preset_mode))
+            self._target_temp = self.presets[preset_mode]
         elif preset_mode == PRESET_NONE and self.preset_mode != PRESET_NONE:
             # self._is_away = False
             self._target_temp = self._saved_target_temp
         else:
-            self._target_temp = literal_eval('self._{}_temp'.format(preset_mode))
+            self._target_temp = self.presets[preset_mode]
         self._attr_preset_mode = preset_mode
         await self._async_control_heating(calc_pid=True)
         await self.async_update_ha_state()
