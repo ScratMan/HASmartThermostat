@@ -5,6 +5,7 @@ https://github.com/fabiannydegger/custom_components/"""
 import asyncio
 import logging
 import time
+from ast import literal_eval
 import custom_components.smart_thermostat.pid_controller as pid_controller
 
 import voluptuous as vol
@@ -561,12 +562,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         if preset_mode != PRESET_NONE and self.preset_mode == PRESET_NONE:
             # self._is_away = True
             self._saved_target_temp = self._target_temp
-            self._target_temp = eval('self._{}_temp'.format(preset_mode))
+            self._target_temp = literal_eval('self._{}_temp'.format(preset_mode))
         elif preset_mode == PRESET_NONE and self.preset_mode != PRESET_NONE:
             # self._is_away = False
             self._target_temp = self._saved_target_temp
         else:
-            self._target_temp = eval('self._{}_temp'.format(preset_mode))
+            self._target_temp = literal_eval('self._{}_temp'.format(preset_mode))
         self._attr_preset_mode = preset_mode
         await self._async_control_heating(calc_pid=True)
         await self.async_update_ha_state()
