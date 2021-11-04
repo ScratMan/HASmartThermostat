@@ -42,6 +42,7 @@ from homeassistant.components.climate.const import (
     HVAC_MODE_HEAT,
     HVAC_MODE_OFF,
     PRESET_AWAY,
+    PRESET_NONE,
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
 )
@@ -328,7 +329,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     def preset_modes(self):
         """Return a list of available preset modes."""
         if self._away_temp:
-            return [PRESET_AWAY]
+            return [PRESET_NONE, PRESET_AWAY]
         return None
 
     @property
@@ -517,7 +518,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._saved_target_temp = self._target_temp
             self._target_temp = self._away_temp
             await self._async_control_heating(calc_pid=True)
-        elif not preset_mode and self._is_away:
+        elif preset_mode != PRESET_AWAY and self._is_away:
             self._is_away = False
             self._target_temp = self._saved_target_temp
             await self._async_control_heating(calc_pid=True)
