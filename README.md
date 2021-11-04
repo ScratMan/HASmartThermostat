@@ -126,8 +126,13 @@ and 1.0 for Fahrenheit)
 startup.
 * **ac_mode** (Optional): Set the switch specified in the heater option to be treated as a cooling device instead of a 
 heating device.
-* **away_temp** (Optional): Set the temperature used by “away_mode”. If this is not specified, away_mode feature will 
-not be available.
+* **away_temp** (Optional): Set the temperature used by the "Away" preset. If this is not specified, away_mode feature will not be available.
+* **eco_temp** (Optional): Set the temperature used by the "Eco" preset. If this is not specified, eco feature will not be available.
+* **boost_temp** (Optional): Set the temperature used by the "Boost" preset. If this is not specified, boost feature will not be available.
+* **comfort_temp** (Optional): Set the temperature used by the "Comfort" preset. If this is not specified, comfort feature will not be available.
+* **home_temp** (Optional): Set the temperature used by the "Home" preset. If this is not specified, home feature will not be available.
+* **sleep_temp** (Optional): Set the temperature used by the "Sleep" preset. If this is not specified, sleep feature will not be available.
+* **activity_temp** (Optional): Set the temperature used by the "Activity" preset. If this is not specified, activity feature will not be available.
 * **autotune** (Optional): Chose a string for autotune settings. If it's not set, autotune is disabled. The following 
 tuning_rules are available:
 
