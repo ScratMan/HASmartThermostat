@@ -280,10 +280,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             else:
                 if old_state.attributes[ATTR_TEMPERATURE]:
                     self._target_temp = float(old_state.attributes[ATTR_TEMPERATURE])
-            # if old_state.attributes.get(ATTR_PRESET_MODE) == PRESET_AWAY:
-            #     self._is_away = True
             if old_state.attributes.get(ATTR_PRESET_MODE) is not None:
                 self._attr_preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
+            if old_state.attributes.get('pid_i') is not None:
+                self.i = old_state.attributes.get('pid_i')
+                self.pidController.integral = self.i
             if not self._hvac_mode and old_state.state:
                 self._hvac_mode = old_state.state
 

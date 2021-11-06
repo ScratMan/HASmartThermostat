@@ -65,6 +65,15 @@ class PID(object):
         assert mode.upper() in ['AUTO', 'OFF']
         self._mode = mode.upper()
 
+    @property
+    def integral(self):
+        return self._integral
+
+    @integral.setter
+    def integral(self, i):
+        assert isinstance(i, float), "Integral should be a float"
+        self._integral = i
+
     def calc(self, input_val, set_point, input_time=None, last_input_time=None):
         """Adjusts and holds the given setpoint.
 
