@@ -186,7 +186,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._sampling_period = sampling_period.seconds
         self._hvac_mode = initial_hvac_mode
         self._saved_target_temp = target_temp or away_temp
-        self._temp_precision = precision
+        self._attr_precision = precision
         if self.ac_mode:
             self._hvac_list = [HVAC_MODE_COOL, HVAC_MODE_OFF]
             self.minOut = -difference
@@ -311,12 +311,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         """Return the name of the thermostat."""
         return self._name
 
-    @property
-    def precision(self):
-        """Return the precision of the system."""
-        if self._temp_precision is not None:
-            return self._temp_precision
-        return super().precision
+    # @property
+    # def precision(self):
+        # """Return the precision of the system."""
+        # if self._temp_precision is not None:
+            # return self._temp_precision
+        # return super().precision
 
     @property
     def temperature_unit(self):
