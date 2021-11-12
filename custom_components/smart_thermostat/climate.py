@@ -232,6 +232,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self.time_changed = time.time()
         self._last_sensor_update = time.time()
         if self.autotune != "none":
+            self.pidController = None
             self.pidAutotune = pid_controller.PIDAutotune(self._target_temp, self.difference,
                                                           max(1, self._sampling_period), self._lookback, self.minOut,
                                                           self.maxOut, noiseband, time.time)
@@ -282,7 +283,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                     self._target_temp = float(old_state.attributes[ATTR_TEMPERATURE])
             if old_state.attributes.get(ATTR_PRESET_MODE) is not None:
                 self._attr_preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
-            if old_state.attributes.get('pid_i') is not None:
+            if old_state.attributes.get('pid_i') is not None and self.pidController is not None:
                 self.i = old_state.attributes.get('pid_i')
                 self.pidController.integral = self.i
             if not self._hvac_mode and old_state.state:
