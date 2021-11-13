@@ -118,7 +118,9 @@ will be reduced, leading to lower accuracy of temperature control, can be float 
 be too slow, leading to lower accuracy of temperature control. Can be float in seconds or time hh:mm:ss (default 15mn).
 * **sampling_period** (Optional): interval between two computation of the PID. If set to 0, PID computation is called 
 each time the temperature sensor sends an update. Can be float in seconds or time hh:mm:ss (default 0) 
-* **precision** (Optional): the adjustment step of the set point (valid are 0.1, 0.5 and 1.0, default 0.1 for Celsius 
+* **target_temp_step** (Optional): the adjustment step of target temperature (valid are 0.1, 0.5 and 1.0, default 0.5 for Celsius 
+and 1.0 for Fahrenheit)
+* **precision** (Optional): the displayed temperature precision (valid are 0.1, 0.5 and 1.0, default 0.1 for Celsius 
 and 1.0 for Fahrenheit)
 * **min_temp** (Optional): Set minimum set point available (default: 7).
 * **max_temp** (Optional): Set maximum set point available (default: 35).

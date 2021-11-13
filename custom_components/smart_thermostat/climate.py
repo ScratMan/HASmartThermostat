@@ -34,6 +34,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
 from homeassistant.components.climate.const import (
     ATTR_PRESET_MODE,
+    ATTR_TARGET_TEMP_STEP,
     CURRENT_HVAC_COOL,
     CURRENT_HVAC_HEAT,
     CURRENT_HVAC_IDLE,
@@ -84,6 +85,7 @@ CONF_HOME_TEMP = "home_temp"
 CONF_SLEEP_TEMP = "sleep_temp"
 CONF_ACTIVITY_TEMP = "activity_temp"
 CONF_PRECISION = "precision"
+CONF_TARGET_TEMP_STEP = "target_temp_step"
 CONF_DIFFERENCE = "difference"
 CONF_KP = "kp"
 CONF_KI = "ki"
@@ -120,6 +122,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_PRECISION): vol.In(
             [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
         ),
+        vol.Optional(CONF_TARGET_TEMP_STEP): vol.In(
+            [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
+        ),
         vol.Optional(CONF_DIFFERENCE, default=DEFAULT_DIFFERENCE): vol.Coerce(float),
         vol.Optional(CONF_KP, default=DEFAULT_KP): vol.Coerce(float),
         vol.Optional(CONF_KI, default=DEFAULT_KI): vol.Coerce(float),
@@ -154,6 +159,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     sleep_temp = config.get(CONF_SLEEP_TEMP)
     activity_temp = config.get(CONF_ACTIVITY_TEMP)
     precision = config.get(CONF_PRECISION)
+    target_temp_step = config.get(CONF_TARGET_TEMP_STEP)
     unit = hass.config.units.temperature_unit
     difference = config.get(CONF_DIFFERENCE)
     kp = config.get(CONF_KP)
@@ -167,7 +173,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     async_add_entities([SmartThermostat(
         name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode, keep_alive, sampling_period,
         initial_hvac_mode, away_temp, eco_temp, boost_temp, comfort_temp, home_temp, sleep_temp, activity_temp,
-        precision, unit, difference, kp, ki, kd, pwm, autotune, noiseband, lookback)])
+        precision, target_temp_step, unit, difference, kp, ki, kd, pwm, autotune, noiseband, lookback)])
 
 
 class SmartThermostat(ClimateEntity, RestoreEntity):
@@ -175,7 +181,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
 
     def __init__(self, name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode, keep_alive,
                  sampling_period, initial_hvac_mode, away_temp, eco_temp, boost_temp, comfort_temp, home_temp,
-                 sleep_temp, activity_temp, precision, unit, difference, kp, ki, kd, pwm, autotune, noiseband,
+                 sleep_temp, activity_temp, precision, target_temp_step, unit, difference, kp, ki, kd, pwm, autotune, noiseband,
                  lookback):
         """Initialize the thermostat."""
         self._name = name
@@ -186,7 +192,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._sampling_period = sampling_period.seconds
         self._hvac_mode = initial_hvac_mode
         self._saved_target_temp = target_temp or away_temp
-        self._attr_precision = precision
+        self._temp_precision = precision
+        self._target_temperature_step = target_temp_step
         if self.ac_mode:
             self._hvac_list = [HVAC_MODE_COOL, HVAC_MODE_OFF]
             self.minOut = -difference
@@ -312,12 +319,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         """Return the name of the thermostat."""
         return self._name
 
-    # @property
-    # def precision(self):
-        # """Return the precision of the system."""
-        # if self._temp_precision is not None:
-            # return self._temp_precision
-        # return super().precision
+    @property
+    def precision(self):
+        """Return the precision of the system."""
+        if self._temp_precision is not None:
+            return self._temp_precision
+        return super().precision
+
+    @property
+    def target_temperature_step(self):
+        """Return the supported step of target temperature."""
+        return self._target_temperature_step
 
     @property
     def temperature_unit(self):
@@ -533,7 +545,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._current_temp = float(state.state)
             self._last_sensor_update = time.time()
         except ValueError as ex:
-            _LOGGER.error("Unable to update from sensor: %s", ex)
+            _LOGGER.debug("Unable to update from sensor: %s", ex)
 
     async def _async_control_heating(self, time_func=None, calc_pid=False):
         """Run PID controller, optional autotune for faster integration"""
