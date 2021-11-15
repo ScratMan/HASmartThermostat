@@ -213,8 +213,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._target_temp = target_temp
         self._unit = unit
         self._support_flags = SUPPORT_FLAGS
-        if away_temp:
-            self._support_flags = SUPPORT_FLAGS | SUPPORT_PRESET_MODE
         self._attr_preset_mode = 'none'
         self._away_temp = away_temp
         self._eco_temp = eco_temp
@@ -223,7 +221,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._home_temp = home_temp
         self._sleep_temp = sleep_temp
         self._activity_temp = activity_temp
-        # self._is_away = False
+        if True in [temp is not None for temp in [away_temp,
+                                                  eco_temp,
+                                                  boost_temp,
+                                                  comfort_temp,
+                                                  home_temp,
+                                                  sleep_temp,
+                                                  activity_temp]]:
+            self._support_flags = SUPPORT_FLAGS | SUPPORT_PRESET_MODE
         self.difference = difference
         self.kp = kp
         self.ki = ki
@@ -284,14 +289,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                         self._target_temp = self.min_temp
                     _LOGGER.warning("Undefined target temperature, falling back to %s", self._target_temp)
                 else:
-                    self._target_temp = float(old_state.attributes[ATTR_TEMPERATURE])
+                    self._target_temp = float(old_state.attributes.get(ATTR_TEMPERATURE))
             else:
-                if old_state.attributes[ATTR_TEMPERATURE]:
-                    self._target_temp = float(old_state.attributes[ATTR_TEMPERATURE])
+                if old_state.attributes.get(ATTR_TEMPERATURE) is not None:
+                    self._target_temp = float(old_state.attributes.get(ATTR_TEMPERATURE))
             if old_state.attributes.get(ATTR_PRESET_MODE) is not None:
                 self._attr_preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
-            if old_state.attributes.get('pid_i') is not None and self.pidController is not None:
-                self.i = old_state.attributes.get('pid_i')
+            if isinstance(old_state.attributes.get('pid_i'), (float, int)) and self.pidController is not None:
+                self.i = float(old_state.attributes.get('pid_i'))
                 self.pidController.integral = self.i
             if not self._hvac_mode and old_state.state:
                 self._hvac_mode = old_state.state
@@ -387,7 +392,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             (PRESET_SLEEP, self._sleep_temp),
             (PRESET_ACTIVITY, self._activity_temp),
             ]:
-            if preset_mode_temp:
+            if preset_mode_temp is not None:
                 preset_modes.append(mode)
         return preset_modes
 
@@ -404,7 +409,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             (PRESET_SLEEP, self._sleep_temp),
             (PRESET_ACTIVITY, self._activity_temp),
             ]:
-            if preset_mode_temp:
+            if preset_mode_temp is not None:
                 presets.update({mode: preset_mode_temp})
         return presets
 
