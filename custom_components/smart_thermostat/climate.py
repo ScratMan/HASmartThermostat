@@ -60,6 +60,7 @@ DEFAULT_TOLERANCE = 0.3
 DEFAULT_NAME = "Smart Thermostat"
 DEFAULT_DIFFERENCE = 100
 DEFAULT_PWM = '00:15:00'
+DEFAULT_MIN_CYCLE_DURATION = '00:00:00'
 DEFAULT_KP = 100
 DEFAULT_KI = 0
 DEFAULT_KD = 0
@@ -74,6 +75,7 @@ CONF_MIN_TEMP = "min_temp"
 CONF_MAX_TEMP = "max_temp"
 CONF_TARGET_TEMP = "target_temp"
 CONF_AC_MODE = "ac_mode"
+CONF_MIN_CYCLE_DURATION = "min_cycle_duration"
 CONF_KEEP_ALIVE = "keep_alive"
 CONF_SAMPLING_PERIOD = "sampling_period"
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
@@ -106,9 +108,11 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_TARGET_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_MIN_CYCLE_DURATION, default=DEFAULT_MIN_CYCLE_DURATION): vol.All(
+            cv.time_period, cv.positive_timedelta),
         vol.Required(CONF_KEEP_ALIVE): vol.All(cv.time_period, cv.positive_timedelta),
-        vol.Optional(CONF_SAMPLING_PERIOD, default=DEFAULT_SAMPLING_PERIOD): vol.All(cv.time_period,
-                                                                                     cv.positive_timedelta),
+        vol.Optional(CONF_SAMPLING_PERIOD, default=DEFAULT_SAMPLING_PERIOD): vol.All(
+            cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_INITIAL_HVAC_MODE): vol.In(
             [HVAC_MODE_COOL, HVAC_MODE_HEAT, HVAC_MODE_OFF]
         ),
@@ -148,6 +152,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     max_temp = config.get(CONF_MAX_TEMP)
     target_temp = config.get(CONF_TARGET_TEMP)
     ac_mode = config.get(CONF_AC_MODE)
+    min_cycle_duration = config.get(CONF_MIN_CYCLE_DURATION)
     keep_alive = config.get(CONF_KEEP_ALIVE)
     sampling_period = config.get(CONF_SAMPLING_PERIOD)
     initial_hvac_mode = config.get(CONF_INITIAL_HVAC_MODE)
@@ -171,16 +176,17 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     lookback = config.get(CONF_LOOKBACK)
 
     async_add_entities([SmartThermostat(
-        name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode, keep_alive, sampling_period,
-        initial_hvac_mode, away_temp, eco_temp, boost_temp, comfort_temp, home_temp, sleep_temp, activity_temp,
-        precision, target_temp_step, unit, difference, kp, ki, kd, pwm, autotune, noiseband, lookback)])
+        name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode, min_cycle_duration,
+        keep_alive, sampling_period, initial_hvac_mode, away_temp, eco_temp, boost_temp, comfort_temp,
+        home_temp, sleep_temp, activity_temp, precision, target_temp_step, unit, difference, kp, ki,
+        kd, pwm, autotune, noiseband, lookback)])
 
 
 class SmartThermostat(ClimateEntity, RestoreEntity):
     """Representation of a Smart Thermostat device."""
 
-    def __init__(self, name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode, keep_alive,
-                 sampling_period, initial_hvac_mode, away_temp, eco_temp, boost_temp, comfort_temp, home_temp,
+    def __init__(self, name, heater_entity_id, sensor_entity_id, min_temp, max_temp, target_temp, ac_mode, min_cycle_duration,
+                 keep_alive, sampling_period, initial_hvac_mode, away_temp, eco_temp, boost_temp, comfort_temp, home_temp,
                  sleep_temp, activity_temp, precision, target_temp_step, unit, difference, kp, ki, kd, pwm, autotune, noiseband,
                  lookback):
         """Initialize the thermostat."""
@@ -194,6 +200,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._saved_target_temp = target_temp or away_temp
         self._temp_precision = precision
         self._target_temperature_step = target_temp_step
+        self._last_heat_cycle_time = time.time()
+        self._min_cycle_duration = min_cycle_duration
         if self.ac_mode:
             self._hvac_list = [HVAC_MODE_COOL, HVAC_MODE_OFF]
             self.minOut = -difference
@@ -582,13 +590,23 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
 
     async def _async_heater_turn_on(self):
         """Turn heater toggleable device on."""
-        data = {ATTR_ENTITY_ID: self.heater_entity_id}
-        await self.hass.services.async_call(HA_DOMAIN, SERVICE_TURN_ON, data)
+        if time.time() - self._last_heat_cycle_time >= self._min_cycle_duration.seconds:
+            data = {ATTR_ENTITY_ID: self.heater_entity_id}
+            _LOGGER.info("Turning on %s", self.heater_entity_id)
+            await self.hass.services.async_call(HA_DOMAIN, SERVICE_TURN_ON, data)
+            self._last_heat_cycle_time = time.time()
+        else:
+            _LOGGER.warning("Reject request turning on %s: Cycle is too short", self.heater_entity_id)
 
     async def _async_heater_turn_off(self):
         """Turn heater toggleable device off."""
-        data = {ATTR_ENTITY_ID: self.heater_entity_id}
-        await self.hass.services.async_call(HA_DOMAIN, SERVICE_TURN_OFF, data)
+        if time.time() - self._last_heat_cycle_time >= self._min_cycle_duration.seconds:
+            data = {ATTR_ENTITY_ID: self.heater_entity_id}
+            _LOGGER.info("Turning off %s", self.heater_entity_id)
+            await self.hass.services.async_call(HA_DOMAIN, SERVICE_TURN_OFF, data)
+            self._last_heat_cycle_time = time.time()
+        else:
+            _LOGGER.warning("Reject request turning off %s: Cycle is too short", self.heater_entity_id)
 
     async def async_set_preset_mode(self, preset_mode: str):
         """Set new preset mode.
@@ -649,7 +667,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         if self.pwm:
             if abs(self.control_output) == self.difference:
                 if not self._is_device_active:
-                    _LOGGER.info("Turning on %s", self.heater_entity_id)
+                    _LOGGER.info("Request turning on %s", self.heater_entity_id)
                     await self._async_heater_turn_on()
                     self.time_changed = time.time()
             elif self.control_output > 0:
@@ -662,7 +680,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                                       time.time() - self.time_changed)
             else:
                 if self._active:
-                    _LOGGER.info("Turning off %s", self.heater_entity_id)
+                    _LOGGER.info("Request turning off %s", self.heater_entity_id)
                     await self._async_heater_turn_off()
                     self.time_changed = time.time()
         else:
@@ -673,14 +691,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         """turn off and on the heater proportionally to control_value."""
         if self._is_device_active:
             if time_on < time_passed or self._force_off:
-                _LOGGER.info("Turning off %s", self.heater_entity_id)
+                _LOGGER.info("Request turning off %s", self.heater_entity_id)
                 await self._async_heater_turn_off()
                 self.time_changed = time.time()
             else:
                 _LOGGER.info("Time until %s turns off: %s sec", self.heater_entity_id, int(time_on - time_passed))
         else:
             if time_off < time_passed or self._force_on:
-                _LOGGER.info("Turning on %s", self.heater_entity_id)
+                _LOGGER.info("Request turning on %s", self.heater_entity_id)
                 await self._async_heater_turn_on()
                 self.time_changed = time.time()
             else:
