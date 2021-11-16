@@ -116,6 +116,9 @@ will be reduced, leading to lower accuracy of temperature control, can be float 
 * **kd** (Recommended): Set PID parameter, derivative (d) control value (default 0). 
 * **pwm** (Optional): Set period of the pulse width modulation. If too long, the response time of the thermostat will 
 be too slow, leading to lower accuracy of temperature control. Can be float in seconds or time hh:mm:ss (default 15mn).
+* **min_cycle_duration** (Optional): Set a minimum amount of time that the switch specified in the heater option must 
+be in its current state prior to being switched either off or on (useful to protect boilers). Can be float in seconds 
+or time hh:mm:ss (default 0s).
 * **sampling_period** (Optional): interval between two computation of the PID. If set to 0, PID computation is called 
 each time the temperature sensor sends an update. Can be float in seconds or time hh:mm:ss (default 0) 
 * **target_temp_step** (Optional): the adjustment step of target temperature (valid are 0.1, 0.5 and 1.0, default 0.5 for Celsius 
