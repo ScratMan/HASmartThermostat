@@ -127,7 +127,7 @@ and 1.0 for Fahrenheit)
 * **target_temp** (Optional): Set initial target temperature. If not set target temperature will be set to null on 
 startup.
 * **ac_mode** (Optional): Set the switch specified in the heater option to be treated as a cooling device instead of a 
-heating device.
+heating device. Should be a boolean (default: false).
 * **away_temp** (Optional): Set the temperature used by the "Away" preset. If this is not specified, away_mode feature will not be available.
 * **eco_temp** (Optional): Set the temperature used by the "Eco" preset. If this is not specified, eco feature will not be available.
 * **boost_temp** (Optional): Set the temperature used by the "Boost" preset. If this is not specified, boost feature will not be available.
