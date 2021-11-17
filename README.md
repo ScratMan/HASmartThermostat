@@ -135,7 +135,7 @@ heating device. Should be a boolean (default: false).
 * **home_temp** (Optional): Set the temperature used by the "Home" preset. If this is not specified, home feature will not be available.
 * **sleep_temp** (Optional): Set the temperature used by the "Sleep" preset. If this is not specified, sleep feature will not be available.
 * **activity_temp** (Optional): Set the temperature used by the "Activity" preset. If this is not specified, activity feature will not be available.
-* **autotune** (Optional): Chose a string for autotune settings. If it's not set, autotune is disabled. The following 
+* **autotune** (Optional): Set the name of the selected rule for autotune settings (ie "ziegler-nichols"). If it's not set, autotune is disabled. The following 
 tuning_rules are available:
 
 ruler | Kp_divisor, Ki_divisor, Kd_divisor
