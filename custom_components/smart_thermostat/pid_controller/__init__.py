@@ -179,24 +179,21 @@ class PIDAutotune(object):
         "brewing": [2.5, 6, 380]
     }
 
-    def __init__(self, setpoint, out_step=10, sampletime=5, lookback=60,
-                 out_min=float('-inf'), out_max=float('inf'), noiseband=0.5, time=time):
-        if setpoint is None:
-            raise ValueError('setpoint must be specified')
+    def __init__(self, out_step=10, lookback=60,
+                 out_min=float('-inf'), out_max=float('inf'), noiseband=0.5, time_func=time):
         if out_step < 1:
             raise ValueError('out_step must be greater or equal to 1')
-        if sampletime < 1:
-            raise ValueError('sampletime must be greater or equal to 1')
-        if lookback < sampletime:
-            raise ValueError('lookback must be greater or equal to sampletime')
         if out_min >= out_max:
             raise ValueError('out_min must be less than out_max')
 
-        self._time = time
+        self._time = time_func
+        self._sampletime = None
+        self._last_sample_time = None
+        self._sample_time_calc = []
+        self._lookback = lookback
+        self._inputs = deque(maxlen=5)
         self._logger = logging.getLogger(type(self).__name__)
-        self._inputs = deque(maxlen=round(lookback / sampletime))
-        self._sampletime = sampletime
-        self._setpoint = setpoint
+        self._setpoint = None
         self._outputstep = out_step
         self._noiseband = noiseband
         self._out_min = out_min
@@ -228,6 +225,35 @@ class PIDAutotune(object):
         """Get a list of all available tuning rules."""
         return self._tuning_rules.keys()
 
+    @property
+    def set_point(self):
+        """Get the reference set point"""
+        return self._setpoint
+
+    @property
+    def sample_time(self):
+        """Get the sample time considered"""
+        return self._peak_count
+
+    @property
+    def peak_count(self):
+        """Get the number of peaks found"""
+        return self._peak_count
+
+    @property
+    def buffer_full(self):
+        """Get the filling percentage of the buffer"""
+        if self._inputs is None:
+            return 0
+        return len(self._inputs) / float(self._inputs.maxlen)
+
+    @property
+    def buffer_length(self):
+        """Get the total length of buffer"""
+        if self._inputs is None:
+            return 0
+        return self._inputs.maxlen
+
     def get_pid_parameters(self, tuning_rule='ziegler-nichols'):
         """Get PID parameters.
 
@@ -241,22 +267,35 @@ class PIDAutotune(object):
         kd = kp * (self._Pu / divisors[2])
         return PIDAutotune.PIDParams(kp, ki, kd)
 
-    def run(self, input_val):
+    def run(self, input_val, set_point):
         """To autotune a system, this method must be called periodically.
 
         Args:
             input_val (float): The input value.
+            set_point (float): The target value to be considered.
 
         Returns:
             `true` if tuning is finished, otherwise `false`.
         """
+        if self._setpoint is None:
+            self._setpoint = set_point
         now = self._time()
+        if self._sampletime is None:
+            # sample time is not defined, use first 5 temperature samples to measure it.
+            if self._last_sample_time is None:
+                self._last_sample_time = now
+                return False
+            self._sample_time_calc.append(now - self._last_sample_time)
+            self._last_sample_time = now
+            if len(self._sample_time_calc) < self._inputs.maxlen:
+                return False
+            self._sampletime = sum(self._sample_time_calc[1::]) / len(self._sample_time_calc[1::])
+            self._inputs = deque(maxlen=round(self._lookback / self._sampletime))
 
-        if (self._state == PIDAutotune.STATE_OFF
-                or self._state == PIDAutotune.STATE_SUCCEEDED
-                or self._state == PIDAutotune.STATE_FAILED):
+        if self._state in [PIDAutotune.STATE_OFF, PIDAutotune.STATE_SUCCEEDED,
+                           PIDAutotune.STATE_FAILED]:
             self._initTuner(input_val, now)
-        elif (now - self._last_run_timestamp) < self._sampletime:
+        elif (now - self._last_run_timestamp) < self._sampletime - 0.90:  # keep a 10% margin
             return False
 
         self._last_run_timestamp = now
