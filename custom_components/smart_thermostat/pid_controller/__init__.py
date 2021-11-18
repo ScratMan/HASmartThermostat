@@ -277,8 +277,6 @@ class PIDAutotune(object):
         Returns:
             `true` if tuning is finished, otherwise `false`.
         """
-        if self._setpoint is None:
-            self._setpoint = set_point
         now = self._time()
         if self._sampletime is None:
             # sample time is not defined, use first 5 temperature samples to measure it.
@@ -290,6 +288,7 @@ class PIDAutotune(object):
             if len(self._sample_time_calc) < self._inputs.maxlen:
                 return False
             self._sampletime = sum(self._sample_time_calc[1::]) / len(self._sample_time_calc[1::])
+            self._setpoint = set_point
             self._inputs = deque(maxlen=round(self._lookback / self._sampletime))
 
         if self._state in [PIDAutotune.STATE_OFF, PIDAutotune.STATE_SUCCEEDED,
