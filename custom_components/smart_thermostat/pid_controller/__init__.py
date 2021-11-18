@@ -233,7 +233,7 @@ class PIDAutotune(object):
     @property
     def sample_time(self):
         """Get the sample time considered"""
-        return self._peak_count
+        return self._sampletime
 
     @property
     def peak_count(self):
