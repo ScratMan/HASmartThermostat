@@ -463,7 +463,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 "autotune_tuning_rule": self._autotune,
                 "autotune_set_point": self._pidAutotune.set_point,
                 "autotune_peak_count": self._pidAutotune.peak_count,
-                "autotune_buffer_full": round(self._pidAutotune.buffer_full, 1),
+                "autotune_buffer_full": round(self._pidAutotune.buffer_full, 2),
                 "autotune_buffer_length": self._pidAutotune.buffer_length,
                 "Kp": self._kp,
                 "Ki": self._ki,
