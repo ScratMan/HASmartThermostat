@@ -267,7 +267,7 @@ class PIDAutotune(object):
         kd = kp * (self._Pu / divisors[2])
         return PIDAutotune.PIDParams(kp, ki, kd)
 
-    def run(self, input_val, set_point):
+    def run(self, input_val, set_point, now=None):
         """To autotune a system, this method must be called periodically.
 
         Args:
@@ -277,7 +277,8 @@ class PIDAutotune(object):
         Returns:
             `true` if tuning is finished, otherwise `false`.
         """
-        now = self._time()
+        if now is None:
+            now = self._time()
         if self._sampletime is None:
             # sample time is not defined, use first 5 temperature samples to measure it.
             if self._last_sample_time is None:
