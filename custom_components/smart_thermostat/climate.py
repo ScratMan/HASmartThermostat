@@ -663,6 +663,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             if self._trigger_source == "sensor":
                 self._trigger_source = None
                 if self._pidAutotune.run(self._current_temp, self._target_temp):
+                    for tuning_rule in self._pidAutotune.tuning_rules:
+                        params = self._pidAutotune.get_pid_parameters(tuning_rule)
+                        _LOGGER.warning("Smart thermostat PID Autotuner output with %s rule: "
+                                        "Kp=%s, Ki=%s, Kd=%s", tuning_rule, params.Kp, params.Ki,
+                                        params.Kd)
                     params = self._pidAutotune.get_pid_parameters(self._autotune)
                     self._kp = params.Kp
                     self._ki = params.Ki
