@@ -81,7 +81,8 @@ class PID(object):
             input_val (float): The input value.
             set_point (float): The target value.
             input_time (float): The timestamp in seconds of the input value to compute dt
-            last_input_time (float): The timestamp in seconds of the previous input value to compute dt
+            last_input_time (float): The timestamp in seconds of the previous input value to
+            compute dt
 
         Returns:
             A value between `out_min` and `out_max`.
