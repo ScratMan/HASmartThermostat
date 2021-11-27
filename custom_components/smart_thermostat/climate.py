@@ -695,7 +695,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                     self._ki = params.Ki
                     self._kd = params.Kd
                     _LOGGER.warning("Smart thermostat now runs on PID Controller using rule %s: "
-                                    "Kp=%s, Ki=%s, Kd=%s", self._kp,
+                                    "Kp=%s, Ki=%s, Kd=%s", self._autotune, self._kp,
                                     self._ki, self._kd)
                     self._pidController = pid_controller.PID(self._kp, self._ki, self._kd,
                                                              self._minOut, self._maxOut,
