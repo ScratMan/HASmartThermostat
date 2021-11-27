@@ -90,18 +90,29 @@ PID output value is the weighted sum of the control terms:\
 `output = P + I + D`\
 Output is then limited to 0% to 100% range to control the PWM.
 
-### Autotune (not tested, not guaranteed to work):
+### Autotune (not always working, not recommended to use):
 You can use the autotune feature to find some working PID parameters.
-Add the autotune: parameter with the desired tuning rule, and optionally set the noiseband and lookback duration if the 
+Add the _autotune:_ parameter with the desired tuning rule, and optionally set the noiseband and lookback duration if the 
 default 2 hours doesn't match your HVAC system bandwidth.\
-Restart Home Assistant to start the thermostat in autotune mode, make a step on the set point (positive for heating, 
-negative for cooling) and wait for the autotune to finish by checking the _autotune_status_ attribute for success.\
-The Kp, Ki and Kd gains will be shown in the attributes and shown in the log like this: **"Set Kp, Ki, Kd. Smart 
-thermostat now runs on PID Controller."** followed by the three computed gains Kp, Ki and Kd respectively.
+Restart Home Assistant to start the thermostat in autotune mode and set the desired temperature on the thermostat.
+The autotuner will then start analyzing your heating system, measure the sampling rate of the sensor, control the heater 
+switch and monitor the temperature changes.
+
+Wait for the autotune to finish by checking the _autotune_status_ attribute for success. The Kp, Ki and Kd gains will 
+then be computed and set according to the selected rule and the thermostat switches to PID.\
+The Kp, Ki and Kd gains are also computed using the other rules, and all values are shown in the Home Assistant log 
+like this: **"Smart thermostat PID Autotuner output with ziegler-nichols rule: Kp=######, Ki=######, Kd=######"**.\
+You should then save for reference the gains computed by the autotuner for future testing.
+
+**Warning**: The thermostat set point can't be changed once the autotuner has started monitoring the temperature. 
+The temperature regulation will work as a basic hysteresis thermostat based on set point and noise band. If your 
+heating system and temperature monitoring is slow, reducing the noise band will reduce the temperature oscillations 
+around the set point. If the sampling rate of your temperature sensor is too fast (few seconds) or noisy (frequent 
+temperature changes) increase the noise band for system stability.
 
 **Warning**: I'couldn't yet save the settings to the configuration.yaml file. The PID parameters set by the autotune 
-won't be stored and the process restarts everytime Home Assistant is restarted.\ 
-To save the parameters read attributes or log after autotune has finished, manually copy the values in the 
+won't be stored and the process restarts everytime Home Assistant is restarted.\
+To save the parameters, read attributes or log after autotune has finished, manually copy the values in the 
 corresponding fields and remove the autotune parameter in the YAML configuration file before restarting Home Assistant.
 
 ## Parameters:
@@ -142,6 +153,10 @@ heating device. Should be a boolean (default: false).
 * **home_temp** (Optional): Set the temperature used by the "Home" preset. If this is not specified, home feature will not be available.
 * **sleep_temp** (Optional): Set the temperature used by the "Sleep" preset. If this is not specified, sleep feature will not be available.
 * **activity_temp** (Optional): Set the temperature used by the "Activity" preset. If this is not specified, activity feature will not be available.
+* **noiseband** (Optional): set noiseband for autotune (float): Determines by how much the input value 
+must overshoot/undershoot the set point before the state changes (default : 0.5).
+* **lookback** (Optional): length of the autotune buffer for the signal analysis to detect peaks, can 
+be float in seconds, or time hh:mm:ss (default 2 hours).
 * **autotune** (Optional): Set the name of the selected rule for autotune settings (ie "ziegler-nichols"). If it's not set, autotune is disabled. The following 
 tuning_rules are available:
 
@@ -154,11 +169,6 @@ ruler | Kp_divisor, Ki_divisor, Kd_divisor
 "some-overshoot" | 60, 40,  60
 "no-overshoot" | 100, 40,  60
 "brewing" | 2.5, 6, 380
-
-* **noiseband** (Optional): set noiseband for autotune (float): Determines by how much the input value 
-must overshoot/undershoot the set point before the state changes (default : 0.5).
-* **lookback** (Optional): length of the autotune buffer for the signal analysis to detect peaks, can 
-be float in seconds, or time hh:mm:ss (default 2 hours).
 
 
 ### Credits
