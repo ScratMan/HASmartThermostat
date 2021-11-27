@@ -73,6 +73,16 @@ class PID(object):
     def integral(self, i):
         assert isinstance(i, float), "Integral should be a float"
         self._integral = i
+        self.I = i
+
+    def set_pid_param(self, kp=None, ki=None, kd=None):
+        """Set PID parameters."""
+        if kp is not None and isinstance(kp, (int, float)):
+            self._Kp = kp
+        if ki is not None and isinstance(ki, (int, float)):
+            self._Ki = ki
+        if kd is not None and isinstance(kd, (int, float)):
+            self._Kd = kd
 
     def calc(self, input_val, set_point, input_time=None, last_input_time=None):
         """Adjusts and holds the given setpoint.

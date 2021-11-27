@@ -24,13 +24,14 @@ from homeassistant.const import (
     STATE_UNKNOWN,
 )
 from homeassistant.core import DOMAIN as HA_DOMAIN, callback
-from homeassistant.helpers import condition
+from homeassistant.helpers import condition, entity_platform
 from homeassistant.util import slugify
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import (
     async_track_state_change,
     async_track_time_interval,
 )
+from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
@@ -154,6 +155,11 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the generic thermostat platform."""
+    await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
+
+    platform = entity_platform.current_platform.get()
+    assert platform
+
     parameters = {
         'name': config.get(CONF_NAME),
         'unique_id': config.get(CONF_UNIQUE_ID),
@@ -188,7 +194,23 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'lookback': config.get(CONF_LOOKBACK),
     }
 
-    async_add_entities([SmartThermostat(**parameters)])
+    smart_thermostat = SmartThermostat(**parameters)
+    async_add_entities([smart_thermostat])
+
+    platform.async_register_entity_service(  # type: ignore
+        "set_pid_gain",
+        {
+            vol.Optional("kp"): vol.Coerce(float),
+            vol.Optional("ki"): vol.Coerce(float),
+            vol.Optional("kd"): vol.Coerce(float),
+        },
+        "async_set_pid",
+    )
+    platform.async_register_entity_service(  # type: ignore
+        "clear_integral",
+        {},
+        "clear_integral",
+    )
 
 
 class SmartThermostat(ClimateEntity, RestoreEntity):
@@ -545,13 +567,24 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         await self._async_control_heating(calc_pid=True)
         await self.async_update_ha_state()
 
-    async def async_set_pid(self, kp, ki, kd):
+    async def async_set_pid(self, **kwargs):
         """Set PID parameters."""
-
-        self._kp = kp
-        self._ki = ki
-        self._kd = kd
+        kp = kwargs.get('kp', None)
+        ki = kwargs.get('ki', None)
+        kd = kwargs.get('kd', None)
+        if kp is not None:
+            self._kp = float(kp)
+        if ki is not None:
+            self._ki = float(ki)
+        if kd is not None:
+            self._kd = float(kd)
+        self._pidController.set_pid_param(self._kp, self._ki, self._kd)
         await self._async_control_heating(calc_pid=True)
+        await self.async_update_ha_state()
+
+    async def clear_integral(self, **kwargs):
+        """Clear the integral value."""
+        self._pidController.integral = 0.0
         await self.async_update_ha_state()
 
     @property
