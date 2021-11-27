@@ -326,7 +326,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 self._pidController.integral = self._i
             if old_state.state in self._hvac_list:
                 self._hvac_mode = old_state.state
-
+            if old_state.attributes.get('Kp') is not None and self._pidController is not None:
+                self._kp = float(old_state.attributes.get('Kp'))
+                self._pidController.set_pid_param(kp=self._kp)
+            if old_state.attributes.get('Ki') is not None and self._pidController is not None:
+                self._ki = float(old_state.attributes.get('Ki'))
+                self._pidController.set_pid_param(ki=self._ki)
+            if old_state.attributes.get('Kd') is not None and self._pidController is not None:
+                self._kd = float(old_state.attributes.get('Kd'))
+                self._pidController.set_pid_param(kd=self._kd)
         else:
             # No previous state, try and restore defaults
             if self._target_temp is None:
