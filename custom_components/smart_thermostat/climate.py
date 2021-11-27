@@ -13,6 +13,7 @@ from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_TEMPERATURE,
     CONF_NAME,
+    CONF_UNIQUE_ID,
     EVENT_HOMEASSISTANT_START,
     PRECISION_HALVES,
     PRECISION_TENTHS,
@@ -24,6 +25,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import DOMAIN as HA_DOMAIN, callback
 from homeassistant.helpers import condition
+from homeassistant.util import slugify
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import (
     async_track_state_change,
@@ -53,6 +55,8 @@ from homeassistant.components.climate.const import (
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
 )
+
+from . import DOMAIN, PLATFORMS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -108,6 +112,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
         vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+        vol.Optional(CONF_UNIQUE_ID, default='none'): cv.string,
         vol.Optional(CONF_TARGET_TEMP): vol.Coerce(float),
         vol.Optional(CONF_MIN_CYCLE_DURATION, default=DEFAULT_MIN_CYCLE_DURATION): vol.All(
             cv.time_period, cv.positive_timedelta),
@@ -151,6 +156,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     """Set up the generic thermostat platform."""
     parameters = {
         'name': config.get(CONF_NAME),
+        'unique_id': config.get(CONF_UNIQUE_ID),
         'heater_entity_id': config.get(CONF_HEATER),
         'sensor_entity_id': config.get(CONF_SENSOR),
         'min_temp': config.get(CONF_MIN_TEMP),
@@ -191,8 +197,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     def __init__(self, **kwargs):
         """Initialize the thermostat."""
         self._name = kwargs.get('name')
+        self._unique_id = kwargs.get('unique_id')
         self._heater_entity_id = kwargs.get('heater_entity_id')
         self._sensor_entity_id = kwargs.get('sensor_entity_id')
+        if self._unique_id == 'none':
+            self._unique_id = slugify(f"{DOMAIN}_{self._name}_{self._heater_entity_id}")
         self._ac_mode = kwargs.get('ac_mode')
         self._keep_alive = kwargs.get('keep_alive')
         self._sampling_period = kwargs.get('sampling_period').seconds
@@ -340,6 +349,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     def name(self):
         """Return the name of the thermostat."""
         return self._name
+
+    @property
+    def unique_id(self):
+        """Return a unique ID."""
+        return self._unique_id
 
     @property
     def precision(self):

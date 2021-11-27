@@ -35,6 +35,7 @@ configuration.yaml file.
 climate:
   - platform: smart_thermostat
     name: Smart Thermostat Example
+    unique_id: smart_thermostat_example
     heater: switch.on_off_heater
     target_sensor: sensor.ambient_temperature
     min_temp: 7
@@ -44,9 +45,9 @@ climate:
     keep_alive:
       seconds: 60
     away_temp: 14
-    kp : 75
-    ki : 0.001
-    kd : 70000
+    kp : 5
+    ki : 0.01
+    kd : 500
     pwm : 00:15:00
 ```
 
@@ -116,7 +117,8 @@ To save the parameters, read attributes or log after autotune has finished, manu
 corresponding fields and remove the autotune parameter in the YAML configuration file before restarting Home Assistant.
 
 ## Parameters:
-* **name** (Required): Name of the thermostat.
+* **name** (Optional): Name of the thermostat.
+* **unique_id** (Optional): unique entity_id for the smart thermostat.
 * **heater** (Required): entity_id for heater switch, must be a toggle device. Becomes air conditioning switch when 
 ac_mode is set to True.
 * **target_sensor** (Required): entity_id for a temperature sensor, target_sensor.state must be temperature.
