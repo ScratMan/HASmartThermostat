@@ -111,10 +111,9 @@ heating system and temperature monitoring is slow, reducing the noise band will 
 around the set point. If the sampling rate of your temperature sensor is too fast (few seconds) or noisy (frequent 
 temperature changes) increase the noise band for system stability.
 
-**Warning**: I'couldn't yet save the settings to the configuration.yaml file. The PID parameters set by the autotune 
-won't be stored and the process restarts everytime Home Assistant is restarted.\
-To save the parameters, read attributes or log after autotune has finished, manually copy the values in the 
-corresponding fields and remove the autotune parameter in the YAML configuration file before restarting Home Assistant.
+**Warning**: The autotuner result is saved in the entity attributes and restored after Home Assistant is restarted.\
+However, it is recommended to save the new gains in the YAML configuration file to keep it in case of Home Assistant 
+database's is corrupted.
 
 ## Parameters:
 * **name** (Optional): Name of the thermostat.
