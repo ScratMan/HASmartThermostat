@@ -157,8 +157,8 @@ ruler | Kp_divisor, Ki_divisor, Kd_divisor
 
 * **noiseband** (Optional): set noiseband for autotune (float): Determines by how much the input value 
 must overshoot/undershoot the set point before the state changes (default : 0.5).
-* **lookback** (Optional): duration of the signal analysis for the autotune, need to have 5 cycles (temperature crossing
- the set point) included in the analysis period, can be float in seconds, or time hh:mm:ss (default 2 hours).
+* **lookback** (Optional): length of the autotune buffer for the signal analysis to detect peaks, can 
+be float in seconds, or time hh:mm:ss (default 2 hours).
 
 
 ### Credits
