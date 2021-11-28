@@ -40,6 +40,7 @@ class PID(object):
         self._out_min = out_min
         self._out_max = out_max
         self._integral = 0.0
+        self._last_set_point = 0
         self._set_point = 0
         self._input = None
         self._input_time = None
@@ -116,6 +117,7 @@ class PID(object):
             self._input_time = input_time
         else:
             self._input_time = time()
+        self._last_set_point = self._set_point
         self._set_point = set_point
 
         # Compute all the working error variables
@@ -129,8 +131,10 @@ class PID(object):
         else:
             self.dt = 0
 
-        # In order to prevent windup, only integrate if the process is not saturated
-        if self._out_min < self._last_output < self._out_max:
+        # In order to prevent windup, only integrate if the process is not saturated and set point
+        # is stable
+        if self._out_min < self._last_output < self._out_max and \
+                self._last_set_point == self._set_point:
             self._integral += self._Ki * self.error * self.dt
             self._integral = max(min(self._integral, self._out_max), self._out_min)
 
@@ -152,6 +156,7 @@ class PID(object):
         self._logger.debug('output: {0}'.format(self.output))
 
         return self.output
+
 
 # Based on a fork of Arduino PID AutoTune Library
 # See https://github.com/t0mpr1c3/Arduino-PID-AutoTune-Library
