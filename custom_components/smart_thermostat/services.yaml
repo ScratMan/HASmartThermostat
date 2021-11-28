@@ -77,4 +77,156 @@ set_pid_gain:
           max: 1000000
           step: 0.001
           mode: box
-
+set_preset_temp:
+  # Service name as shown in UI
+  name: Set preset modes temperature
+  # Description of the service
+  description: Sets the temperature for the preset modes.
+  # If the service accepts entity IDs, target allows the user to specify entities by entity, device, or area. If `target` is specified, `entity_id` should not be defined in the `fields` map. By default it shows only targets matching entities from the same domain as the service, but if further customization is required, target supports the entity, device, and area selectors (https://www.home-assistant.io/docs/blueprint/selectors/). Entity selector parameters will automatically be applied to device and area, and device selector parameters will automatically be applied to area.
+  target:
+    entity:
+      integration: smart_thermostat
+      domain: climate
+  # Different fields that your service accepts
+  fields:
+    # Key of the field
+    away_temp:
+      # Field name as shown in UI
+      name: Away
+      # Description of the field
+      description: Away mode temperature
+      # Whether or not field is required (default = false)
+      required: false
+      # Advanced fields are only shown when the advanced mode is enabled for the user (default = false)
+      advanced: false
+      # Example value that can be passed for this field
+      example: 14.0
+      # The default field value
+      # default: "high"
+      # Selector (https://www.home-assistant.io/docs/blueprint/selectors/) to control the input UI for this field
+      selector:
+        number:
+          min: 0
+          max: 30
+          step: 0.1
+          mode: slider
+    eco_temp:
+      # Field name as shown in UI
+      name: Eco
+      # Description of the field
+      description: Eco mode temperature
+      # Whether or not field is required (default = false)
+      required: false
+      # Advanced fields are only shown when the advanced mode is enabled for the user (default = false)
+      advanced: false
+      # Example value that can be passed for this field
+      example: 17.5
+      # The default field value
+      # default: "high"
+      # Selector (https://www.home-assistant.io/docs/blueprint/selectors/) to control the input UI for this field
+      selector:
+        number:
+          min: 0
+          max: 30
+          step: 0.1
+          mode: slider
+    boost_temp:
+      # Field name as shown in UI
+      name: Boost
+      # Description of the field
+      description: Boost mode temperature
+      # Whether or not field is required (default = false)
+      required: false
+      # Advanced fields are only shown when the advanced mode is enabled for the user (default = false)
+      advanced: false
+      # Example value that can be passed for this field
+      example: 22.0
+      # The default field value
+      # default: "high"
+      # Selector (https://www.home-assistant.io/docs/blueprint/selectors/) to control the input UI for this field
+      selector:
+        number:
+          min: 0
+          max: 30
+          step: 0.1
+          mode: slider
+    comfort_temp:
+      # Field name as shown in UI
+      name: Comfort
+      # Description of the field
+      description: Comfort mode temperature
+      # Whether or not field is required (default = false)
+      required: false
+      # Advanced fields are only shown when the advanced mode is enabled for the user (default = false)
+      advanced: false
+      # Example value that can be passed for this field
+      example: 21.0
+      # The default field value
+      # default: "high"
+      # Selector (https://www.home-assistant.io/docs/blueprint/selectors/) to control the input UI for this field
+      selector:
+        number:
+          min: 0
+          max: 30
+          step: 0.1
+          mode: slider
+    home_temp:
+      # Field name as shown in UI
+      name: Home
+      # Description of the field
+      description: Home mode temperature
+      # Whether or not field is required (default = false)
+      required: false
+      # Advanced fields are only shown when the advanced mode is enabled for the user (default = false)
+      advanced: false
+      # Example value that can be passed for this field
+      example: 19.0
+      # The default field value
+      # default: "high"
+      # Selector (https://www.home-assistant.io/docs/blueprint/selectors/) to control the input UI for this field
+      selector:
+        number:
+          min: 0
+          max: 30
+          step: 0.1
+          mode: slider
+    sleep_temp:
+      # Field name as shown in UI
+      name: Sleep
+      # Description of the field
+      description: Sleep mode temperature
+      # Whether or not field is required (default = false)
+      required: false
+      # Advanced fields are only shown when the advanced mode is enabled for the user (default = false)
+      advanced: false
+      # Example value that can be passed for this field
+      example: 18.5
+      # The default field value
+      # default: "high"
+      # Selector (https://www.home-assistant.io/docs/blueprint/selectors/) to control the input UI for this field
+      selector:
+        number:
+          min: 0
+          max: 30
+          step: 0.1
+          mode: slider
+    activity_temp:
+      # Field name as shown in UI
+      name: Activity
+      # Description of the field
+      description: Activity mode temperature
+      # Whether or not field is required (default = false)
+      required: false
+      # Advanced fields are only shown when the advanced mode is enabled for the user (default = false)
+      advanced: false
+      # Example value that can be passed for this field
+      example: 20.0
+      # The default field value
+      # default: "high"
+      # Selector (https://www.home-assistant.io/docs/blueprint/selectors/) to control the input UI for this field
+      selector:
+        number:
+          min: 0
+          max: 30
+          step: 0.1
+          mode: slider

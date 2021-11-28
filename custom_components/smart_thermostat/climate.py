@@ -207,6 +207,19 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         "async_set_pid",
     )
     platform.async_register_entity_service(  # type: ignore
+        "set_preset_temp",
+        {
+            vol.Optional("away_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
+            vol.Optional("eco_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
+            vol.Optional("boost_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
+            vol.Optional("comfort_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
+            vol.Optional("home_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
+            vol.Optional("sleep_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
+            vol.Optional("activity_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
+        },
+        "async_set_preset_temp",
+    )
+    platform.async_register_entity_service(  # type: ignore
         "clear_integral",
         {},
         "clear_integral",
@@ -333,13 +346,16 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                     else:
                         self._target_temp = self.min_temp
                     _LOGGER.warning("Undefined target temperature, falling back to %s",
-
                                     self._target_temp)
                 else:
                     self._target_temp = float(old_state.attributes.get(ATTR_TEMPERATURE))
             else:
                 if old_state.attributes.get(ATTR_TEMPERATURE) is not None:
                     self._target_temp = float(old_state.attributes.get(ATTR_TEMPERATURE))
+            for preset_mode in ['away_temp', 'eco_temp', 'boost_temp', 'comfort_temp', 'home_temp',
+                                'sleep_temp', 'activity_temp']:
+                if old_state.attributes.get(preset_mode) is not None:
+                    setattr(self, "_{preset_mode}", float(old_state.attributes.get(preset_mode)))
             if old_state.attributes.get(ATTR_PRESET_MODE) is not None:
                 self._attr_preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
             if isinstance(old_state.attributes.get('pid_i'), (float, int)) and \
@@ -357,6 +373,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             if old_state.attributes.get('Kd') is not None and self._pidController is not None:
                 self._kd = float(old_state.attributes.get('Kd'))
                 self._pidController.set_pid_param(kd=self._kd)
+
         else:
             # No previous state, try and restore defaults
             if self._target_temp is None:
@@ -502,9 +519,21 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def device_state_attributes(self):
         """attributes to include in entity"""
+        device_state_attributes = {
+            'away_temp': self._away_temp,
+            'eco_temp': self._eco_temp,
+            'boost_temp': self._boost_temp,
+            'comfort_temp': self._comfort_temp,
+            'home_temp': self._home_temp,
+            'sleep_temp': self._sleep_temp,
+            'activity_temp': self._activity_temp,
+            "control_output": self._control_output,
+            "Kp": self._kp,
+            "Ki": self._ki,
+            "Kd": self._kd,
+        }
         if self._autotune != "none":
-            return {
-                "control_output": self._control_output,
+            device_state_attributes.update({
                 "pid_p": 0,
                 "pid_i": 0,
                 "pid_d": 0,
@@ -515,26 +544,21 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 "autotune_peak_count": self._pidAutotune.peak_count,
                 "autotune_buffer_full": round(self._pidAutotune.buffer_full, 2),
                 "autotune_buffer_length": self._pidAutotune.buffer_length,
-                "Kp": self._kp,
-                "Ki": self._ki,
-                "Kd": self._kd,
-            }
-        return {
-            "control_output": self._control_output,
-            "pid_p": self.pid_control_p,
-            "pid_i": self.pid_control_i,
-            "pid_d": self.pid_control_d,
-            "autotune_status": 'off',
-            "autotune_sample_time": 0.0,
-            "autotune_tuning_rule": 'none',
-            "autotune_set_point": 0,
-            "autotune_peak_count": 0,
-            "autotune_buffer_full": 0.0,
-            "autotune_buffer_length": 0,
-            "Kp": self._kp,
-            "Ki": self._ki,
-            "Kd": self._kd,
-        }
+            })
+        else:
+            device_state_attributes.update({
+                "pid_p": self.pid_control_p,
+                "pid_i": self.pid_control_i,
+                "pid_d": self.pid_control_d,
+                "autotune_status": 'off',
+                "autotune_sample_time": 0.0,
+                "autotune_tuning_rule": 'none',
+                "autotune_set_point": 0,
+                "autotune_peak_count": 0,
+                "autotune_buffer_full": 0.0,
+                "autotune_buffer_length": 0,
+            })
+        return device_state_attributes
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set hvac mode."""
@@ -579,6 +603,32 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         if kd is not None:
             self._kd = float(kd)
         self._pidController.set_pid_param(self._kp, self._ki, self._kd)
+        await self._async_control_heating(calc_pid=True)
+        await self.async_update_ha_state()
+
+    async def async_set_preset_temp(self, **kwargs):
+        """Set the presets modes temperatures."""
+        away_temp = kwargs.get('away_temp', None)
+        eco_temp = kwargs.get('eco_temp', None)
+        boost_temp = kwargs.get('boost_temp', None)
+        comfort_temp = kwargs.get('comfort_temp', None)
+        home_temp = kwargs.get('home_temp', None)
+        sleep_temp = kwargs.get('sleep_temp', None)
+        activity_temp = kwargs.get('activity_temp', None)
+        if away_temp is not None:
+            self._away_temp = float(away_temp)
+        if eco_temp is not None:
+            self._eco_temp = float(eco_temp)
+        if boost_temp is not None:
+            self._boost_temp = float(boost_temp)
+        if comfort_temp is not None:
+            self._comfort_temp = float(comfort_temp)
+        if home_temp is not None:
+            self._home_temp = float(home_temp)
+        if sleep_temp is not None:
+            self._sleep_temp = float(sleep_temp)
+        if activity_temp is not None:
+            self._activity_temp = float(activity_temp)
         await self._async_control_heating(calc_pid=True)
         await self.async_update_ha_state()
 
