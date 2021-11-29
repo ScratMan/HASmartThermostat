@@ -115,6 +115,47 @@ temperature changes) increase the noise band for system stability.
 However, it is recommended to save the new gains in the YAML configuration file to keep it in case of Home Assistant 
 database's is corrupted.
 
+### Services
+Services can be used in Home Assistant to configure the thermostat.\
+The following services are available:\
+
+**Set PID gains:** `smart_thermostat.set_pid_gain`\
+Use this service to adjust the PID gains without requiring a restart of Home 
+Assistant. Values are saved to Home Assistant database and restored after a restart. Please consider saving 
+the final gain parameters in YAML configuration file when satisfied to keep it safe in case of database corruption.
+Optional parameters : kp, ki and kd, as float.
+Example:
+```
+service: smart_thermostat.set_pid_gain
+data:
+  kp: 11.8
+  ki: 0.00878
+target:
+  entity_id: climate.salle_de_bain
+```
+
+**Set preset modes temperatures:** `smart_thermostat.set_preset_temp`\
+Use this service to set the temperatures for the preset modes. It can be adjusted 
+for all preset modes, if a preset mode is not enabled through YAML, it will be enabled. You can use any preset temp 
+parameter available in smart thermostat settings.
+Example:
+```
+service: smart_thermostat.set_preset_temp
+data:
+  away_temp: 14.6
+  boost_temp: 22.5
+target:
+  entity_id: climate.salle_de_bain
+```
+
+**Clear the integral part:** `smart_thermostat.clear_integral`\
+Use this service to reset the integral part of the PID controller to 0. Useful 
+when tuning the PID gains to quickly test the behavior without waiting the integral to stabilize by itself.
+
+**Add integration reload service:**
+Use the `smart_thermostat.reload` service to reload the thermostat from scratch without requiring a restart of Home Assistant.
+
+
 ## Parameters:
 * **name** (Optional): Name of the thermostat.
 * **unique_id** (Optional): unique entity_id for the smart thermostat.
