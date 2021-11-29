@@ -750,6 +750,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         elif preset_mode == PRESET_NONE and self.preset_mode != PRESET_NONE:
             # self._is_away = False
             self._target_temp = self._saved_target_temp
+        elif preset_mode == PRESET_NONE and self.preset_mode == PRESET_NONE:
+            return None
         else:
             self._target_temp = self.presets[preset_mode]
         self._attr_preset_mode = preset_mode
