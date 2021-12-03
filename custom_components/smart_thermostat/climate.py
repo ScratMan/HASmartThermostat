@@ -571,7 +571,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         elif hvac_mode == HVAC_MODE_OFF:
             self._hvac_mode = HVAC_MODE_OFF
             if self._is_device_active:
-                await self._async_heater_turn_off()
+                await self._async_heater_turn_off(force=True)
         else:
             _LOGGER.error("Unrecognized hvac mode: %s", hvac_mode)
             return
@@ -726,9 +726,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.info("Reject request turning on %s: Cycle is too short",
                          self._heater_entity_id)
 
-    async def _async_heater_turn_off(self):
+    async def _async_heater_turn_off(self, force=False):
         """Turn heater toggleable device off."""
-        if time.time() - self._last_heat_cycle_time >= self._min_on_cycle_duration.seconds:
+        if time.time() - self._last_heat_cycle_time >= self._min_on_cycle_duration.seconds or force:
             data = {ATTR_ENTITY_ID: self._heater_entity_id}
             _LOGGER.info("Turning off %s", self._heater_entity_id)
             await self.hass.services.async_call(HA_DOMAIN, SERVICE_TURN_OFF, data)
