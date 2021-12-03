@@ -41,7 +41,7 @@ set_pid_gain:
         number:
           min: 0
           max: 1000000
-          step: 0.001
+          step: 0.000001
           mode: box
     ki:
       # Field name as shown in UI
@@ -58,7 +58,7 @@ set_pid_gain:
         number:
           min: 0
           max: 1000000
-          step: 0.001
+          step: 0.000001
           mode: box
     kd:
       # Field name as shown in UI
@@ -75,7 +75,7 @@ set_pid_gain:
         number:
           min: 0
           max: 1000000
-          step: 0.001
+          step: 0.000001
           mode: box
 set_preset_temp:
   # Service name as shown in UI
