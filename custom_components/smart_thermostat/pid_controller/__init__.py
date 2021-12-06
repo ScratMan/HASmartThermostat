@@ -85,6 +85,14 @@ class PID(object):
         if kd is not None and isinstance(kd, (int, float)):
             self._Kd = kd
 
+    def clear_samples(self):
+        """Clear the samples values and timestamp to restart PID from clean state after 
+        a switch off of the thermostat"""
+        self._input = None
+        self._input_time = None
+        self._last_input = None
+        self._last_input_time = None
+        
     def calc(self, input_val, set_point, input_time=None, last_input_time=None):
         """Adjusts and holds the given setpoint.
 
