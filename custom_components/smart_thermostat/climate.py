@@ -572,6 +572,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._hvac_mode = HVAC_MODE_OFF
             if self._is_device_active:
                 await self._async_heater_turn_off(force=True)
+            # Clear the samples to avoid integrating the off period
+            self._previous_temp = None
+            self._previous_temp_time = None
+            if self._pidController is not None:
+                self._pidController.clear_samples()
         else:
             _LOGGER.error("Unrecognized hvac mode: %s", hvac_mode)
             return
