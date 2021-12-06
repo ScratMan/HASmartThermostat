@@ -122,7 +122,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_KEEP_ALIVE): vol.All(cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_SAMPLING_PERIOD, default=DEFAULT_SAMPLING_PERIOD): vol.All(
             cv.time_period, cv.positive_timedelta),
-        vol.Optional(CONF_INITIAL_HVAC_MODE, default=HVAC_MODE_OFF): vol.In(
+        vol.Optional(CONF_INITIAL_HVAC_MODE): vol.In(
             [HVAC_MODE_COOL, HVAC_MODE_HEAT, HVAC_MODE_OFF]
         ),
         vol.Optional(CONF_AWAY_TEMP): vol.Coerce(float),
@@ -240,7 +240,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._ac_mode = kwargs.get('ac_mode')
         self._keep_alive = kwargs.get('keep_alive')
         self._sampling_period = kwargs.get('sampling_period').seconds
-        self._hvac_mode = kwargs.get('initial_hvac_mode')
+        self._hvac_mode = kwargs.get('initial_hvac_mode', None)
         self._saved_target_temp = kwargs.get('target_temp', None) or kwargs.get('away_temp', None)
         self._temp_precision = kwargs.get('precision')
         self._target_temperature_step = kwargs.get('target_temp_step')
@@ -362,7 +362,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                     self._pidController is not None:
                 self._i = float(old_state.attributes.get('pid_i'))
                 self._pidController.integral = self._i
-            if old_state.state in self._hvac_list:
+            if self._hvac_mode is None and old_state.state in self._hvac_list:
                 self._hvac_mode = old_state.state
             if old_state.attributes.get('Kp') is not None and self._pidController is not None:
                 self._kp = float(old_state.attributes.get('Kp'))
