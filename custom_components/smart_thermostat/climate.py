@@ -517,7 +517,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         return self._control_output
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """attributes to include in entity"""
         device_state_attributes = {
             'away_temp': self._away_temp,
