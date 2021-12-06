@@ -589,7 +589,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._force_off = True
         self._target_temp = temperature
         await self._async_control_heating(calc_pid=True)
-        await self.async_update_ha_state()
 
     async def async_set_pid(self, **kwargs):
         """Set PID parameters."""
@@ -604,7 +603,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._kd = float(kd)
         self._pidController.set_pid_param(self._kp, self._ki, self._kd)
         await self._async_control_heating(calc_pid=True)
-        await self.async_update_ha_state()
 
     async def async_set_preset_temp(self, **kwargs):
         """Set the presets modes temperatures."""
@@ -630,7 +628,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         if activity_temp is not None:
             self._activity_temp = float(activity_temp)
         await self._async_control_heating(calc_pid=True)
-        await self.async_update_ha_state()
 
     async def clear_integral(self, **kwargs):
         """Clear the integral value."""
@@ -668,7 +665,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                       "(before %s)", self._cur_temp_time, self._previous_temp_time,
                       self._current_temp, self._previous_temp)
         await self._async_control_heating(calc_pid=True)
-        await self.async_update_ha_state()
 
     @callback
     def _async_switch_changed(self, entity_id, old_state, new_state):
@@ -696,6 +692,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                              self._current_temp, self._target_temp)
 
             if not self._active or self._hvac_mode == HVAC_MODE_OFF:
+                await self.async_update_ha_state()
                 return
 
             if calc_pid or self._sampling_period != 0:
@@ -704,6 +701,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 # sensor not updated for more than 3 hours, considered as stall, set to 0 for safety
                 self._control_output = 0
             await self.set_control_value()
+            await self.async_update_ha_state()
 
     @property
     def _is_device_active(self):
@@ -756,7 +754,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._target_temp = self.presets[preset_mode]
         self._attr_preset_mode = preset_mode
         await self._async_control_heating(calc_pid=True)
-        await self.async_update_ha_state()
 
     async def calc_output(self):
         """calculate control output and handle autotune"""
