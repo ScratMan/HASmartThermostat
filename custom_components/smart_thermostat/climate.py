@@ -700,7 +700,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 await self.async_update_ha_state()
                 return
 
-            if calc_pid or self._sampling_period != 0:
+            if calc_pid:
                 await self.calc_output()
             if time.time() - self._last_sensor_update > 10800:
                 # sensor not updated for more than 3 hours, considered as stall, set to 0 for safety
