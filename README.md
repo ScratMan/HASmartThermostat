@@ -195,6 +195,8 @@ heating device. Should be a boolean (default: false).
 * **home_temp** (Optional): Set the temperature used by the "Home" preset. If this is not specified, home feature will not be available.
 * **sleep_temp** (Optional): Set the temperature used by the "Sleep" preset. If this is not specified, sleep feature will not be available.
 * **activity_temp** (Optional): Set the temperature used by the "Activity" preset. If this is not specified, activity feature will not be available.
+* **initial_hvac_mode** (Optional): Forces the operation mode after Home Assistant is restarted. If not specified, the thermostat will restore the 
+previous operation mode.
 * **noiseband** (Optional): set noiseband for autotune (float): Determines by how much the input value 
 must overshoot/undershoot the set point before the state changes (default : 0.5).
 * **lookback** (Optional): length of the autotune buffer for the signal analysis to detect peaks, can 
