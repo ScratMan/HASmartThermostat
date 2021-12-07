@@ -349,9 +349,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                                     self._target_temp)
                 else:
                     self._target_temp = float(old_state.attributes.get(ATTR_TEMPERATURE))
-            else:
-                if old_state.attributes.get(ATTR_TEMPERATURE) is not None:
-                    self._target_temp = float(old_state.attributes.get(ATTR_TEMPERATURE))
             for preset_mode in ['away_temp', 'eco_temp', 'boost_temp', 'comfort_temp', 'home_temp',
                                 'sleep_temp', 'activity_temp']:
                 if old_state.attributes.get(preset_mode) is not None:
