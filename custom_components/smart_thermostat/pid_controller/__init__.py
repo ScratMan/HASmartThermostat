@@ -109,7 +109,7 @@ class PID(object):
         if self.mode == 'OFF':  # If PID is off, don't update and return the last value
             return self.output
         if self.sampling_period != 0 and self._last_input_time is not None and \
-                time() - self._last_input_time < self.sampling_period:
+                time() - self._input_time < self.sampling_period:
             return self.output  # If last sample is too young, keep last output value
 
         self._last_input = self._input
