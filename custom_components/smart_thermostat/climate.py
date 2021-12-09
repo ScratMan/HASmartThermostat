@@ -302,7 +302,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._lookback = kwargs.get('lookback').seconds
         self._noiseband = kwargs.get('noiseband')
         self._sensor_entity_id = kwargs.get('sensor_entity_id')
-        self._time_changed = time.time()
+        self._time_changed = 0
         self._last_sensor_update = time.time()
         if self._autotune != "none":
             self._pidController = None
@@ -389,6 +389,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         # Set default state to off
         if not self._hvac_mode:
             self._hvac_mode = HVAC_MODE_OFF
+        await self._async_control_heating(calc_pid=True)
 
     @property
     def should_poll(self):
