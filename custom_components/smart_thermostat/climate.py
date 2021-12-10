@@ -210,6 +210,13 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         "async_set_pid",
     )
     platform.async_register_entity_service(  # type: ignore
+        "set_pid_mode",
+        {
+            vol.Required("mode"): vol.In(['auto', 'off']),
+        },
+        "async_set_pid_mode",
+    )
+    platform.async_register_entity_service(  # type: ignore
         "set_preset_temp",
         {
             vol.Optional("away_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
@@ -376,6 +383,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             if old_state.attributes.get('Kd') is not None and self._pidController is not None:
                 self._kd = float(old_state.attributes.get('Kd'))
                 self._pidController.set_pid_param(kd=self._kd)
+            if old_state.attributes.get('pid_mode') is not None and self._pidController is not None:
+                self._pidController.mode = old_state.attributes.get('pid_mode')
 
         else:
             # No previous state, try and restore defaults
@@ -538,6 +547,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         }
         if self._autotune != "none":
             device_state_attributes.update({
+                "pid_mode": 'off',
                 "pid_p": 0,
                 "pid_i": 0,
                 "pid_d": 0,
@@ -551,6 +561,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             })
         else:
             device_state_attributes.update({
+                "pid_mode": self._pidController.mode,
                 "pid_p": self.pid_control_p,
                 "pid_i": self.pid_control_i,
                 "pid_d": self.pid_control_d,
@@ -611,6 +622,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         if kd is not None:
             self._kd = float(kd)
         self._pidController.set_pid_param(self._kp, self._ki, self._kd)
+        await self._async_control_heating(calc_pid=True)
+
+    async def async_set_pid_mode(self, **kwargs):
+        """Set PID parameters."""
+        mode = kwargs.get('mode', None)
+        if str(mode).upper() in ['AUTO', 'OFF'] and self._pidController is not None:
+            self._pidController.mode = str(mode).upper()
         await self._async_control_heating(calc_pid=True)
 
     async def async_set_preset_temp(self, **kwargs):

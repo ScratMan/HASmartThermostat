@@ -107,8 +107,6 @@ class PID:
         Returns:
             A value between `out_min` and `out_max`.
         """
-        if self.mode == 'OFF':  # If PID is off, don't update and return the last value
-            return self.output, False
         if self.sampling_period != 0 and self._last_input_time is not None and \
                 time() - self._input_time < self.sampling_period:
             return self.output, False  # If last sample is too young, keep last output value
@@ -128,6 +126,15 @@ class PID:
             self._input_time = time()
         self._last_set_point = self._set_point
         self._set_point = set_point
+
+        if self.mode == 'OFF':  # If PID is off, simply switch between min and max output
+            if input_val < set_point:
+                self.output = self._out_max
+                _LOGGER.debug("PID is off and input lower than set point: heater ON")
+            else:
+                self.output = self._out_min
+                _LOGGER.debug("PID is off and input higher than set point: heater OFF")
+            return self.output, True
 
         # Compute all the working error variables
         self.error = set_point - input_val
