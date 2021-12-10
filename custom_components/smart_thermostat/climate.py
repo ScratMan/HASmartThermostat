@@ -83,7 +83,6 @@ CONF_AC_MODE = "ac_mode"
 CONF_MIN_CYCLE_DURATION = "min_cycle_duration"
 CONF_MIN_OFF_CYCLE_DURATION = "min_off_cycle_duration"
 CONF_KEEP_ALIVE = "keep_alive"
-CONF_FORCE_PID_REFRESH = "force_pid_refresh"
 CONF_SAMPLING_PERIOD = "sampling_period"
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
 CONF_AWAY_TEMP = "away_temp"
@@ -121,7 +120,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_MIN_OFF_CYCLE_DURATION): vol.All(
             cv.time_period, cv.positive_timedelta),
         vol.Required(CONF_KEEP_ALIVE): vol.All(cv.time_period, cv.positive_timedelta),
-        vol.Optional(CONF_FORCE_PID_REFRESH): vol.All(cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_SAMPLING_PERIOD, default=DEFAULT_SAMPLING_PERIOD): vol.All(
             cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_INITIAL_HVAC_MODE): vol.In(
@@ -174,7 +172,6 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'min_cycle_duration': config.get(CONF_MIN_CYCLE_DURATION),
         'min_off_cycle_duration': config.get(CONF_MIN_OFF_CYCLE_DURATION),
         'keep_alive': config.get(CONF_KEEP_ALIVE),
-        'force_pid_refresh': config.get(CONF_FORCE_PID_REFRESH),
         'sampling_period': config.get(CONF_SAMPLING_PERIOD),
         'initial_hvac_mode': config.get(CONF_INITIAL_HVAC_MODE),
         'away_temp': config.get(CONF_AWAY_TEMP),
@@ -249,7 +246,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._unique_id = slugify(f"{DOMAIN}_{self._name}_{self._heater_entity_id}")
         self._ac_mode = kwargs.get('ac_mode')
         self._keep_alive = kwargs.get('keep_alive')
-        self._force_pid_refresh = kwargs.get('force_pid_refresh')
         self._sampling_period = kwargs.get('sampling_period').seconds
         self._hvac_mode = kwargs.get('initial_hvac_mode', None)
         self._saved_target_temp = kwargs.get('target_temp', None) or kwargs.get('away_temp', None)
@@ -335,8 +331,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
 
         if self._keep_alive:
             async_track_time_interval(self.hass, self._async_control_heating, self._keep_alive)
-        if self._force_pid_refresh:
-            async_track_time_interval(self.hass, self._async_pid_refresh, self._force_pid_refresh)
 
         @callback
         def _async_startup(event):
@@ -709,16 +703,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._last_sensor_update = time.time()
         except ValueError as ex:
             _LOGGER.debug("Unable to update from sensor: %s", ex)
-
-    async def _async_pid_refresh(self, time_func=None):
-        """Refresh sensor state and run PID"""
-        sensor_state = self.hass.states.get(self._sensor_entity_id)
-        if sensor_state and sensor_state.state != STATE_UNKNOWN:
-            self._previous_temp_time = self._cur_temp_time
-            self._async_update_temp(sensor_state)
-            self._cur_temp_time = time.time()
-        _LOGGER.debug("Forcing PID refresh")
-        await self._async_control_heating(calc_pid=True)
 
     async def _async_control_heating(self, time_func=None, calc_pid=False):
         """Run PID controller, optional autotune for faster integration"""
