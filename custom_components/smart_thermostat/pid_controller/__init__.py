@@ -107,10 +107,10 @@ class PID(object):
             A value between `out_min` and `out_max`.
         """
         if self.mode == 'OFF':  # If PID is off, don't update and return the last value
-            return self.output
+            return self.output, False
         if self.sampling_period != 0 and self._last_input_time is not None and \
                 time() - self._input_time < self.sampling_period:
-            return self.output  # If last sample is too young, keep last output value
+            return self.output, False  # If last sample is too young, keep last output value
 
         self._last_input = self._input
         if self.sampling_period == 0:
@@ -163,7 +163,7 @@ class PID(object):
         self._logger.debug('D: {0}'.format(self.D))
         self._logger.debug('output: {0}'.format(self.output))
 
-        return self.output
+        return self.output, True
 
 
 # Based on a fork of Arduino PID AutoTune Library
