@@ -117,13 +117,14 @@ database's is corrupted.
 
 ### Services
 Services can be used in Home Assistant to configure the thermostat.\
-The following services are available:\
+The following services are available:
 
 **Set PID gains:** `smart_thermostat.set_pid_gain`\
 Use this service to adjust the PID gains without requiring a restart of Home 
-Assistant. Values are saved to Home Assistant database and restored after a restart. Please consider saving 
-the final gain parameters in YAML configuration file when satisfied to keep it safe in case of database corruption.
-Optional parameters : kp, ki and kd, as float.
+Assistant. Values are saved to Home Assistant database and restored after a restart.\
+Please consider saving the final gain parameters in YAML configuration file when satisfied to keep 
+it safe in case of database corruption.\
+Optional parameters : kp, ki and kd, as float.\
 Example:
 ```
 service: smart_thermostat.set_pid_gain
@@ -131,13 +132,29 @@ data:
   kp: 11.8
   ki: 0.00878
 target:
-  entity_id: climate.salle_de_bain
+  entity_id: climate.smart_thermostat_example
+```
+
+**Set PID mode:** `smart_thermostat.set_pid_mode`\
+Use this service to set the PID mode to either 'auto' or 'off'.\
+When in auto, the PID will modulate the heating based on temperature value and variation. When in 
+off, the PID output will be 0% if temperature is above the set point, and 100% if temperature is 
+below the set point.\
+Mode is saved to Home Assistant database and restored after a restart.\
+Required parameter : mode as a string in ['auto', 'off'].\
+Example:
+```
+service: smart_thermostat.set_pid_mode
+data:
+  mode: 'off'
+target:
+  entity_id: climate.smart_thermostat_example
 ```
 
 **Set preset modes temperatures:** `smart_thermostat.set_preset_temp`\
 Use this service to set the temperatures for the preset modes. It can be adjusted 
-for all preset modes, if a preset mode is not enabled through YAML, it will be enabled. You can use any preset temp 
-parameter available in smart thermostat settings.
+for all preset modes, if a preset mode is not enabled through YAML, it will be enabled. You can use 
+any preset temp parameter available in smart thermostat settings.\
 Example:
 ```
 service: smart_thermostat.set_preset_temp
@@ -145,7 +162,7 @@ data:
   away_temp: 14.6
   boost_temp: 22.5
 target:
-  entity_id: climate.salle_de_bain
+  entity_id: climate.smart_thermostat_example
 ```
 
 **Clear the integral part:** `smart_thermostat.clear_integral`\
