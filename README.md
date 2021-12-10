@@ -195,11 +195,6 @@ setting is then used for ON cycle only, allowing different minimum cycle time fo
 or time hh:mm:ss (default 0s).
 * **sampling_period** (Optional): interval between two computation of the PID. If set to 0, PID computation is called 
 each time the temperature sensor sends an update. Can be float in seconds or time hh:mm:ss (default 0) 
-* **force_pid_refresh** (Optional): if used, a refresh of the PID will occur based on this time interval, creating an 
-intermediate virtual sample from the temperature sensor. This can be helpful to keep the PID integrating based on 
-shorter periods of time when sensor sends no new sample for long periods (for example if temperature doesn't change). 
-This parameter should be used in combination with sampling_period to avoid having a very short time between virtual 
-and real sample. Can be float in seconds or time hh:mm:ss (default None)
 * **target_temp_step** (Optional): the adjustment step of target temperature (valid are 0.1, 0.5 and 1.0, default 0.5 for Celsius 
 and 1.0 for Fahrenheit)
 * **precision** (Optional): the displayed temperature precision (valid are 0.1, 0.5 and 1.0, default 0.1 for Celsius 
