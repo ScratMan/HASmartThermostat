@@ -10,6 +10,30 @@ clear_integral:
       integration: smart_thermostat
       domain: climate
   # Different fields that your service accepts
+set_pid_mode:
+  # Service name as shown in UI
+  name: Set PID mode
+  # Description of the service
+  description: Selects the PID regulation auto or off.
+  # If the service accepts entity IDs, target allows the user to specify entities by entity, device, or area. If `target` is specified, `entity_id` should not be defined in the `fields` map. By default it shows only targets matching entities from the same domain as the service, but if further customization is required, target supports the entity, device, and area selectors (https://www.home-assistant.io/docs/blueprint/selectors/). Entity selector parameters will automatically be applied to device and area, and device selector parameters will automatically be applied to area.
+  target:
+    entity:
+      integration: smart_thermostat
+      domain: climate
+  # Different fields that your service accepts
+  fields:
+    mode:
+      name: PID Mode
+      description: PID operating mode.
+      required: true
+      advanced: false
+      example: 'auto'
+      default: 'auto'
+      selector:
+        select:
+          options:
+            - 'auto'
+            - 'off'
 set_pid_gain:
   # Service name as shown in UI
   name: Set PID gains

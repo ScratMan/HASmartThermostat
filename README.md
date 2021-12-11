@@ -117,13 +117,14 @@ database's is corrupted.
 
 ### Services
 Services can be used in Home Assistant to configure the thermostat.\
-The following services are available:\
+The following services are available:
 
 **Set PID gains:** `smart_thermostat.set_pid_gain`\
 Use this service to adjust the PID gains without requiring a restart of Home 
-Assistant. Values are saved to Home Assistant database and restored after a restart. Please consider saving 
-the final gain parameters in YAML configuration file when satisfied to keep it safe in case of database corruption.
-Optional parameters : kp, ki and kd, as float.
+Assistant. Values are saved to Home Assistant database and restored after a restart.\
+Please consider saving the final gain parameters in YAML configuration file when satisfied to keep 
+it safe in case of database corruption.\
+Optional parameters : kp, ki and kd, as float.\
 Example:
 ```
 service: smart_thermostat.set_pid_gain
@@ -131,13 +132,29 @@ data:
   kp: 11.8
   ki: 0.00878
 target:
-  entity_id: climate.salle_de_bain
+  entity_id: climate.smart_thermostat_example
+```
+
+**Set PID mode:** `smart_thermostat.set_pid_mode`\
+Use this service to set the PID mode to either 'auto' or 'off'.\
+When in auto, the PID will modulate the heating based on temperature value and variation. When in 
+off, the PID output will be 0% if temperature is above the set point, and 100% if temperature is 
+below the set point.\
+Mode is saved to Home Assistant database and restored after a restart.\
+Required parameter : mode as a string in ['auto', 'off'].\
+Example:
+```
+service: smart_thermostat.set_pid_mode
+data:
+  mode: 'off'
+target:
+  entity_id: climate.smart_thermostat_example
 ```
 
 **Set preset modes temperatures:** `smart_thermostat.set_preset_temp`\
 Use this service to set the temperatures for the preset modes. It can be adjusted 
-for all preset modes, if a preset mode is not enabled through YAML, it will be enabled. You can use any preset temp 
-parameter available in smart thermostat settings.
+for all preset modes, if a preset mode is not enabled through YAML, it will be enabled. You can use 
+any preset temp parameter available in smart thermostat settings.\
 Example:
 ```
 service: smart_thermostat.set_preset_temp
@@ -145,7 +162,7 @@ data:
   away_temp: 14.6
   boost_temp: 22.5
 target:
-  entity_id: climate.salle_de_bain
+  entity_id: climate.smart_thermostat_example
 ```
 
 **Clear the integral part:** `smart_thermostat.clear_integral`\
@@ -186,6 +203,14 @@ and 1.0 for Fahrenheit)
 * **max_temp** (Optional): Set maximum set point available (default: 35).
 * **target_temp** (Optional): Set initial target temperature. If not set target temperature will be set to null on 
 startup.
+* **cold_tolerance** (Optional): When PID is off, set a minimum amount of difference between the temperature read by 
+the sensor specified in the target_sensor option and the target temperature that must change prior to being switched 
+on. For example, if the target temperature is 25 and the tolerance is 0.5 the heater will start when the sensor 
+equals or goes below 24.5 (float, default 0.3).
+* **hot_tolerance** (Optional): When PID is off, set a minimum amount of difference between the temperature read by 
+the sensor specified in the target_sensor option and the target temperature that must change prior to being switched 
+off. For example, if the target temperature is 25 and the tolerance is 0.5 the heater will stop when the sensor 
+equals or goes above 25.5 (float, default 0.3).
 * **ac_mode** (Optional): Set the switch specified in the heater option to be treated as a cooling device instead of a 
 heating device. Should be a boolean (default: false).
 * **away_temp** (Optional): Set the temperature used by the "Away" preset. If this is not specified, away_mode feature will not be available.
@@ -195,6 +220,8 @@ heating device. Should be a boolean (default: false).
 * **home_temp** (Optional): Set the temperature used by the "Home" preset. If this is not specified, home feature will not be available.
 * **sleep_temp** (Optional): Set the temperature used by the "Sleep" preset. If this is not specified, sleep feature will not be available.
 * **activity_temp** (Optional): Set the temperature used by the "Activity" preset. If this is not specified, activity feature will not be available.
+* **initial_hvac_mode** (Optional): Forces the operation mode after Home Assistant is restarted. If not specified, the thermostat will restore the 
+previous operation mode.
 * **noiseband** (Optional): set noiseband for autotune (float): Determines by how much the input value 
 must overshoot/undershoot the set point before the state changes (default : 0.5).
 * **lookback** (Optional): length of the autotune buffer for the signal analysis to detect peaks, can 
