@@ -555,7 +555,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             })
         else:
             device_state_attributes.update({
-                "pid_mode": self._pidController.mode,
+                "pid_mode": self._pidController.mode.lower(),
                 "pid_p": self.pid_control_p,
                 "pid_i": self.pid_control_i,
                 "pid_d": self.pid_control_d,
