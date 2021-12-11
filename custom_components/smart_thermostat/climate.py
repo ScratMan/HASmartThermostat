@@ -66,6 +66,7 @@ DEFAULT_NAME = "Smart Thermostat"
 DEFAULT_DIFFERENCE = 100
 DEFAULT_PWM = '00:15:00'
 DEFAULT_MIN_CYCLE_DURATION = '00:00:00'
+DEFAULT_TOLERANCE = 0.3
 DEFAULT_KP = 100
 DEFAULT_KI = 0
 DEFAULT_KD = 0
@@ -79,6 +80,8 @@ CONF_SENSOR = "target_sensor"
 CONF_MIN_TEMP = "min_temp"
 CONF_MAX_TEMP = "max_temp"
 CONF_TARGET_TEMP = "target_temp"
+CONF_HOT_TOLERANCE = "hot_tolerance"
+CONF_COLD_TOLERANCE = "cold_tolerance"
 CONF_AC_MODE = "ac_mode"
 CONF_MIN_CYCLE_DURATION = "min_cycle_duration"
 CONF_MIN_OFF_CYCLE_DURATION = "min_off_cycle_duration"
@@ -115,6 +118,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_UNIQUE_ID, default='none'): cv.string,
         vol.Optional(CONF_TARGET_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
+        vol.Optional(CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
         vol.Optional(CONF_MIN_CYCLE_DURATION, default=DEFAULT_MIN_CYCLE_DURATION): vol.All(
             cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_MIN_OFF_CYCLE_DURATION): vol.All(
@@ -168,6 +173,8 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'min_temp': config.get(CONF_MIN_TEMP),
         'max_temp': config.get(CONF_MAX_TEMP),
         'target_temp': config.get(CONF_TARGET_TEMP),
+        'hot_tolerance': config.get(CONF_HOT_TOLERANCE),
+        'cold_tolerance': config.get(CONF_COLD_TOLERANCE),
         'ac_mode': config.get(CONF_AC_MODE),
         'min_cycle_duration': config.get(CONF_MIN_CYCLE_DURATION),
         'min_off_cycle_duration': config.get(CONF_MIN_OFF_CYCLE_DURATION),
@@ -305,6 +312,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._lookback = kwargs.get('lookback').seconds
         self._noiseband = kwargs.get('noiseband')
         self._sensor_entity_id = kwargs.get('sensor_entity_id')
+        self._cold_tolerance = abs(kwargs.get('cold_tolerance'))
+        self._hot_tolerance = abs(kwargs.get('hot_tolerance'))
         self._time_changed = 0
         self._last_sensor_update = time.time()
         if self._autotune != "none":
@@ -318,7 +327,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         else:
             _LOGGER.debug("PID Gains: kp = %s, ki = %s, kd = %s", self._kp, self._ki, self._kd)
             self._pidController = pid_controller.PID(self._kp, self._ki, self._kd, self._minOut,
-                                                     self._maxOut, self._sampling_period)
+                                                     self._maxOut, self._sampling_period,
+                                                     self._cold_tolerance, self._hot_tolerance)
             self._pidController.mode = "AUTO"
 
     async def async_added_to_hass(self):
@@ -803,7 +813,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                                     self._ki, self._kd)
                     self._pidController = pid_controller.PID(self._kp, self._ki, self._kd,
                                                              self._minOut, self._maxOut,
-                                                             self._sampling_period)
+                                                             self._sampling_period,
+                                                             self._cold_tolerance,
+                                                             self._hot_tolerance)
                     self._autotune = "none"
             self._control_output = self._pidAutotune.output
             self._p = self._i = self._d = error = dt = 0

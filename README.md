@@ -203,6 +203,14 @@ and 1.0 for Fahrenheit)
 * **max_temp** (Optional): Set maximum set point available (default: 35).
 * **target_temp** (Optional): Set initial target temperature. If not set target temperature will be set to null on 
 startup.
+* **cold_tolerance** (Optional): When PID is off, set a minimum amount of difference between the temperature read by 
+the sensor specified in the target_sensor option and the target temperature that must change prior to being switched 
+on. For example, if the target temperature is 25 and the tolerance is 0.5 the heater will start when the sensor 
+equals or goes below 24.5 (float, default 0.3).
+* **hot_tolerance** (Optional): When PID is off, set a minimum amount of difference between the temperature read by 
+the sensor specified in the target_sensor option and the target temperature that must change prior to being switched 
+off. For example, if the target temperature is 25 and the tolerance is 0.5 the heater will stop when the sensor 
+equals or goes above 25.5 (float, default 0.3).
 * **ac_mode** (Optional): Set the switch specified in the heater option to be treated as a cooling device instead of a 
 heating device. Should be a boolean (default: false).
 * **away_temp** (Optional): Set the temperature used by the "Away" preset. If this is not specified, away_mode feature will not be available.

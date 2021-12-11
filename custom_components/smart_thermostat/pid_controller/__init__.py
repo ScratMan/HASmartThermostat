@@ -11,7 +11,8 @@ _LOGGER = logging.getLogger(__name__)
 class PID:
     error: float
 
-    def __init__(self, kp, ki, kd, out_min=float('-inf'), out_max=float('+inf'), sampling_period=0):
+    def __init__(self, kp, ki, kd, out_min=float('-inf'), out_max=float('+inf'), sampling_period=0,
+                 cold_tolerance=0.3, hot_tolerance=0.3):
         """A proportional-integral-derivative controller.
             :param kp: Proportional coefficient.
             :type kp: float
@@ -25,6 +26,10 @@ class PID:
             :type out_max: float
             :param sampling_period: time period between two PID calculations in seconds
             :type sampling_period: float
+            :param cold_tolerance: time period between two PID calculations in seconds
+            :type cold_tolerance: float
+            :param hot_tolerance: time period between two PID calculations in seconds
+            :type hot_tolerance: float
         """
         if kp is None:
             raise ValueError('kp must be specified')
@@ -57,6 +62,8 @@ class PID:
         self.D = 0
         self._mode = 'AUTO'
         self.sampling_period = sampling_period
+        self._cold_tolerance = cold_tolerance
+        self._hot_tolerance = hot_tolerance
 
     @property
     def mode(self):
@@ -128,13 +135,16 @@ class PID:
         self._set_point = set_point
 
         if self.mode == 'OFF':  # If PID is off, simply switch between min and max output
-            if input_val < set_point:
+            if input_val <= set_point - self._cold_tolerance:
                 self.output = self._out_max
                 _LOGGER.debug("PID is off and input lower than set point: heater ON")
-            else:
+                return self.output, True
+            elif input_val >= set_point + self._hot_tolerance:
                 self.output = self._out_min
                 _LOGGER.debug("PID is off and input higher than set point: heater OFF")
-            return self.output, True
+                return self.output, True
+            else:
+                return self.output, False
 
         # Compute all the working error variables
         self.error = set_point - input_val
