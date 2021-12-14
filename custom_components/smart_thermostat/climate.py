@@ -74,6 +74,8 @@ DEFAULT_AUTOTUNE = "none"
 DEFAULT_NOISEBAND = 0.5
 DEFAULT_SAMPLING_PERIOD = '00:00:00'
 DEFAULT_LOOKBACK = '02:00:00'
+DEFAULT_SENSOR_STALL = '06:00:00'
+DEFAULT_OUTPUT_SAFETY = 5.0
 
 CONF_HEATER = "heater"
 CONF_SENSOR = "target_sensor"
@@ -87,6 +89,8 @@ CONF_MIN_CYCLE_DURATION = "min_cycle_duration"
 CONF_MIN_OFF_CYCLE_DURATION = "min_off_cycle_duration"
 CONF_KEEP_ALIVE = "keep_alive"
 CONF_SAMPLING_PERIOD = "sampling_period"
+CONF_SENSOR_STALL = 'sensor_stall'
+CONF_OUTPUT_SAFETY = 'output_safety'
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
 CONF_AWAY_TEMP = "away_temp"
 CONF_ECO_TEMP = "eco_temp"
@@ -127,6 +131,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_KEEP_ALIVE): vol.All(cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_SAMPLING_PERIOD, default=DEFAULT_SAMPLING_PERIOD): vol.All(
             cv.time_period, cv.positive_timedelta),
+        vol.Optional(CONF_SENSOR_STALL, default=DEFAULT_SENSOR_STALL): vol.All(
+            cv.time_period, cv.positive_timedelta),
+        vol.Optional(CONF_OUTPUT_SAFETY, default=DEFAULT_OUTPUT_SAFETY): vol.Coerce(float),
         vol.Optional(CONF_INITIAL_HVAC_MODE): vol.In(
             [HVAC_MODE_COOL, HVAC_MODE_HEAT, HVAC_MODE_OFF]
         ),
@@ -180,6 +187,8 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'min_off_cycle_duration': config.get(CONF_MIN_OFF_CYCLE_DURATION),
         'keep_alive': config.get(CONF_KEEP_ALIVE),
         'sampling_period': config.get(CONF_SAMPLING_PERIOD),
+        'sensor_stall': config.get(CONF_SENSOR_STALL),
+        'output_safety': config.get(CONF_OUTPUT_SAFETY),
         'initial_hvac_mode': config.get(CONF_INITIAL_HVAC_MODE),
         'away_temp': config.get(CONF_AWAY_TEMP),
         'eco_temp': config.get(CONF_ECO_TEMP),
@@ -254,6 +263,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._ac_mode = kwargs.get('ac_mode')
         self._keep_alive = kwargs.get('keep_alive')
         self._sampling_period = kwargs.get('sampling_period').seconds
+        self._sensor_stall = kwargs.get('sensor_stall').seconds
+        self._output_safety = kwargs.get('output_safety')
         self._hvac_mode = kwargs.get('initial_hvac_mode', None)
         self._saved_target_temp = kwargs.get('target_temp', None) or kwargs.get('away_temp', None)
         self._temp_precision = kwargs.get('precision')
@@ -726,11 +737,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 await self.async_update_ha_state()
                 return
 
-            if calc_pid or self._sampling_period != 0:
+            if self._sensor_stall != 0 and time.time() - self._last_sensor_update > \
+                    self._sensor_stall:
+                # sensor not updated for too long, considered as stall, set to safety level
+                self._control_output = self._output_safety
+            elif calc_pid or self._sampling_period != 0:
                 await self.calc_output()
-            if time.time() - self._last_sensor_update > 10800:
-                # sensor not updated for more than 3 hours, considered as stall, set to 0 for safety
-                self._control_output = 0
             await self.set_control_value()
             await self.async_update_ha_state()
 
