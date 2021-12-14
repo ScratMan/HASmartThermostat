@@ -169,9 +169,6 @@ target:
 Use this service to reset the integral part of the PID controller to 0. Useful 
 when tuning the PID gains to quickly test the behavior without waiting the integral to stabilize by itself.
 
-**Reload integration:** `smart_thermostat.reload`\
-Use this service to reload the thermostat from scratch without requiring a restart of Home Assistant.
-
 
 ## Parameters:
 * **name** (Optional): Name of the thermostat.
