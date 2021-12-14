@@ -243,7 +243,7 @@ specified, activity feature will not be available.
 * **sensor_stall** (Optional): Sets the maximum time period between two sensor updates. If no 
 update received from sensor after this time period, the system considers the sensor as stall and 
 switch to safety mode, the output being forced to output_safety. If set to 0, the feature is 
-disabled. Can be float in seconds or time hh:mm:ss (default 3 hours).
+disabled. Can be float in seconds or time hh:mm:ss (default 6 hours).
 * **output_safety** (Optional): Sets the output level of the PID once the thermostat enters safety 
 mode due to unresponsive temperature sensor. This can help to keep a minimum temperature in the 
 room in case of sensor failure. The value should be a float between 0.0 and 100.0 (default 5.0).
