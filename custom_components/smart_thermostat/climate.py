@@ -70,6 +70,7 @@ DEFAULT_TOLERANCE = 0.3
 DEFAULT_KP = 100
 DEFAULT_KI = 0
 DEFAULT_KD = 0
+DEFAULT_KE = 0
 DEFAULT_AUTOTUNE = "none"
 DEFAULT_NOISEBAND = 0.5
 DEFAULT_SAMPLING_PERIOD = '00:00:00'
@@ -79,6 +80,7 @@ DEFAULT_OUTPUT_SAFETY = 5.0
 
 CONF_HEATER = "heater"
 CONF_SENSOR = "target_sensor"
+CONF_OUTDOOR_SENSOR = "outdoor_sensor"
 CONF_MIN_TEMP = "min_temp"
 CONF_MAX_TEMP = "max_temp"
 CONF_TARGET_TEMP = "target_temp"
@@ -105,6 +107,7 @@ CONF_DIFFERENCE = "difference"
 CONF_KP = "kp"
 CONF_KI = "ki"
 CONF_KD = "kd"
+CONF_KE = "ke"
 CONF_PWM = "pwm"
 CONF_AUTOTUNE = "autotune"
 CONF_NOISEBAND = "noiseband"
@@ -116,6 +119,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HEATER): cv.entity_id,
         vol.Required(CONF_SENSOR): cv.entity_id,
+        vol.Optional(CONF_OUTDOOR_SENSOR): cv.entity_id,
         vol.Optional(CONF_AC_MODE): cv.boolean,
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
         vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
@@ -154,6 +158,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_KP, default=DEFAULT_KP): vol.Coerce(float),
         vol.Optional(CONF_KI, default=DEFAULT_KI): vol.Coerce(float),
         vol.Optional(CONF_KD, default=DEFAULT_KD): vol.Coerce(float),
+        vol.Optional(CONF_KE, default=DEFAULT_KE): vol.Coerce(float),
         vol.Optional(CONF_PWM, default=DEFAULT_PWM): vol.All(
             cv.time_period, cv.positive_timedelta
         ),
@@ -177,6 +182,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'unique_id': config.get(CONF_UNIQUE_ID),
         'heater_entity_id': config.get(CONF_HEATER),
         'sensor_entity_id': config.get(CONF_SENSOR),
+        'ext_sensor_entity_id': config.get(CONF_OUTDOOR_SENSOR),
         'min_temp': config.get(CONF_MIN_TEMP),
         'max_temp': config.get(CONF_MAX_TEMP),
         'target_temp': config.get(CONF_TARGET_TEMP),
@@ -204,6 +210,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'kp': config.get(CONF_KP),
         'ki': config.get(CONF_KI),
         'kd': config.get(CONF_KD),
+        'ke': config.get(CONF_KE),
         'pwm': config.get(CONF_PWM),
         'autotune': config.get(CONF_AUTOTUNE),
         'noiseband': config.get(CONF_NOISEBAND),
@@ -219,6 +226,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             vol.Optional("kp"): vol.Coerce(float),
             vol.Optional("ki"): vol.Coerce(float),
             vol.Optional("kd"): vol.Coerce(float),
+            vol.Optional("ke"): vol.Coerce(float),
         },
         "async_set_pid",
     )
@@ -258,6 +266,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._unique_id = kwargs.get('unique_id')
         self._heater_entity_id = kwargs.get('heater_entity_id')
         self._sensor_entity_id = kwargs.get('sensor_entity_id')
+        self._ext_sensor_entity_id = kwargs.get('ext_sensor_entity_id')
         if self._unique_id == 'none':
             self._unique_id = slugify(f"{DOMAIN}_{self._name}_{self._heater_entity_id}")
         self._ac_mode = kwargs.get('ac_mode')
@@ -280,6 +289,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._cur_temp_time = None
         self._previous_temp = None
         self._previous_temp_time = None
+        self._ext_temp = None
         self._temp_lock = asyncio.Lock()
         self._min_temp = kwargs.get('min_temp')
         self._max_temp = kwargs.get('max_temp')
@@ -314,19 +324,20 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._kp = kwargs.get('kp')
         self._ki = kwargs.get('ki')
         self._kd = kwargs.get('kd')
+        self._ke = kwargs.get('ke')
         self._pwm = kwargs.get('pwm').seconds
-        self._p = self._i = self._d = 0
+        self._p = self._i = self._d = self._e = 0
         self._control_output = 0
         self._force_on = False
         self._force_off = False
         self._autotune = kwargs.get('autotune')
         self._lookback = kwargs.get('lookback').seconds
         self._noiseband = kwargs.get('noiseband')
-        self._sensor_entity_id = kwargs.get('sensor_entity_id')
         self._cold_tolerance = abs(kwargs.get('cold_tolerance'))
         self._hot_tolerance = abs(kwargs.get('hot_tolerance'))
         self._time_changed = 0
         self._last_sensor_update = time.time()
+        self._last_ext_sensor_update = time.time()
         if self._autotune != "none":
             self._pidController = None
             self._pidAutotune = pid_controller.PIDAutotune(self._difference, self._lookback,
@@ -348,6 +359,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
 
         # Add listener
         async_track_state_change(self.hass, self._sensor_entity_id, self._async_sensor_changed)
+        if self._ext_sensor_entity_id is not None:
+            async_track_state_change(self.hass, self._ext_sensor_entity_id,
+                                     self._async_ext_sensor_changed)
         async_track_state_change(self.hass, self._heater_entity_id, self._async_switch_changed)
 
         if self._keep_alive:
@@ -359,6 +373,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             sensor_state = self.hass.states.get(self._sensor_entity_id)
             if sensor_state and sensor_state.state != STATE_UNKNOWN:
                 self._async_update_temp(sensor_state)
+            if self._ext_sensor_entity_id is not None:
+                ext_sensor_state = self.hass.states.get(self._ext_sensor_entity_id)
+                if ext_sensor_state and ext_sensor_state.state != STATE_UNKNOWN:
+                    self._async_update_ext_temp(ext_sensor_state)
 
         self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _async_startup)
 
@@ -398,6 +416,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             if old_state.attributes.get('Kd') is not None and self._pidController is not None:
                 self._kd = float(old_state.attributes.get('Kd'))
                 self._pidController.set_pid_param(kd=self._kd)
+            if old_state.attributes.get('Ke') is not None:
+                self._ke = float(old_state.attributes.get('Ke'))
             if old_state.attributes.get('pid_mode') is not None and self._pidController is not None:
                 self._pidController.mode = old_state.attributes.get('pid_mode')
 
@@ -540,6 +560,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         return self._d
 
     @property
+    def pid_control_e(self):
+        """Return the E output of external temperature compensation."""
+        return self._e
+
+    @property
     def pid_control_output(self):
         """Return the pid control output of the thermostat."""
         return self._control_output
@@ -559,6 +584,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             "Kp": self._kp,
             "Ki": self._ki,
             "Kd": self._kd,
+            "Ke": self._ke,
         }
         if self._autotune != "none":
             device_state_attributes.update({
@@ -566,6 +592,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 "pid_p": 0,
                 "pid_i": 0,
                 "pid_d": 0,
+                "pid_e": 0,
                 "autotune_status": self._pidAutotune.state,
                 "autotune_sample_time": self._pidAutotune.sample_time,
                 "autotune_tuning_rule": self._autotune,
@@ -580,6 +607,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 "pid_p": self.pid_control_p,
                 "pid_i": self.pid_control_i,
                 "pid_d": self.pid_control_d,
+                "pid_e": self.pid_control_e,
                 "autotune_status": 'off',
                 "autotune_sample_time": 0.0,
                 "autotune_tuning_rule": 'none',
@@ -630,12 +658,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         kp = kwargs.get('kp', None)
         ki = kwargs.get('ki', None)
         kd = kwargs.get('kd', None)
+        ke = kwargs.get('ke', None)
         if kp is not None:
             self._kp = float(kp)
         if ki is not None:
             self._ki = float(ki)
         if kd is not None:
             self._kd = float(kd)
+        if ke is not None:
+            self._ke = float(ke)
         self._pidController.set_pid_param(self._kp, self._ki, self._kd)
         await self._async_control_heating(calc_pid=True)
 
@@ -708,6 +739,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                       self._current_temp, self._previous_temp)
         await self._async_control_heating(calc_pid=True)
 
+    async def _async_ext_sensor_changed(self, entity_id, old_state, new_state):
+        """Handle temperature changes."""
+        if new_state is None:
+            return
+
+        self._async_update_ext_temp(new_state)
+        self._trigger_source = 'ext_sensor'
+        _LOGGER.debug("Received new outdoor temperature sensor input at timestamp %s: %s",
+                      time.time(), self._ext_temp)
+        await self._async_control_heating(calc_pid=True)
+
     @callback
     def _async_switch_changed(self, entity_id, old_state, new_state):
         """Handle heater switch state changes."""
@@ -722,6 +764,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._previous_temp = self._current_temp
             self._current_temp = float(state.state)
             self._last_sensor_update = time.time()
+        except ValueError as ex:
+            _LOGGER.debug("Unable to update from sensor: %s", ex)
+
+    @callback
+    def _async_update_ext_temp(self, state):
+        """Update thermostat with latest state from sensor."""
+        try:
+            self._ext_temp = float(state.state)
+            self._last_ext_sensor_update = time.time()
         except ValueError as ex:
             _LOGGER.debug("Unable to update from sensor: %s", ex)
 
@@ -845,10 +896,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._d = self._pidController.D
             error = self._pidController.error
             dt = self._pidController.dt
+            if update and self._ext_temp is not None:
+                # Compensate losses due to external temperature
+                self._e = self._ke * (self._target_temp - self._ext_temp)
+                self._control_output = max(min(self._p + self._i + self._d + self._e, self._maxOut),
+                                           self._minOut)
         if update:
             _LOGGER.debug("New PID control output. %.2f (error = %.2f, dt = %.2f, p=%.2f, "
-                          "i=%.2f, d=%.2f)", self._control_output, error, dt, self._p, self._i,
-                          self._d)
+                          "i=%.2f, d=%.2f, e=%.2f)", self._control_output, error, dt, self._p,
+                          self._i, self._d, self._e)
 
     async def set_control_value(self):
         """Set Output value for heater"""

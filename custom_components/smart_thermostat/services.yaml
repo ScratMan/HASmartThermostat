@@ -101,6 +101,23 @@ set_pid_gain:
           max: 1000000
           step: 0.001
           mode: box
+    ke:
+      # Field name as shown in UI
+      name: Ke gain
+      # Description of the field
+      description: External temperature compensation gain
+      # Whether or not field is required (default = false)
+      required: false
+      # Advanced fields are only shown when the advanced mode is enabled for the user (default = false)
+      advanced: false
+      # Example value that can be passed for this field
+      example: 1.2
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.001
+          mode: box
 set_preset_temp:
   # Service name as shown in UI
   name: Set preset modes temperature
