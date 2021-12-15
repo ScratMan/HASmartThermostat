@@ -89,7 +89,7 @@ class PID:
         self._integral = i
         self.I = i
 
-    def set_pid_param(self, kp=None, ki=None, kd=None):
+    def set_pid_param(self, kp=None, ki=None, kd=None, ke=None):
         """Set PID parameters."""
         if kp is not None and isinstance(kp, (int, float)):
             self._Kp = kp
@@ -97,6 +97,8 @@ class PID:
             self._Ki = ki
         if kd is not None and isinstance(kd, (int, float)):
             self._Kd = kd
+        if ke is not None and isinstance(ke, (int, float)):
+            self._Ke = ke
 
     def clear_samples(self):
         """Clear the samples values and timestamp to restart PID from clean state after

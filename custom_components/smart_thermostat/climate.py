@@ -417,8 +417,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             if old_state.attributes.get('Kd') is not None and self._pidController is not None:
                 self._kd = float(old_state.attributes.get('Kd'))
                 self._pidController.set_pid_param(kd=self._kd)
-            if old_state.attributes.get('Ke') is not None:
+            if old_state.attributes.get('Ke') is not None and self._pidController is not None:
                 self._ke = float(old_state.attributes.get('Ke'))
+                self._pidController.set_pid_param(ke=self._ke)
             if old_state.attributes.get('pid_mode') is not None and self._pidController is not None:
                 self._pidController.mode = old_state.attributes.get('pid_mode')
 
@@ -668,7 +669,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._kd = float(kd)
         if ke is not None:
             self._ke = float(ke)
-        self._pidController.set_pid_param(self._kp, self._ki, self._kd)
+        self._pidController.set_pid_param(self._kp, self._ki, self._kd, self._ke)
         await self._async_control_heating(calc_pid=True)
 
     async def async_set_pid_mode(self, **kwargs):
