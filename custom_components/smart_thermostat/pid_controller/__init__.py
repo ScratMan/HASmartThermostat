@@ -11,7 +11,7 @@ _LOGGER = logging.getLogger(__name__)
 class PID:
     error: float
 
-    def __init__(self, kp, ki, kd, out_min=float('-inf'), out_max=float('+inf'), sampling_period=0,
+    def __init__(self, kp, ki, kd, ke=0, out_min=float('-inf'), out_max=float('+inf'), sampling_period=0,
                  cold_tolerance=0.3, hot_tolerance=0.3):
         """A proportional-integral-derivative controller.
             :param kp: Proportional coefficient.
@@ -20,6 +20,8 @@ class PID:
             :type ki: float
             :param kd: Derivative coefficient.
             :type kd: float
+            :param ke: Outdoor temperature compensation coefficient.
+            :type ke: float
             :param out_min: Lower output limit.
             :type out_min: float
             :param out_max: Upper output limit.
@@ -43,6 +45,7 @@ class PID:
         self._Kp = kp
         self._Ki = ki
         self._Kd = kd
+        self._Ke = ke
         self._out_min = out_min
         self._out_max = out_max
         self._integral = 0.0
@@ -54,12 +57,14 @@ class PID:
         self._last_input_time = None
         self.error = 0
         self._input_diff = 0
+        self.dext = 0
         self.dt = 0
         self._last_output = 0
         self.output = 0
         self.P = 0
         self.I = 0
         self.D = 0
+        self.E = 0
         self._mode = 'AUTO'
         self.sampling_period = sampling_period
         self._cold_tolerance = cold_tolerance
@@ -101,7 +106,7 @@ class PID:
         self._last_input = None
         self._last_input_time = None
         
-    def calc(self, input_val, set_point, input_time=None, last_input_time=None):
+    def calc(self, input_val, set_point, input_time=None, last_input_time=None, ext_temp=None):
         """Adjusts and holds the given setpoint.
 
         Args:
@@ -110,6 +115,7 @@ class PID:
             input_time (float): The timestamp in seconds of the input value to compute dt
             last_input_time (float): The timestamp in seconds of the previous input value to
             compute dt
+            ext_temp (float): The outdoor temperature value.
 
         Returns:
             A value between `out_min` and `out_max`.
@@ -156,6 +162,10 @@ class PID:
             self.dt = self._input_time - self._last_input_time
         else:
             self.dt = 0
+        if ext_temp is not None:
+            self.dext = set_point - ext_temp
+        else:
+            self.dext = 0
 
         # In order to prevent windup, only integrate if the process is not saturated and set point
         # is stable
@@ -170,15 +180,18 @@ class PID:
             self.D = -(self._Kd * self._input_diff) / self.dt
         else:
             self.D = 0.0
+        # Compensate losses due to external temperature
+        self.E = self._Ke * self.dext
 
         # Compute PID Output
-        output = self.P + self.I + self.D
+        output = self.P + self.I + self.D + self.E
         self.output = max(min(output, self._out_max), self._out_min)
 
         # Log some debug info
         _LOGGER.debug('P: %.2f', self.P)
         _LOGGER.debug('I: %.2f', self.I)
         _LOGGER.debug('D: %.2f', self.D)
+        _LOGGER.debug('E: %.2f', self.E)
         _LOGGER.debug('output: %.2f', self.output)
 
         return self.output, True

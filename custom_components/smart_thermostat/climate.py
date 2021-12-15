@@ -348,9 +348,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                             "have any effect until autotuning is finished")
         else:
             _LOGGER.debug("PID Gains: kp = %s, ki = %s, kd = %s", self._kp, self._ki, self._kd)
-            self._pidController = pid_controller.PID(self._kp, self._ki, self._kd, self._minOut,
-                                                     self._maxOut, self._sampling_period,
-                                                     self._cold_tolerance, self._hot_tolerance)
+            self._pidController = pid_controller.PID(self._kp, self._ki, self._kd, self._ke,
+                                                     self._minOut, self._maxOut,
+                                                     self._sampling_period, self._cold_tolerance,
+                                                     self._hot_tolerance)
             self._pidController.mode = "AUTO"
 
     async def async_added_to_hass(self):
@@ -874,7 +875,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                     _LOGGER.warning("Smart thermostat now runs on PID Controller using rule %s: "
                                     "Kp=%s, Ki=%s, Kd=%s", self._autotune, self._kp,
                                     self._ki, self._kd)
-                    self._pidController = pid_controller.PID(self._kp, self._ki, self._kd,
+                    self._pidController = pid_controller.PID(self._kp, self._ki, self._kd, self._ke,
                                                              self._minOut, self._maxOut,
                                                              self._sampling_period,
                                                              self._cold_tolerance,
@@ -887,20 +888,18 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 self._control_output, update = self._pidController.calc(self._current_temp,
                                                                         self._target_temp,
                                                                         self._cur_temp_time,
-                                                                        self._previous_temp_time)
+                                                                        self._previous_temp_time,
+                                                                        self._ext_temp)
             else:
                 self._control_output, update = self._pidController.calc(self._current_temp,
-                                                                        self._target_temp)
+                                                                        self._target_temp,
+                                                                        ext_temp=self._ext_temp)
             self._p = self._pidController.P
             self._i = self._pidController.I
             self._d = self._pidController.D
+            self._e = self._pidController.E
             error = self._pidController.error
             dt = self._pidController.dt
-            if update and self._ext_temp is not None:
-                # Compensate losses due to external temperature
-                self._e = self._ke * (self._target_temp - self._ext_temp)
-                self._control_output = max(min(self._p + self._i + self._d + self._e, self._maxOut),
-                                           self._minOut)
         if update:
             _LOGGER.debug("New PID control output. %.2f (error = %.2f, dt = %.2f, p=%.2f, "
                           "i=%.2f, d=%.2f, e=%.2f)", self._control_output, error, dt, self._p,
