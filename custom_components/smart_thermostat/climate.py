@@ -750,7 +750,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._trigger_source = 'ext_sensor'
         _LOGGER.debug("Received new outdoor temperature sensor input at timestamp %s: %s",
                       time.time(), self._ext_temp)
-        await self._async_control_heating(calc_pid=True)
+        await self._async_control_heating(calc_pid=False)
 
     @callback
     def _async_switch_changed(self, entity_id, old_state, new_state):
