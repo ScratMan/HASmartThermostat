@@ -913,11 +913,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             time_on = self._pwm * abs(self._control_output) / self._difference
             time_off = self._pwm - time_on
             # Check time_on and time_off are not too short
-            if time_on < self._min_on_cycle_duration.seconds:
+            if 0 < time_on < self._min_on_cycle_duration.seconds:
                 # time_on is too short, increase time_off and time_on
                 time_off *= self._min_on_cycle_duration.seconds / time_on
                 time_on = self._min_on_cycle_duration.seconds
-            if time_off < self._min_off_cycle_duration.seconds:
+            if 0 < time_off < self._min_off_cycle_duration.seconds:
                 # time_off is too short, increase time_on and time_off
                 time_on *= self._min_off_cycle_duration.seconds / time_off
                 time_off = self._min_off_cycle_duration.seconds
