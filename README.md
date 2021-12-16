@@ -87,7 +87,7 @@ the PWM level accordingly to limit the overshoot.
 ![](https://upload.wikimedia.org/wikipedia/commons/4/43/PID_en.svg)
 
 PID output value is the weighted sum of the control terms:\
-`error = set_point - current_temperature`\
+`error = target_temp - current_temperature`\
 `di = ` temperature change between last two samples\
 `dt = ` time elapsed between last two samples\
 `P = Kp * error`\
@@ -95,6 +95,17 @@ PID output value is the weighted sum of the control terms:\
 `D = -(Kd * di) / dt`\
 `output = P + I + D`\
 Output is then limited to 0% to 100% range to control the PWM.
+
+#### Outdoor temperature compensation
+Optionally, when an outdoor temperature sensor entity is provided and ke is set, the thermostat can 
+automatically compensate building losses based on the difference between target temperature and 
+outdoor temperature. An external component E is added to the PID output:
+`E = Ke * (target_temp - outdoor_temp)`\
+`output = P + I + D + E`\
+Output is then limited to 0% to 100% range to control the PWM.
+The Ke gain depends on the insulation of the building, on recent buildings with good insulation, a 
+gain of 0.6 is recommended. This compensation will act like the integral of the PID, but with 
+faster response time, so the integral will be more stable.
 
 ### Autotune (not always working, not recommended to use):
 You can use the autotune feature to find some working PID parameters.\
