@@ -909,19 +909,25 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     async def set_control_value(self):
         """Set Output value for heater"""
         if self._pwm:
+            # Compute time_on based on PWM duration and PID output
+            time_on = self._pwm * abs(self._control_output) / self._difference
+            time_off = self._pwm - time_on
+            # Check time_on and time_off are not too short
+            if time_on < self._min_on_cycle_duration.seconds:
+                # time_on is too short, increase time_off and time_on
+                time_off *= self._min_on_cycle_duration.seconds / time_on
+                time_on = self._min_on_cycle_duration.seconds
+            if time_off < self._min_off_cycle_duration.seconds:
+                # time_off is too short, increase time_on and time_off
+                time_on *= self._min_off_cycle_duration.seconds / time_off
+                time_off = self._min_off_cycle_duration.seconds
             if abs(self._control_output) == self._difference:
                 if not self._is_device_active:
                     _LOGGER.info("Request turning on %s", self._heater_entity_id)
                     await self._async_heater_turn_on()
                     self._time_changed = time.time()
-            elif self._control_output > 0:
-                await self.pwm_switch(self._pwm * self._control_output / self._maxOut,
-                                      self._pwm * (self._maxOut - self._control_output) /
-                                      self._maxOut, time.time() - self._time_changed)
-            elif self._control_output < 0:
-                await self.pwm_switch(self._pwm * self._control_output / self._minOut,
-                                      self._pwm * self._minOut / self._control_output,
-                                      time.time() - self._time_changed)
+            elif abs(self._control_output) > 0:
+                await self.pwm_switch(time_on, time_off, time.time() - self._time_changed)
             else:
                 if self._active:
                     _LOGGER.info("Request turning off %s", self._heater_entity_id)
