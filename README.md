@@ -187,12 +187,15 @@ itself.
 * conditioning switch when ac_mode is set to True.
 * **target_sensor** (Required): entity_id for a temperature sensor, target_sensor.state must be 
 temperature.
+* **outdoor_sensor** (Optional): entity_id for an outdoor temperature sensor, outdoor_sensor.state 
+must be temperature.
 * **keep_alive** (Required): sets update interval for the PWM pulse width. If interval is too big, 
 the PWM granularity will be reduced, leading to lower accuracy of temperature control, can be float 
 in seconds, or time hh:mm:ss.
-* **kp** (Recommended): Set PID parameter, proportional (p) control value (default 100).
-* **ki** (Recommended): Set PID parameter, integral (i) control value (default 0).
-* **kd** (Recommended): Set PID parameter, derivative (d) control value (default 0). 
+* **kp** (Recommended): Set PID parameter, proportional (p) control value (float, default 100).
+* **ki** (Recommended): Set PID parameter, integral (i) control value (float, default 0).
+* **kd** (Recommended): Set PID parameter, derivative (d) control value (float, default 0). 
+* **ke** (Optional): Set outdoor temperature compensation gain (e) control value (float, default 0). 
 * **pwm** (Optional): Set period of the pulse width modulation. If too long, the response time of 
 the thermostat will be too slow, leading to lower accuracy of temperature control. Can be float in 
 seconds or time hh:mm:ss (default 15mn).
