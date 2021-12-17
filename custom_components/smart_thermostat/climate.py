@@ -511,32 +511,42 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     def preset_modes(self):
         """Return a list of available preset modes."""
         preset_modes = [PRESET_NONE]
-        for mode, preset_mode_temp in [
-            (PRESET_AWAY, self._away_temp),
-            (PRESET_ECO, self._eco_temp),
-            (PRESET_BOOST, self._boost_temp),
-            (PRESET_COMFORT, self._comfort_temp),
-            (PRESET_HOME, self._home_temp),
-            (PRESET_SLEEP, self._sleep_temp),
-            (PRESET_ACTIVITY, self._activity_temp),
-            ]:
+        for mode, preset_mode_temp in self._preset_modes_temp.items():
             if preset_mode_temp is not None:
                 preset_modes.append(mode)
         return preset_modes
 
     @property
+    def _preset_modes_temp(self):
+        """Return a list of preset modes and their temperatures"""
+        return {
+            PRESET_AWAY: self._away_temp,
+            PRESET_ECO: self._eco_temp,
+            PRESET_BOOST: self._boost_temp,
+            PRESET_COMFORT: self._comfort_temp,
+            PRESET_HOME: self._home_temp,
+            PRESET_SLEEP: self._sleep_temp,
+            PRESET_ACTIVITY: self._activity_temp,
+        }
+
+    @property
+    def _preset_temp_modes(self):
+        """Return a list of preset temperature and their modes"""
+        return {
+            self._away_temp: PRESET_AWAY,
+            self._eco_temp: PRESET_ECO,
+            self._boost_temp: PRESET_BOOST,
+            self._comfort_temp: PRESET_COMFORT,
+            self._home_temp: PRESET_HOME,
+            self._sleep_temp: PRESET_SLEEP,
+            self._activity_temp: PRESET_ACTIVITY,
+        }
+
+    @property
     def presets(self):
         """Return a dict of available preset and temperatures."""
         presets = {}
-        for mode, preset_mode_temp in [
-            (PRESET_AWAY, self._away_temp),
-            (PRESET_ECO, self._eco_temp),
-            (PRESET_BOOST, self._boost_temp),
-            (PRESET_COMFORT, self._comfort_temp),
-            (PRESET_HOME, self._home_temp),
-            (PRESET_SLEEP, self._sleep_temp),
-            (PRESET_ACTIVITY, self._activity_temp),
-            ]:
+        for mode, preset_mode_temp in self._preset_modes_temp.items():
             if preset_mode_temp is not None:
                 presets.update({mode: preset_mode_temp})
         return presets
@@ -654,7 +664,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._force_on = True
         elif temperature < self._target_temp:
             self._force_off = True
-        self._target_temp = temperature
+        if temperature in self._preset_temp_modes:
+            await self.async_set_preset_mode(self._preset_temp_modes[temperature])
+        else:
+            await self.async_set_preset_mode(PRESET_NONE)
+            self._target_temp = temperature
         await self._async_control_heating(calc_pid=True)
 
     async def async_set_pid(self, **kwargs):
