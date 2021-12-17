@@ -326,7 +326,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._kd = kwargs.get('kd')
         self._ke = kwargs.get('ke')
         self._pwm = kwargs.get('pwm').seconds
-        self._p = self._i = self._d = self._e = 0
+        self._p = self._i = self._d = self._e = self._dt = 0
         self._control_output = 0
         self._force_on = False
         self._force_off = False
@@ -595,6 +595,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 "pid_i": 0,
                 "pid_d": 0,
                 "pid_e": 0,
+                "pid_dt": 0,
                 "autotune_status": self._pidAutotune.state,
                 "autotune_sample_time": self._pidAutotune.sample_time,
                 "autotune_tuning_rule": self._autotune,
@@ -610,6 +611,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 "pid_i": self.pid_control_i,
                 "pid_d": self.pid_control_d,
                 "pid_e": self.pid_control_e,
+                "pid_dt": self._dt,
                 "autotune_status": 'off',
                 "autotune_sample_time": 0.0,
                 "autotune_tuning_rule": 'none',
@@ -883,7 +885,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                                                              self._hot_tolerance)
                     self._autotune = "none"
             self._control_output = self._pidAutotune.output
-            self._p = self._i = self._d = error = dt = 0
+            self._p = self._i = self._d = error = self._dt = 0
         else:
             if self._pidController.sampling_period == 0:
                 self._control_output, update = self._pidController.calc(self._current_temp,
@@ -901,10 +903,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._e = round(self._pidController.E, 1)
             self._control_output = round(self._control_output, 1)
             error = self._pidController.error
-            dt = self._pidController.dt
+            self._dt = self._pidController.dt
         if update:
             _LOGGER.debug("New PID control output. %.2f (error = %.2f, dt = %.2f, p=%.2f, "
-                          "i=%.2f, d=%.2f, e=%.2f)", self._control_output, error, dt, self._p,
+                          "i=%.2f, d=%.2f, e=%.2f)", self._control_output, error, self._dt, self._p,
                           self._i, self._d, self._e)
 
     async def set_control_value(self):
