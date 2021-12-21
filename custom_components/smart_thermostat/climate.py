@@ -946,7 +946,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             elif abs(self._control_output) > 0:
                 await self.pwm_switch(time_on, time_off, time.time() - self._time_changed)
             else:
-                if self._active:
+                if self._is_device_active:
                     _LOGGER.info("Request turning off %s", self._heater_entity_id)
                     await self._async_heater_turn_off()
                     self._time_changed = time.time()
