@@ -958,7 +958,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     async def pwm_switch(self, time_on, time_off, time_passed):
         """turn off and on the heater proportionally to control_value."""
         if self._is_device_active:
-            if time_on < time_passed or self._force_off:
+            if time_on <= time_passed or self._force_off:
                 _LOGGER.info("Request turning off %s", self._heater_entity_id)
                 await self._async_heater_turn_off()
                 self._time_changed = time.time()
@@ -966,7 +966,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 _LOGGER.info("Time until %s turns off: %s sec", self._heater_entity_id,
                              int(time_on - time_passed))
         else:
-            if time_off < time_passed or self._force_on:
+            if time_off <= time_passed or self._force_on:
                 _LOGGER.info("Request turning on %s", self._heater_entity_id)
                 await self._async_heater_turn_on()
                 self._time_changed = time.time()
