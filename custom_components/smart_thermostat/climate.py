@@ -399,7 +399,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             for preset_mode in ['away_temp', 'eco_temp', 'boost_temp', 'comfort_temp', 'home_temp',
                                 'sleep_temp', 'activity_temp']:
                 if old_state.attributes.get(preset_mode) is not None:
-                    setattr(self, "_{preset_mode}", float(old_state.attributes.get(preset_mode)))
+                    setattr(self, "_{}".format(preset_mode), float(old_state.attributes.get(preset_mode)))
             if old_state.attributes.get(ATTR_PRESET_MODE) is not None:
                 self._attr_preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
             if isinstance(old_state.attributes.get('pid_i'), (float, int)) and \
