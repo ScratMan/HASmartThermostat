@@ -660,9 +660,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
             return
-        if temperature > self._target_temp:
+        if self._current_temp is not None and temperature > self._current_temp:
             self._force_on = True
-        elif temperature < self._target_temp:
+        elif self._current_temp is not None and temperature < self._current_temp:
             self._force_off = True
         if temperature in self._preset_temp_modes:
             await self.async_set_preset_mode(self._preset_temp_modes[temperature])
