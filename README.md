@@ -240,6 +240,10 @@ tolerance is 0.5 the heater will stop when the sensor equals or goes above 25.5 
 0.3).
 * **ac_mode** (Optional): Set the switch specified in the heater option to be treated as a cooling 
 device instead of a heating device. Should be a boolean (default: false).
+* **preset_sync_mode** (Optional): If set to sync mode, manually setting a temperature will enable 
+the corresponding preset. In example, if away temperature is set to 14°C, manually setting the 
+temperature to 14°C on the thermostat will automatically enable the away preset mode. Should be 
+string either 'sync' or 'none' (default: 'none').
 * **away_temp** (Optional): Set the temperature used by the "Away" preset. If this is not 
 specified, away_mode feature will not be available.
 * **eco_temp** (Optional): Set the temperature used by the "Eco" preset. If this is not specified, 

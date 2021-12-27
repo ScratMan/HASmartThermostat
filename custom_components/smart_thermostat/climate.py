@@ -77,6 +77,7 @@ DEFAULT_SAMPLING_PERIOD = '00:00:00'
 DEFAULT_LOOKBACK = '02:00:00'
 DEFAULT_SENSOR_STALL = '06:00:00'
 DEFAULT_OUTPUT_SAFETY = 5.0
+DEFAULT_PRESET_SYNC_MODE = "none"
 
 CONF_HEATER = "heater"
 CONF_SENSOR = "target_sensor"
@@ -94,6 +95,7 @@ CONF_SAMPLING_PERIOD = "sampling_period"
 CONF_SENSOR_STALL = 'sensor_stall'
 CONF_OUTPUT_SAFETY = 'output_safety'
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
+CONF_PRESET_SYNC_MODE = "preset_sync_mode"
 CONF_AWAY_TEMP = "away_temp"
 CONF_ECO_TEMP = "eco_temp"
 CONF_BOOST_TEMP = "boost_temp"
@@ -140,6 +142,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_OUTPUT_SAFETY, default=DEFAULT_OUTPUT_SAFETY): vol.Coerce(float),
         vol.Optional(CONF_INITIAL_HVAC_MODE): vol.In(
             [HVAC_MODE_COOL, HVAC_MODE_HEAT, HVAC_MODE_OFF]
+        ),
+        vol.Optional(CONF_PRESET_SYNC_MODE, default=DEFAULT_PRESET_SYNC_MODE): vol.In(
+            ['sync', 'none']
         ),
         vol.Optional(CONF_AWAY_TEMP): vol.Coerce(float),
         vol.Optional(CONF_ECO_TEMP): vol.Coerce(float),
@@ -196,6 +201,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'sensor_stall': config.get(CONF_SENSOR_STALL),
         'output_safety': config.get(CONF_OUTPUT_SAFETY),
         'initial_hvac_mode': config.get(CONF_INITIAL_HVAC_MODE),
+        'preset_sync_mode': config.get(CONF_PRESET_SYNC_MODE),
         'away_temp': config.get(CONF_AWAY_TEMP),
         'eco_temp': config.get(CONF_ECO_TEMP),
         'boost_temp': config.get(CONF_BOOST_TEMP),
@@ -304,6 +310,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._home_temp = kwargs.get('home_temp')
         self._sleep_temp = kwargs.get('sleep_temp')
         self._activity_temp = kwargs.get('activity_temp')
+        self._preset_sync_mode = kwargs.get('preset_sync_mode')
         if True in [temp is not None for temp in [self._away_temp,
                                                   self._eco_temp,
                                                   self._boost_temp,
@@ -664,7 +671,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             self._force_on = True
         elif self._current_temp is not None and temperature < self._current_temp:
             self._force_off = True
-        if temperature in self._preset_temp_modes:
+        if temperature in self._preset_temp_modes and self._preset_sync_mode == 'sync':
             await self.async_set_preset_mode(self._preset_temp_modes[temperature])
         else:
             await self.async_set_preset_mode(PRESET_NONE)
