@@ -246,6 +246,9 @@ device instead of a heating device. Should be a boolean (default: false).
 the corresponding preset. In example, if away temperature is set to 14°C, manually setting the 
 temperature to 14°C on the thermostat will automatically enable the away preset mode. Should be 
 string either 'sync' or 'none' (default: 'none').
+* **boost_pid_off** (Optional): When set to true, the PID will be set to OFF state while boost 
+preset is selected, and the thermostat will operate in hysteresis mode. This helps to quickly raise 
+the temperature in a room for a short period of time. Should be a boolean (default: false).
 * **away_temp** (Optional): Set the temperature used by the "Away" preset. If this is not 
 specified, away_mode feature will not be available.
 * **eco_temp** (Optional): Set the temperature used by the "Eco" preset. If this is not specified, 

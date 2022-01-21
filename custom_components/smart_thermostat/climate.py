@@ -113,6 +113,7 @@ CONF_KI = "ki"
 CONF_KD = "kd"
 CONF_KE = "ke"
 CONF_PWM = "pwm"
+CONF_BOOST_PID_OFF = 'boost_pid_off'
 CONF_AUTOTUNE = "autotune"
 CONF_NOISEBAND = "noiseband"
 CONF_LOOKBACK = "lookback"
@@ -170,6 +171,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_PWM, default=DEFAULT_PWM): vol.All(
             cv.time_period, cv.positive_timedelta
         ),
+        vol.Optional(CONF_BOOST_PID_OFF, default=False): cv.boolean,
         vol.Optional(CONF_AUTOTUNE, default=DEFAULT_AUTOTUNE): cv.string,
         vol.Optional(CONF_NOISEBAND, default=DEFAULT_NOISEBAND): vol.Coerce(float),
         vol.Optional(CONF_LOOKBACK, default=DEFAULT_LOOKBACK): vol.All(cv.time_period,
@@ -222,6 +224,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'kd': config.get(CONF_KD),
         'ke': config.get(CONF_KE),
         'pwm': config.get(CONF_PWM),
+        'boost_pid_off': config.get(CONF_BOOST_PID_OFF),
         'autotune': config.get(CONF_AUTOTUNE),
         'noiseband': config.get(CONF_NOISEBAND),
         'lookback': config.get(CONF_LOOKBACK),
@@ -342,6 +345,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._control_output = 0
         self._force_on = False
         self._force_off = False
+        self._boost_pid_off = kwargs.get('boost_pid_off')
         self._autotune = kwargs.get('autotune')
         self._lookback = kwargs.get('lookback').seconds + kwargs.get('lookback').days * 86400
         self._noiseband = kwargs.get('noiseband')
@@ -895,7 +899,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         else:
             self._target_temp = self.presets[preset_mode]
         self._attr_preset_mode = preset_mode
-        await self._async_control_heating(calc_pid=True)
+        if self._boost_pid_off and self._attr_preset_mode == PRESET_BOOST:
+            # Force PID OFF if requested and boost mode is active
+            await self.async_set_pid_mode(mode='off')
+        elif self._boost_pid_off and self._attr_preset_mode != PRESET_BOOST:
+            # Force PID Auto if managed by boost_pid_off and not in boost mode
+            await self.async_set_pid_mode(mode='auto')
+        else:
+            # if boost_pid_off is false, don't change the PID mode
+            await self._async_control_heating(calc_pid=True)
 
     async def calc_output(self):
         """calculate control output and handle autotune"""
