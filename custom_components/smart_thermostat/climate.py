@@ -338,7 +338,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._force_on = False
         self._force_off = False
         self._autotune = kwargs.get('autotune')
-        self._lookback = kwargs.get('lookback').seconds
+        self._lookback = kwargs.get('lookback').seconds + kwargs.get('lookback').days * 86400
         self._noiseband = kwargs.get('noiseband')
         self._cold_tolerance = abs(kwargs.get('cold_tolerance'))
         self._hot_tolerance = abs(kwargs.get('hot_tolerance'))
