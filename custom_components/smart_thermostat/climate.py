@@ -92,6 +92,8 @@ CONF_COLD_TOLERANCE = "cold_tolerance"
 CONF_AC_MODE = "ac_mode"
 CONF_MIN_CYCLE_DURATION = "min_cycle_duration"
 CONF_MIN_OFF_CYCLE_DURATION = "min_off_cycle_duration"
+CONF_MIN_CYCLE_DURATION_PID_OFF = 'min_cycle_duration_pid_off'
+CONF_MIN_OFF_CYCLE_DURATION_PID_OFF = 'min_off_cycle_duration_pid_off'
 CONF_KEEP_ALIVE = "keep_alive"
 CONF_SAMPLING_PERIOD = "sampling_period"
 CONF_SENSOR_STALL = 'sensor_stall'
@@ -137,6 +139,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_MIN_CYCLE_DURATION, default=DEFAULT_MIN_CYCLE_DURATION): vol.All(
             cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_MIN_OFF_CYCLE_DURATION): vol.All(
+            cv.time_period, cv.positive_timedelta),
+        vol.Optional(CONF_MIN_CYCLE_DURATION_PID_OFF): vol.All(
+            cv.time_period, cv.positive_timedelta),
+        vol.Optional(CONF_MIN_OFF_CYCLE_DURATION_PID_OFF): vol.All(
             cv.time_period, cv.positive_timedelta),
         vol.Required(CONF_KEEP_ALIVE): vol.All(cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_SAMPLING_PERIOD, default=DEFAULT_SAMPLING_PERIOD): vol.All(
@@ -202,6 +208,8 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'ac_mode': config.get(CONF_AC_MODE),
         'min_cycle_duration': config.get(CONF_MIN_CYCLE_DURATION),
         'min_off_cycle_duration': config.get(CONF_MIN_OFF_CYCLE_DURATION),
+        'min_cycle_duration_pid_off': config.get(CONF_MIN_CYCLE_DURATION_PID_OFF),
+        'min_off_cycle_duration_pid_off': config.get(CONF_MIN_OFF_CYCLE_DURATION_PID_OFF),
         'keep_alive': config.get(CONF_KEEP_ALIVE),
         'sampling_period': config.get(CONF_SAMPLING_PERIOD),
         'sensor_stall': config.get(CONF_SENSOR_STALL),
@@ -293,10 +301,16 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._temp_precision = kwargs.get('precision')
         self._target_temperature_step = kwargs.get('target_temp_step')
         self._last_heat_cycle_time = time.time()
-        self._min_on_cycle_duration = kwargs.get('min_cycle_duration')
-        self._min_off_cycle_duration = kwargs.get('min_off_cycle_duration')
-        if self._min_off_cycle_duration is None:
-            self._min_off_cycle_duration = self._min_on_cycle_duration
+        self._min_on_cycle_duration_pid_on = kwargs.get('min_cycle_duration')
+        self._min_off_cycle_duration_pid_on = kwargs.get('min_off_cycle_duration')
+        self._min_on_cycle_duration_pid_off = kwargs.get('min_cycle_duration_pid_off')
+        self._min_off_cycle_duration_pid_off = kwargs.get('min_off_cycle_duration_pid_off')
+        if self._min_off_cycle_duration_pid_on is None:
+            self._min_off_cycle_duration_pid_on = self._min_on_cycle_duration_pid_on
+        if self._min_on_cycle_duration_pid_off is None:
+            self._min_on_cycle_duration_pid_off = self._min_on_cycle_duration_pid_on
+        if self._min_off_cycle_duration_pid_off is None:
+            self._min_off_cycle_duration_pid_off = self._min_on_cycle_duration_pid_off
         self._active = False
         self._trigger_source = None
         self._current_temp = None
@@ -571,6 +585,20 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         return presets
 
     @property
+    def _min_on_cycle_duration(self):
+        if self.pid_mode == 'off':
+            return self._min_on_cycle_duration_pid_off
+        else:
+            return self._min_on_cycle_duration_pid_on
+
+    @property
+    def _min_off_cycle_duration(self):
+        if self.pid_mode == 'off':
+            return self._min_off_cycle_duration_pid_off
+        else:
+            return self._min_off_cycle_duration_pid_on
+
+    @property
     def pid_parm(self):
         """Return the pid parameters of the thermostat."""
         return self._kp, self._ki, self._kd
@@ -594,6 +622,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     def pid_control_e(self):
         """Return the E output of external temperature compensation."""
         return self._e
+
+    @property
+    def pid_mode(self):
+        if getattr(self, '_pidController', None) is not None:
+            return self._pidController.mode.lower()
+        return 'off'
 
     @property
     def pid_control_output(self):
@@ -635,7 +669,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             })
         else:
             device_state_attributes.update({
-                "pid_mode": self._pidController.mode.lower(),
+                "pid_mode": self.pid_mode,
                 "pid_p": self.pid_control_p,
                 "pid_i": self.pid_control_i,
                 "pid_d": self.pid_control_d,

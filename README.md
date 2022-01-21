@@ -217,10 +217,16 @@ seconds or time hh:mm:ss (default 15mn).
 * **min_cycle_duration** (Optional): Set a minimum amount of time that the switch specified in the 
 heater option must be in its current state prior to being switched either off or on (useful to 
 protect boilers). Can be float in seconds or time hh:mm:ss (default 0s).
-* **min_off_cycle_duration** (Optional): When _min_cycle_duration_ is specified, Set a minimum 
+* **min_off_cycle_duration** (Optional): When `min_cycle_duration` is specified, Set a minimum 
 amount of time that the switch specified in the heater option must remain in OFF state prior to 
-being switched ON. The _min_cycle_duration_ setting is then used for ON cycle only, allowing 
-different minimum cycle time for ON and OFF. Can be float in seconds or time hh:mm:ss (default 0s).
+being switched ON. The `min_cycle_duration` setting is then used for ON cycle only, allowing 
+different minimum cycle time for ON and OFF. Can be float in seconds or time hh:mm:ss (defaults to 
+`min_cycle_duration` value).
+* **min_cycle_duration_pid_off** (Optional): This parameter is the same as `min_cycle_duration` but is
+ used specifically when PID is set to OFF. Defaults to `min_cycle_duration` value.
+* **min_off_cycle_duration_pid_off** (Optional): This parameter is the same as 
+min_off_cycle_duration but is used specifically when PID is set to OFF. Defaults to 
+`min_cycle_duration_pid_off` value.
 * **sampling_period** (Optional): interval between two computation of the PID. If set to 0, PID 
 computation is called each time the temperature sensor sends an update. Can be float in seconds or 
 time hh:mm:ss (default 0). 
