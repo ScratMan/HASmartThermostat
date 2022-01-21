@@ -196,6 +196,8 @@ itself.
 * **unique_id** (Optional): unique entity_id for the smart thermostat.
 * **heater** (Required): entity_id for heater switch, must be a toggle device. Becomes air 
 * conditioning switch when ac_mode is set to True.
+* **invert_heater** (Optional): if set to true, inverts the polarity of heater switch (switch is on 
+while idle and off while active). Must be a boolean (defaults to false).
 * **target_sensor** (Required): entity_id for a temperature sensor, target_sensor.state must be 
 temperature.
 * **outdoor_sensor** (Optional): entity_id for an outdoor temperature sensor, outdoor_sensor.state 

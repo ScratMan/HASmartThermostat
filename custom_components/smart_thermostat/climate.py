@@ -21,6 +21,7 @@ from homeassistant.const import (
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
     STATE_ON,
+    STATE_OFF,
     STATE_UNKNOWN,
 )
 from homeassistant.core import DOMAIN as HA_DOMAIN, callback
@@ -80,6 +81,7 @@ DEFAULT_OUTPUT_SAFETY = 5.0
 DEFAULT_PRESET_SYNC_MODE = "none"
 
 CONF_HEATER = "heater"
+CONF_INVERT_HEATER = 'invert_heater'
 CONF_SENSOR = "target_sensor"
 CONF_OUTDOOR_SENSOR = "outdoor_sensor"
 CONF_MIN_TEMP = "min_temp"
@@ -120,6 +122,7 @@ SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HEATER): cv.entity_id,
+        vol.Required(CONF_INVERT_HEATER, default=False): cv.boolean,
         vol.Required(CONF_SENSOR): cv.entity_id,
         vol.Optional(CONF_OUTDOOR_SENSOR): cv.entity_id,
         vol.Optional(CONF_AC_MODE): cv.boolean,
@@ -186,6 +189,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'name': config.get(CONF_NAME),
         'unique_id': config.get(CONF_UNIQUE_ID),
         'heater_entity_id': config.get(CONF_HEATER),
+        'invert_heater': config.get(CONF_INVERT_HEATER),
         'sensor_entity_id': config.get(CONF_SENSOR),
         'ext_sensor_entity_id': config.get(CONF_OUTDOOR_SENSOR),
         'min_temp': config.get(CONF_MIN_TEMP),
@@ -271,6 +275,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._name = kwargs.get('name')
         self._unique_id = kwargs.get('unique_id')
         self._heater_entity_id = kwargs.get('heater_entity_id')
+        self._heater_polarity_invert = kwargs.get('invert_heater')
         self._sensor_entity_id = kwargs.get('sensor_entity_id')
         self._ext_sensor_entity_id = kwargs.get('ext_sensor_entity_id')
         if self._unique_id == 'none':
@@ -831,6 +836,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def _is_device_active(self):
         """If the toggleable device is currently active."""
+        if self._heater_polarity_invert:
+            return self.hass.states.is_state(self._heater_entity_id, STATE_OFF)
         return self.hass.states.is_state(self._heater_entity_id, STATE_ON)
 
     @property
@@ -844,7 +851,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             data = {ATTR_ENTITY_ID: self._heater_entity_id}
             _LOGGER.info("Turning on %s for %s (%s)", self._heater_entity_id,
                          self.name, self.entity_id)
-            await self.hass.services.async_call(HA_DOMAIN, SERVICE_TURN_ON, data)
+            if self._heater_polarity_invert:
+                service = SERVICE_TURN_OFF
+            else:
+                service = SERVICE_TURN_ON
+            await self.hass.services.async_call(HA_DOMAIN, service, data)
             self._last_heat_cycle_time = time.time()
         else:
             _LOGGER.info("Reject request turning on %s for %s (%s): Cycle is too short",
@@ -856,7 +867,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             data = {ATTR_ENTITY_ID: self._heater_entity_id}
             _LOGGER.info("Turning off %s for %s (%s)", self._heater_entity_id,
                          self.name, self.entity_id)
-            await self.hass.services.async_call(HA_DOMAIN, SERVICE_TURN_OFF, data)
+            if self._heater_polarity_invert:
+                service = SERVICE_TURN_ON
+            else:
+                service = SERVICE_TURN_OFF
+            await self.hass.services.async_call(HA_DOMAIN, service, data)
             self._last_heat_cycle_time = time.time()
         else:
             _LOGGER.info("Reject request turning off %s for %s (%s): Cycle is too short",
