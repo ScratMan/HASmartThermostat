@@ -175,6 +175,8 @@ target:
 Use this service to set the temperatures for the preset modes. It can be adjusted 
 for all preset modes, if a preset mode is not enabled through YAML, it will be enabled. You can use 
 any preset temp parameter available in smart thermostat settings.\
+Please note the value will then be saved in the entity's state in database and restored after 
+restarting Home Assistant, ignoring values in YAML.\
 Example:
 ```
 service: smart_thermostat.set_preset_temp
@@ -249,20 +251,26 @@ string either 'sync' or 'none' (default: 'none').
 * **boost_pid_off** (Optional): When set to true, the PID will be set to OFF state while boost 
 preset is selected, and the thermostat will operate in hysteresis mode. This helps to quickly raise 
 the temperature in a room for a short period of time. Should be a boolean (default: false).
-* **away_temp** (Optional): Set the temperature used by the "Away" preset. If this is not 
-specified, away_mode feature will not be available.
-* **eco_temp** (Optional): Set the temperature used by the "Eco" preset. If this is not specified, 
-eco feature will not be available.
-* **boost_temp** (Optional): Set the temperature used by the "Boost" preset. If this is not 
-specified, boost feature will not be available.
-* **comfort_temp** (Optional): Set the temperature used by the "Comfort" preset. If this is not 
-specified, comfort feature will not be available.
-* **home_temp** (Optional): Set the temperature used by the "Home" preset. If this is not 
-specified, home feature will not be available.
-* **sleep_temp** (Optional): Set the temperature used by the "Sleep" preset. If this is not 
-specified, sleep feature will not be available.
-* **activity_temp** (Optional): Set the temperature used by the "Activity" preset. If this is not 
-specified, activity feature will not be available.
+* **away_temp** (Optional): Set the default temperature used by the "Away" preset. If this is not 
+specified, away_mode feature will not be available. The temperature can then be adjusted using the 
+`set_preset_temp` service, new value being restored after restarting HA.
+* **eco_temp** (Optional): Set the default temperature used by the "Eco" preset. If this is not 
+specified, eco feature will not be available. The temperature can then be adjusted using the 
+`set_preset_temp` service, new value being restored after restarting HA.
+* **boost_temp** (Optional): Set the default temperature used by the "Boost" preset. If this is not 
+specified, boost feature will not be available. The temperature can then be adjusted using the 
+`set_preset_temp` service, new value being restored after restarting HA.
+* **comfort_temp** (Optional): Set the default temperature used by the "Comfort" preset. If this is 
+not specified, comfort feature will not be available.
+* **home_temp** (Optional): Set the default temperature used by the "Home" preset. If this is not 
+specified, home feature will not be available. The temperature can then be adjusted using the 
+`set_preset_temp` service, new value being restored after restarting HA.
+* **sleep_temp** (Optional): Set the default temperature used by the "Sleep" preset. If this is not 
+specified, sleep feature will not be available. The temperature can then be adjusted using the 
+`set_preset_temp` service, new value being restored after restarting HA.
+* **activity_temp** (Optional): Set the default temperature used by the "Activity" preset. If this 
+is not specified, activity feature will not be available. The temperature can then be adjusted using
+the `set_preset_temp` service, new value being restored after restarting HA.
 * **sensor_stall** (Optional): Sets the maximum time period between two sensor updates. If no 
 update received from sensor after this time period, the system considers the sensor as stall and 
 switch to safety mode, the output being forced to output_safety. If set to 0, the feature is 
