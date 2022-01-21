@@ -300,7 +300,7 @@ class PIDAutotune:
     @property
     def buffer_full(self):
         """Get the filling percentage of the buffer"""
-        if self._inputs is None:
+        if self._inputs is None or float(self._inputs.maxlen) == 0:
             return 0
         return len(self._inputs) / float(self._inputs.maxlen)
 
