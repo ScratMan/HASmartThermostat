@@ -148,7 +148,7 @@ set_preset_temp:
       selector:
         number:
           min: 0
-          max: 30
+          max: 95
           step: 0.1
           mode: slider
     eco_temp:
@@ -168,7 +168,7 @@ set_preset_temp:
       selector:
         number:
           min: 0
-          max: 30
+          max: 95
           step: 0.1
           mode: slider
     boost_temp:
@@ -188,7 +188,7 @@ set_preset_temp:
       selector:
         number:
           min: 0
-          max: 30
+          max: 95
           step: 0.1
           mode: slider
     comfort_temp:
@@ -208,7 +208,7 @@ set_preset_temp:
       selector:
         number:
           min: 0
-          max: 30
+          max: 95
           step: 0.1
           mode: slider
     home_temp:
@@ -228,7 +228,7 @@ set_preset_temp:
       selector:
         number:
           min: 0
-          max: 30
+          max: 95
           step: 0.1
           mode: slider
     sleep_temp:
@@ -248,7 +248,7 @@ set_preset_temp:
       selector:
         number:
           min: 0
-          max: 30
+          max: 95
           step: 0.1
           mode: slider
     activity_temp:
@@ -268,6 +268,6 @@ set_preset_temp:
       selector:
         number:
           min: 0
-          max: 30
+          max: 95
           step: 0.1
           mode: slider

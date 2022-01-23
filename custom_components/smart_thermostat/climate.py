@@ -261,13 +261,20 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     platform.async_register_entity_service(  # type: ignore
         "set_preset_temp",
         {
-            vol.Optional("away_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
-            vol.Optional("eco_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
-            vol.Optional("boost_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
-            vol.Optional("comfort_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
-            vol.Optional("home_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
-            vol.Optional("sleep_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
-            vol.Optional("activity_temp"): vol.All(vol.Coerce(float), vol.Range(min=0, max=30)),
+            vol.Optional("away_temp"): vol.All(vol.Coerce(float), vol.Range(
+                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
+            vol.Optional("eco_temp"): vol.All(vol.Coerce(float), vol.Range(
+                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
+            vol.Optional("boost_temp"): vol.All(vol.Coerce(float), vol.Range(
+                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
+            vol.Optional("comfort_temp"): vol.All(vol.Coerce(float), vol.Range(
+                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
+            vol.Optional("home_temp"): vol.All(vol.Coerce(float), vol.Range(
+                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
+            vol.Optional("sleep_temp"): vol.All(vol.Coerce(float), vol.Range(
+                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
+            vol.Optional("activity_temp"): vol.All(vol.Coerce(float), vol.Range(
+                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
         },
         "async_set_preset_temp",
     )
@@ -759,19 +766,19 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         sleep_temp = kwargs.get('sleep_temp', None)
         activity_temp = kwargs.get('activity_temp', None)
         if away_temp is not None:
-            self._away_temp = float(away_temp)
+            self._away_temp = max(min(float(away_temp), self.max_temp), self.min_temp)
         if eco_temp is not None:
-            self._eco_temp = float(eco_temp)
+            self._eco_temp = max(min(float(eco_temp), self.max_temp), self.min_temp)
         if boost_temp is not None:
-            self._boost_temp = float(boost_temp)
+            self._boost_temp = max(min(float(boost_temp), self.max_temp), self.min_temp)
         if comfort_temp is not None:
-            self._comfort_temp = float(comfort_temp)
+            self._comfort_temp = max(min(float(comfort_temp), self.max_temp), self.min_temp)
         if home_temp is not None:
-            self._home_temp = float(home_temp)
+            self._home_temp = max(min(float(home_temp), self.max_temp), self.min_temp)
         if sleep_temp is not None:
-            self._sleep_temp = float(sleep_temp)
+            self._sleep_temp = max(min(float(sleep_temp), self.max_temp), self.min_temp)
         if activity_temp is not None:
-            self._activity_temp = float(activity_temp)
+            self._activity_temp = max(min(float(activity_temp), self.max_temp), self.min_temp)
         await self._async_control_heating(calc_pid=True)
 
     async def clear_integral(self, **kwargs):
