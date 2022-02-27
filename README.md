@@ -192,6 +192,22 @@ Use this service to reset the integral part of the PID controller to 0. Useful
 when tuning the PID gains to quickly test the behavior without waiting the integral to stabilize by 
 itself.
 
+**Set PID mode:** `smart_thermostat.set_pid_mode`\
+Use this service to set the PID mode to either 'auto' or 'off'.\
+When in auto, the PID will modulate the heating based on temperature value and variation. When in
+off, the PID output will be 0% if temperature is above the set point, and 100% if temperature is
+below the set point.\
+Mode is saved to Home Assistant database and restored after a restart.\
+Required parameter : mode as a string in ['auto', 'off'].\
+Example:
+```
+service: smart_thermostat.set_temperature
+data:
+  temperature: 21
+target:
+  entity_id: climate.smart_thermostat_example
+```
+
 
 ## Parameters:
 * **name** (Optional): Name of the thermostat.
@@ -309,4 +325,3 @@ This code is a fork from Smart Thermostat PID project:
 [https://github.com/aendle/custom_components](https://github.com/aendle/custom_components) \
 The python PID module with Autotune is based on pid-autotune:
 [https://github.com/hirschmann/pid-autotune](https://github.com/hirschmann/pid-autotune)
-

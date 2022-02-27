@@ -259,6 +259,13 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         "async_set_pid_mode",
     )
     platform.async_register_entity_service(  # type: ignore
+        "set_temperature",
+        {
+            vol.Required(ATTR_TEMPERATURE): vol.Coerce(float),
+        },
+        "async_set_temperature",
+    )
+    platform.async_register_entity_service(  # type: ignore
         "set_preset_temp",
         {
             vol.Optional("away_temp"): vol.All(vol.Coerce(float), vol.Range(
