@@ -261,20 +261,13 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     platform.async_register_entity_service(  # type: ignore
         "set_preset_temp",
         {
-            vol.Optional("away_temp"): vol.All(vol.Coerce(float), vol.Range(
-                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
-            vol.Optional("eco_temp"): vol.All(vol.Coerce(float), vol.Range(
-                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
-            vol.Optional("boost_temp"): vol.All(vol.Coerce(float), vol.Range(
-                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
-            vol.Optional("comfort_temp"): vol.All(vol.Coerce(float), vol.Range(
-                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
-            vol.Optional("home_temp"): vol.All(vol.Coerce(float), vol.Range(
-                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
-            vol.Optional("sleep_temp"): vol.All(vol.Coerce(float), vol.Range(
-                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
-            vol.Optional("activity_temp"): vol.All(vol.Coerce(float), vol.Range(
-                min=smart_thermostat.min_temp, max=smart_thermostat.max_temp)),
+            vol.Optional("away_temp"): vol.Coerce(float),
+            vol.Optional("eco_temp"): vol.Coerce(float),
+            vol.Optional("boost_temp"): vol.Coerce(float),
+            vol.Optional("comfort_temp"): vol.Coerce(float),
+            vol.Optional("home_temp"): vol.Coerce(float),
+            vol.Optional("sleep_temp"): vol.Coerce(float),
+            vol.Optional("activity_temp"): vol.Coerce(float),
         },
         "async_set_preset_temp",
     )
