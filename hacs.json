@@ -1,6 +1,5 @@
 {
   "name": "Smart thermostat (PID)",
-  "domains": ["climate"],
   "render_readme": true,
   "homeassistant": "0.104.2"
 }
