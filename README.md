@@ -46,10 +46,10 @@ climate:
     keep_alive:
       seconds: 60
     away_temp: 14
-    kp : 5
-    ki : 0.01
-    kd : 500
-    pwm : 00:15:00
+    kp: 5
+    ki: 0.01
+    kd: 500
+    pwm: 00:15:00
 ```
 
 ## Usage:
