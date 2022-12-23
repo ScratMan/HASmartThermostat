@@ -286,13 +286,56 @@ mode due to unresponsive temperature sensor. This can help to keep a minimum tem
 room in case of sensor failure. The value should be a float between 0.0 and 100.0 (default 5.0).
 * **initial_hvac_mode** (Optional): Forces the operation mode after Home Assistant is restarted. If 
 not specified, the thermostat will restore the previous operation mode.
+* **debug** (Optional): Make the climate entity expose the following internal values as extra 
+states attributes, so they can be accessed in HA with sensor templates for debugging purposes (
+helpful to adjust the PID gains), example:
+  ```
+  - platform: template
+      sensors:
+        smart_thermostat_output:
+          friendly_name: PID Output
+          unit_of_measurement: "%"
+          value_template: "{{ state_attr('climate.smart_thermostat_example', 'control_output') | float }}"
+        smart_thermostat_p:
+          friendly_name: PID P
+          unit_of_measurement: "%"
+          value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_p') | float }}"
+        smart_thermostat_i:
+          friendly_name: PID I
+          unit_of_measurement: "%"
+          value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_i') | float }}"
+        smart_thermostat_d:
+          friendly_name: PID D
+          unit_of_measurement: "%"
+          value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_d') | float }}"
+        smart_thermostat_e:
+          friendly_name: PID E
+          unit_of_measurement: "%"
+          value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_e') | float }}"
+  ```
+  It is strongly recommended to disable the debug mode once the 
+  PID Thermostat is working fine, as the added extra states attributes will fill the Home Assistant 
+  database quickly.\
+  Available debug attributes are:
+    * `pid_mode`
+    * `pid_p`
+    * `pid_i`
+    * `pid_d`
+    * `pid_e`
+    * `pid_dt`
+    * `autotune_status`
+    * `autotune_sample_time`
+    * `autotune_tuning_rule`
+    * `autotune_set_point`
+    * `autotune_peak_count`
+    * `autotune_buffer_full`
+    * `autotune_buffer_length`
 * **noiseband** (Optional): set noiseband for autotune (float): Determines by how much the input 
 value must overshoot/undershoot the set point before the state changes (default : 0.5).
 * **lookback** (Optional): length of the autotune buffer for the signal analysis to detect peaks, 
 can be float in seconds, or time hh:mm:ss (default 2 hours).
 * **autotune** (Optional): Set the name of the selected rule for autotune settings (ie 
 "ziegler-nichols"). If it's not set, autotune is disabled. The following tuning_rules are available:
-
 ruler | Kp_divisor, Ki_divisor, Kd_divisor
 ------------ | -------------
 "ziegler-nichols" | 34, 40, 160
