@@ -5,7 +5,7 @@ https://github.com/fabiannydegger/custom_components/"""
 import asyncio
 import logging
 import time
-from . import pid_controller
+from abc import ABC
 
 import voluptuous as vol
 
@@ -53,6 +53,7 @@ from homeassistant.components.climate import (
 
 from . import DOMAIN, PLATFORMS
 from . import const
+from . import pid_controller
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -227,7 +228,7 @@ async def async_setup_platform(
     )
 
 
-class SmartThermostat(ClimateEntity, RestoreEntity):
+class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     """Representation of a Smart Thermostat device."""
 
     def __init__(self, **kwargs):
@@ -290,16 +291,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                                                   self._home_temp,
                                                   self._sleep_temp,
                                                   self._activity_temp]]:
-            self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
+            self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE | \
+                                  ClimateEntityFeature.PRESET_MODE
         self._difference = kwargs.get('difference')
         if self._ac_mode == HVACMode.COOL:
             self._attr_hvac_modes = [HVACMode.COOL, HVACMode.OFF]
-            self._minOut = -self._difference
-            self._maxOut = 0
+            self._min_out = -self._difference
+            self._max_out = 0
         else:
             self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
-            self._minOut = 0
-            self._maxOut = self._difference
+            self._min_out = 0
+            self._max_out = self._difference
         self._kp = kwargs.get('kp')
         self._ki = kwargs.get('ki')
         self._kd = kwargs.get('kd')
@@ -319,10 +321,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._last_sensor_update = time.time()
         self._last_ext_sensor_update = time.time()
         if self._autotune != "none":
-            self._pidController = None
-            self._pidAutotune = pid_controller.PIDAutotune(self._difference, self._lookback,
-                                                           self._minOut, self._maxOut,
-                                                           self._noiseband, time.time)
+            self._pid_controller = None
+            self._pid_autotune = pid_controller.PIDAutotune(self._difference, self._lookback,
+                                                            self._min_out, self._max_out,
+                                                            self._noiseband, time.time)
             _LOGGER.warning("Autotune will run on %s (%s) with the target temperature "
                             "set after 10 temperature samples from sensor. Changes submitted "
                             "after doesn't have any effect until autotuning is finished",
@@ -330,11 +332,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         else:
             _LOGGER.debug("PID Gains for %s (%s): kp = %s, ki = %s, kd = %s", self._name,
                           self._unique_id, self._kp, self._ki, self._kd)
-            self._pidController = pid_controller.PID(self._kp, self._ki, self._kd, self._ke,
-                                                     self._minOut, self._maxOut,
-                                                     self._sampling_period, self._cold_tolerance,
-                                                     self._hot_tolerance)
-            self._pidController.mode = "AUTO"
+            self._pid_controller = pid_controller.PID(self._kp, self._ki, self._kd, self._ke,
+                                                      self._min_out, self._max_out,
+                                                      self._sampling_period, self._cold_tolerance,
+                                                      self._hot_tolerance)
+            self._pid_controller.mode = "AUTO"
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -381,29 +383,30 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             for preset_mode in ['away_temp', 'eco_temp', 'boost_temp', 'comfort_temp', 'home_temp',
                                 'sleep_temp', 'activity_temp']:
                 if old_state.attributes.get(preset_mode) is not None:
-                    setattr(self, "_{}".format(preset_mode), float(old_state.attributes.get(preset_mode)))
+                    setattr(self, f"_{preset_mode}", float(old_state.attributes.get(preset_mode)))
             if old_state.attributes.get(ATTR_PRESET_MODE) is not None:
                 self._attr_preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
             if isinstance(old_state.attributes.get('pid_i'), (float, int)) and \
-                    self._pidController is not None:
+                    self._pid_controller is not None:
                 self._i = float(old_state.attributes.get('pid_i'))
-                self._pidController.integral = self._i
+                self._pid_controller.integral = self._i
             if self.hvac_mode is None and old_state.state in self.hvac_modes:
                 self._attr_hvac_mode = old_state.state
-            if old_state.attributes.get('Kp') is not None and self._pidController is not None:
+            if old_state.attributes.get('Kp') is not None and self._pid_controller is not None:
                 self._kp = float(old_state.attributes.get('Kp'))
-                self._pidController.set_pid_param(kp=self._kp)
-            if old_state.attributes.get('Ki') is not None and self._pidController is not None:
+                self._pid_controller.set_pid_param(kp=self._kp)
+            if old_state.attributes.get('Ki') is not None and self._pid_controller is not None:
                 self._ki = float(old_state.attributes.get('Ki'))
-                self._pidController.set_pid_param(ki=self._ki)
-            if old_state.attributes.get('Kd') is not None and self._pidController is not None:
+                self._pid_controller.set_pid_param(ki=self._ki)
+            if old_state.attributes.get('Kd') is not None and self._pid_controller is not None:
                 self._kd = float(old_state.attributes.get('Kd'))
-                self._pidController.set_pid_param(kd=self._kd)
-            if old_state.attributes.get('Ke') is not None and self._pidController is not None:
+                self._pid_controller.set_pid_param(kd=self._kd)
+            if old_state.attributes.get('Ke') is not None and self._pid_controller is not None:
                 self._ke = float(old_state.attributes.get('Ke'))
-                self._pidController.set_pid_param(ke=self._ke)
-            if old_state.attributes.get('pid_mode') is not None and self._pidController is not None:
-                self._pidController.mode = old_state.attributes.get('pid_mode')
+                self._pid_controller.set_pid_param(ke=self._ke)
+            if old_state.attributes.get('pid_mode') is not None and \
+                    self._pid_controller is not None:
+                self._pid_controller.mode = old_state.attributes.get('pid_mode')
 
         else:
             # No previous state, try and restore defaults
@@ -515,15 +518,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
     def _min_on_cycle_duration(self):
         if self.pid_mode == 'off':
             return self._min_on_cycle_duration_pid_off
-        else:
-            return self._min_on_cycle_duration_pid_on
+        return self._min_on_cycle_duration_pid_on
 
     @property
     def _min_off_cycle_duration(self):
         if self.pid_mode == 'off':
             return self._min_off_cycle_duration_pid_off
-        else:
-            return self._min_off_cycle_duration_pid_on
+        return self._min_off_cycle_duration_pid_on
 
     @property
     def pid_parm(self):
@@ -532,28 +533,29 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
 
     @property
     def pid_control_p(self):
-        """Return the P output of PID controller."""
+        """Return the proportional output of PID controller."""
         return self._p
 
     @property
     def pid_control_i(self):
-        """Return the I output of PID controller."""
+        """Return the integral output of PID controller."""
         return self._i
 
     @property
     def pid_control_d(self):
-        """Return the D output of PID controller."""
+        """Return the derivative output of PID controller."""
         return self._d
 
     @property
     def pid_control_e(self):
-        """Return the E output of external temperature compensation."""
+        """Return the external output of external temperature compensation."""
         return self._e
 
     @property
     def pid_mode(self):
+        """Return the PID operating mode."""
         if getattr(self, '_pidController', None) is not None:
-            return self._pidController.mode.lower()
+            return self._pid_controller.mode.lower()
         return 'off'
 
     @property
@@ -586,13 +588,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 "pid_d": 0,
                 "pid_e": 0,
                 "pid_dt": 0,
-                "autotune_status": self._pidAutotune.state,
-                "autotune_sample_time": self._pidAutotune.sample_time,
+                "autotune_status": self._pid_autotune.state,
+                "autotune_sample_time": self._pid_autotune.sample_time,
                 "autotune_tuning_rule": self._autotune,
-                "autotune_set_point": self._pidAutotune.set_point,
-                "autotune_peak_count": self._pidAutotune.peak_count,
-                "autotune_buffer_full": round(self._pidAutotune.buffer_full, 2),
-                "autotune_buffer_length": self._pidAutotune.buffer_length,
+                "autotune_set_point": self._pid_autotune.set_point,
+                "autotune_peak_count": self._pid_autotune.peak_count,
+                "autotune_buffer_full": round(self._pid_autotune.buffer_full, 2),
+                "autotune_buffer_length": self._pid_autotune.buffer_length,
             })
         elif self._debug:
             device_state_attributes.update({
@@ -630,8 +632,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             # Clear the samples to avoid integrating the off period
             self._previous_temp = None
             self._previous_temp_time = None
-            if self._pidController is not None:
-                self._pidController.clear_samples()
+            if self._pid_controller is not None:
+                self._pid_controller.clear_samples()
         else:
             _LOGGER.error("Unrecognized hvac mode for %s (%s): %s",
                           self.name, self.unique_id, hvac_mode)
@@ -657,26 +659,26 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
 
     async def async_set_pid(self, **kwargs):
         """Set PID parameters."""
-        kp = kwargs.get('kp', None)
-        ki = kwargs.get('ki', None)
-        kd = kwargs.get('kd', None)
-        ke = kwargs.get('ke', None)
-        if kp is not None:
-            self._kp = float(kp)
-        if ki is not None:
-            self._ki = float(ki)
-        if kd is not None:
-            self._kd = float(kd)
-        if ke is not None:
-            self._ke = float(ke)
-        self._pidController.set_pid_param(self._kp, self._ki, self._kd, self._ke)
+        gain_kp = kwargs.get('kp', None)
+        gain_ki = kwargs.get('ki', None)
+        gain_kd = kwargs.get('kd', None)
+        gain_ke = kwargs.get('ke', None)
+        if gain_kp is not None:
+            self._kp = float(gain_kp)
+        if gain_ki is not None:
+            self._ki = float(gain_ki)
+        if gain_kd is not None:
+            self._kd = float(gain_kd)
+        if gain_ke is not None:
+            self._ke = float(gain_ke)
+        self._pid_controller.set_pid_param(self._kp, self._ki, self._kd, self._ke)
         await self._async_control_heating(calc_pid=True)
 
     async def async_set_pid_mode(self, **kwargs):
         """Set PID parameters."""
         mode = kwargs.get('mode', None)
-        if str(mode).upper() in ['AUTO', 'OFF'] and self._pidController is not None:
-            self._pidController.mode = str(mode).upper()
+        if str(mode).upper() in ['AUTO', 'OFF'] and self._pid_controller is not None:
+            self._pid_controller.mode = str(mode).upper()
         await self._async_control_heating(calc_pid=True)
 
     async def async_set_preset_temp(self, **kwargs):
@@ -706,7 +708,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
 
     async def clear_integral(self, **kwargs):
         """Clear the integral value."""
-        self._pidController.integral = 0.0
+        self._pid_controller.integral = 0.0
         await self.async_update_ha_state()
 
     @property
@@ -736,9 +738,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._cur_temp_time = time.time()
         self._async_update_temp(new_state)
         self._trigger_source = 'sensor'
-        _LOGGER.debug("Received new temperature sensor input for %s (%s) at timestamp %s (before %s): %s "
-                      "(before %s)", self.name, self.entity_id, self._cur_temp_time, self._previous_temp_time,
-                      self._current_temp, self._previous_temp)
+        _LOGGER.debug("Received new temperature sensor input for %s (%s) at timestamp %s (before "
+                      "%s): %s (before %s)", self.name, self.entity_id, self._cur_temp_time,
+                      self._previous_temp_time, self._current_temp, self._previous_temp)
         await self._async_control_heating(calc_pid=True)
 
     async def _async_ext_sensor_changed(self, entity_id, old_state, new_state):
@@ -748,8 +750,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
 
         self._async_update_ext_temp(new_state)
         self._trigger_source = 'ext_sensor'
-        _LOGGER.debug("Received new outdoor temperature sensor input for %s (%s) at timestamp %s: %s",
-                      self.name, self.entity_id, time.time(), self._ext_temp)
+        _LOGGER.debug("Received new outdoor temperature sensor input for %s (%s) at timestamp %s: "
+                      "%s", self.name, self.entity_id, time.time(), self._ext_temp)
         await self._async_control_heating(calc_pid=False)
 
     @callback
@@ -886,45 +888,45 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         if self._autotune != "none":
             if self._trigger_source == "sensor":
                 self._trigger_source = None
-                if self._pidAutotune.run(self._current_temp, self._target_temp):
-                    for tuning_rule in self._pidAutotune.tuning_rules:
-                        params = self._pidAutotune.get_pid_parameters(tuning_rule)
+                if self._pid_autotune.run(self._current_temp, self._target_temp):
+                    for tuning_rule in self._pid_autotune.tuning_rules:
+                        params = self._pid_autotune.get_pid_parameters(tuning_rule)
                         _LOGGER.warning("Smart thermostat %s (%s) PID Autotuner output with %s "
                                         "rule: Kp=%s, Ki=%s, Kd=%s", self.name, self.entity_id,
                                         tuning_rule, params.Kp, params.Ki, params.Kd)
-                    params = self._pidAutotune.get_pid_parameters(self._autotune)
+                    params = self._pid_autotune.get_pid_parameters(self._autotune)
                     self._kp = params.Kp
                     self._ki = params.Ki
                     self._kd = params.Kd
                     _LOGGER.warning("Smart thermostat %s (%s) now runs on PID Controller using "
                                     "rule %s: Kp=%s, Ki=%s, Kd=%s", self.name, self.entity_id,
                                     self._autotune, self._kp, self._ki, self._kd)
-                    self._pidController = pid_controller.PID(self._kp, self._ki, self._kd, self._ke,
-                                                             self._minOut, self._maxOut,
-                                                             self._sampling_period,
-                                                             self._cold_tolerance,
-                                                             self._hot_tolerance)
+                    self._pid_controller = pid_controller.PID(self._kp, self._ki, self._kd,
+                                                              self._ke, self._min_out,
+                                                              self._max_out, self._sampling_period,
+                                                              self._cold_tolerance,
+                                                              self._hot_tolerance)
                     self._autotune = "none"
-            self._control_output = self._pidAutotune.output
+            self._control_output = self._pid_autotune.output
             self._p = self._i = self._d = error = self._dt = 0
         else:
-            if self._pidController.sampling_period == 0:
-                self._control_output, update = self._pidController.calc(self._current_temp,
-                                                                        self._target_temp,
-                                                                        self._cur_temp_time,
-                                                                        self._previous_temp_time,
-                                                                        self._ext_temp)
+            if self._pid_controller.sampling_period == 0:
+                self._control_output, update = self._pid_controller.calc(self._current_temp,
+                                                                         self._target_temp,
+                                                                         self._cur_temp_time,
+                                                                         self._previous_temp_time,
+                                                                         self._ext_temp)
             else:
-                self._control_output, update = self._pidController.calc(self._current_temp,
-                                                                        self._target_temp,
-                                                                        ext_temp=self._ext_temp)
-            self._p = round(self._pidController.P, 1)
-            self._i = round(self._pidController.I, 1)
-            self._d = round(self._pidController.D, 1)
-            self._e = round(self._pidController.E, 1)
+                self._control_output, update = self._pid_controller.calc(self._current_temp,
+                                                                         self._target_temp,
+                                                                         ext_temp=self._ext_temp)
+            self._p = round(self._pid_controller.P, 1)
+            self._i = round(self._pid_controller.I, 1)
+            self._d = round(self._pid_controller.D, 1)
+            self._e = round(self._pid_controller.E, 1)
             self._control_output = round(self._control_output, 1)
-            error = self._pidController.error
-            self._dt = self._pidController.dt
+            error = self._pid_controller.error
+            self._dt = self._pid_controller.dt
         if update:
             _LOGGER.debug("New PID control output for %s (%s). %.2f (error = %.2f, dt = %.2f, "
                           "p=%.2f, i=%.2f, d=%.2f, e=%.2f)", self.name, self.entity_id,
