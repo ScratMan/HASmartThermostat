@@ -9,6 +9,9 @@ from . import pid_controller
 
 import voluptuous as vol
 
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_TEMPERATURE,
@@ -25,7 +28,6 @@ from homeassistant.const import (
     STATE_UNKNOWN,
 )
 from homeassistant.core import DOMAIN as HA_DOMAIN, callback
-from homeassistant.helpers import condition, entity_platform
 from homeassistant.util import slugify
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import (
@@ -35,17 +37,10 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
-from homeassistant.components.climate.const import (
+from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity, ClimateEntityFeature
+from homeassistant.components.climate import (
     ATTR_PRESET_MODE,
-    ATTR_TARGET_TEMP_STEP,
-    CURRENT_HVAC_COOL,
-    CURRENT_HVAC_HEAT,
-    CURRENT_HVAC_IDLE,
-    CURRENT_HVAC_OFF,
-    HVAC_MODE_COOL,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_OFF,
+    HVACMode,
     PRESET_AWAY,
     PRESET_NONE,
     PRESET_ECO,
@@ -54,214 +49,166 @@ from homeassistant.components.climate.const import (
     PRESET_HOME,
     PRESET_SLEEP,
     PRESET_ACTIVITY,
-    SUPPORT_PRESET_MODE,
-    SUPPORT_TARGET_TEMPERATURE,
 )
 
 from . import DOMAIN, PLATFORMS
+from . import const
 
 _LOGGER = logging.getLogger(__name__)
 
-from .const import (
-    DEFAULT_TOLERANCE,
-    DEFAULT_NAME,
-    DEFAULT_DIFFERENCE,
-    DEFAULT_PWM,
-    DEFAULT_MIN_CYCLE_DURATION,
-    DEFAULT_KP,
-    DEFAULT_KI,
-    DEFAULT_KD,
-    DEFAULT_KE,
-    DEFAULT_AUTOTUNE,
-    DEFAULT_NOISEBAND,
-    DEFAULT_SAMPLING_PERIOD,
-    DEFAULT_LOOKBACK,
-    DEFAULT_SENSOR_STALL,
-    DEFAULT_OUTPUT_SAFETY,
-    DEFAULT_PRESET_SYNC_MODE,
-)
-from .const import (
-    CONF_HEATER,
-    CONF_INVERT_HEATER,
-    CONF_SENSOR,
-    CONF_OUTDOOR_SENSOR,
-    CONF_MIN_TEMP,
-    CONF_MAX_TEMP,
-    CONF_TARGET_TEMP,
-    CONF_HOT_TOLERANCE,
-    CONF_COLD_TOLERANCE,
-    CONF_AC_MODE,
-    CONF_MIN_CYCLE_DURATION,
-    CONF_MIN_OFF_CYCLE_DURATION,
-    CONF_MIN_CYCLE_DURATION_PID_OFF,
-    CONF_MIN_OFF_CYCLE_DURATION_PID_OFF,
-    CONF_KEEP_ALIVE,
-    CONF_SAMPLING_PERIOD,
-    CONF_SENSOR_STALL,
-    CONF_OUTPUT_SAFETY,
-    CONF_INITIAL_HVAC_MODE,
-    CONF_PRESET_SYNC_MODE,
-    CONF_AWAY_TEMP,
-    CONF_ECO_TEMP,
-    CONF_BOOST_TEMP,
-    CONF_COMFORT_TEMP,
-    CONF_HOME_TEMP,
-    CONF_SLEEP_TEMP,
-    CONF_ACTIVITY_TEMP,
-    CONF_PRECISION,
-    CONF_TARGET_TEMP_STEP,
-    CONF_DIFFERENCE,
-    CONF_KP,
-    CONF_KI,
-    CONF_KD,
-    CONF_KE,
-    CONF_PWM,
-    CONF_BOOST_PID_OFF,
-    CONF_AUTOTUNE,
-    CONF_NOISEBAND,
-    CONF_LOOKBACK,
-)
-
-SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_HEATER): cv.entity_id,
-        vol.Required(CONF_INVERT_HEATER, default=False): cv.boolean,
-        vol.Required(CONF_SENSOR): cv.entity_id,
-        vol.Optional(CONF_OUTDOOR_SENSOR): cv.entity_id,
-        vol.Optional(CONF_AC_MODE): cv.boolean,
-        vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+        vol.Required(const.CONF_HEATER): cv.entity_id,
+        vol.Required(const.CONF_INVERT_HEATER, default=False): cv.boolean,
+        vol.Required(const.CONF_SENSOR): cv.entity_id,
+        vol.Optional(const.CONF_OUTDOOR_SENSOR): cv.entity_id,
+        vol.Optional(const.CONF_AC_MODE): cv.boolean,
+        vol.Optional(const.CONF_MAX_TEMP): vol.Coerce(float),
+        vol.Optional(const.CONF_MIN_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_NAME, default=const.DEFAULT_NAME): cv.string,
         vol.Optional(CONF_UNIQUE_ID, default='none'): cv.string,
-        vol.Optional(CONF_TARGET_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
-        vol.Optional(CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
-        vol.Optional(CONF_MIN_CYCLE_DURATION, default=DEFAULT_MIN_CYCLE_DURATION): vol.All(
+        vol.Optional(const.CONF_TARGET_TEMP): vol.Coerce(float),
+        vol.Optional(const.CONF_HOT_TOLERANCE, default=const.DEFAULT_TOLERANCE): vol.Coerce(float),
+        vol.Optional(const.CONF_COLD_TOLERANCE, default=const.DEFAULT_TOLERANCE): vol.Coerce(
+            float),
+        vol.Optional(const.CONF_MIN_CYCLE_DURATION, default=const.DEFAULT_MIN_CYCLE_DURATION):
+            vol.All(cv.time_period, cv.positive_timedelta),
+        vol.Optional(const.CONF_MIN_OFF_CYCLE_DURATION): vol.All(
             cv.time_period, cv.positive_timedelta),
-        vol.Optional(CONF_MIN_OFF_CYCLE_DURATION): vol.All(
+        vol.Optional(const.CONF_MIN_CYCLE_DURATION_PID_OFF): vol.All(
             cv.time_period, cv.positive_timedelta),
-        vol.Optional(CONF_MIN_CYCLE_DURATION_PID_OFF): vol.All(
+        vol.Optional(const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF): vol.All(
             cv.time_period, cv.positive_timedelta),
-        vol.Optional(CONF_MIN_OFF_CYCLE_DURATION_PID_OFF): vol.All(
+        vol.Required(const.CONF_KEEP_ALIVE): vol.All(cv.time_period, cv.positive_timedelta),
+        vol.Optional(const.CONF_SAMPLING_PERIOD, default=const.DEFAULT_SAMPLING_PERIOD): vol.All(
             cv.time_period, cv.positive_timedelta),
-        vol.Required(CONF_KEEP_ALIVE): vol.All(cv.time_period, cv.positive_timedelta),
-        vol.Optional(CONF_SAMPLING_PERIOD, default=DEFAULT_SAMPLING_PERIOD): vol.All(
+        vol.Optional(const.CONF_SENSOR_STALL, default=const.DEFAULT_SENSOR_STALL): vol.All(
             cv.time_period, cv.positive_timedelta),
-        vol.Optional(CONF_SENSOR_STALL, default=DEFAULT_SENSOR_STALL): vol.All(
-            cv.time_period, cv.positive_timedelta),
-        vol.Optional(CONF_OUTPUT_SAFETY, default=DEFAULT_OUTPUT_SAFETY): vol.Coerce(float),
-        vol.Optional(CONF_INITIAL_HVAC_MODE): vol.In(
-            [HVAC_MODE_COOL, HVAC_MODE_HEAT, HVAC_MODE_OFF]
+        vol.Optional(const.CONF_OUTPUT_SAFETY, default=const.DEFAULT_OUTPUT_SAFETY): vol.Coerce(
+            float),
+        vol.Optional(const.CONF_INITIAL_HVAC_MODE): vol.In(
+            [HVACMode.COOL, HVACMode.HEAT, HVACMode.OFF]
         ),
-        vol.Optional(CONF_PRESET_SYNC_MODE, default=DEFAULT_PRESET_SYNC_MODE): vol.In(
+        vol.Optional(const.CONF_PRESET_SYNC_MODE, default=const.DEFAULT_PRESET_SYNC_MODE): vol.In(
             ['sync', 'none']
         ),
-        vol.Optional(CONF_AWAY_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_ECO_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_BOOST_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_COMFORT_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_HOME_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_SLEEP_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_ACTIVITY_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_PRECISION): vol.In(
+        vol.Optional(const.CONF_AWAY_TEMP): vol.Coerce(float),
+        vol.Optional(const.CONF_ECO_TEMP): vol.Coerce(float),
+        vol.Optional(const.CONF_BOOST_TEMP): vol.Coerce(float),
+        vol.Optional(const.CONF_COMFORT_TEMP): vol.Coerce(float),
+        vol.Optional(const.CONF_HOME_TEMP): vol.Coerce(float),
+        vol.Optional(const.CONF_SLEEP_TEMP): vol.Coerce(float),
+        vol.Optional(const.CONF_ACTIVITY_TEMP): vol.Coerce(float),
+        vol.Optional(const.CONF_PRECISION): vol.In(
             [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
         ),
-        vol.Optional(CONF_TARGET_TEMP_STEP): vol.In(
+        vol.Optional(const.CONF_TARGET_TEMP_STEP): vol.In(
             [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
         ),
-        vol.Optional(CONF_DIFFERENCE, default=DEFAULT_DIFFERENCE): vol.Coerce(float),
-        vol.Optional(CONF_KP, default=DEFAULT_KP): vol.Coerce(float),
-        vol.Optional(CONF_KI, default=DEFAULT_KI): vol.Coerce(float),
-        vol.Optional(CONF_KD, default=DEFAULT_KD): vol.Coerce(float),
-        vol.Optional(CONF_KE, default=DEFAULT_KE): vol.Coerce(float),
-        vol.Optional(CONF_PWM, default=DEFAULT_PWM): vol.All(
+        vol.Optional(const.CONF_DIFFERENCE, default=const.DEFAULT_DIFFERENCE): vol.Coerce(float),
+        vol.Optional(const.CONF_KP, default=const.DEFAULT_KP): vol.Coerce(float),
+        vol.Optional(const.CONF_KI, default=const.DEFAULT_KI): vol.Coerce(float),
+        vol.Optional(const.CONF_KD, default=const.DEFAULT_KD): vol.Coerce(float),
+        vol.Optional(const.CONF_KE, default=const.DEFAULT_KE): vol.Coerce(float),
+        vol.Optional(const.CONF_PWM, default=const.DEFAULT_PWM): vol.All(
             cv.time_period, cv.positive_timedelta
         ),
-        vol.Optional(CONF_BOOST_PID_OFF, default=False): cv.boolean,
-        vol.Optional(CONF_AUTOTUNE, default=DEFAULT_AUTOTUNE): cv.string,
-        vol.Optional(CONF_NOISEBAND, default=DEFAULT_NOISEBAND): vol.Coerce(float),
-        vol.Optional(CONF_LOOKBACK, default=DEFAULT_LOOKBACK): vol.All(cv.time_period,
-                                                                       cv.positive_timedelta),
+        vol.Optional(const.CONF_BOOST_PID_OFF, default=False): cv.boolean,
+        vol.Optional(const.CONF_AUTOTUNE, default=const.DEFAULT_AUTOTUNE): cv.string,
+        vol.Optional(const.CONF_NOISEBAND, default=const.DEFAULT_NOISEBAND): vol.Coerce(float),
+        vol.Optional(const.CONF_LOOKBACK, default=const.DEFAULT_LOOKBACK): vol.All(
+            cv.time_period, cv.positive_timedelta),
+        vol.Optional(const.CONF_DEBUG, default=False): cv.boolean,
     }
 )
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the generic thermostat platform."""
-    # await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType = None
+) -> None:
+    """Set up the thermostat platform."""
+    await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
 
-    platform = entity_platform.current_platform.get()
-    assert platform
+    if hass.data.get(DOMAIN) is None:
+        hass.data.setdefault(DOMAIN, {})
 
     parameters = {
         'name': config.get(CONF_NAME),
         'unique_id': config.get(CONF_UNIQUE_ID),
-        'heater_entity_id': config.get(CONF_HEATER),
-        'invert_heater': config.get(CONF_INVERT_HEATER),
-        'sensor_entity_id': config.get(CONF_SENSOR),
-        'ext_sensor_entity_id': config.get(CONF_OUTDOOR_SENSOR),
-        'min_temp': config.get(CONF_MIN_TEMP),
-        'max_temp': config.get(CONF_MAX_TEMP),
-        'target_temp': config.get(CONF_TARGET_TEMP),
-        'hot_tolerance': config.get(CONF_HOT_TOLERANCE),
-        'cold_tolerance': config.get(CONF_COLD_TOLERANCE),
-        'ac_mode': config.get(CONF_AC_MODE),
-        'min_cycle_duration': config.get(CONF_MIN_CYCLE_DURATION),
-        'min_off_cycle_duration': config.get(CONF_MIN_OFF_CYCLE_DURATION),
-        'min_cycle_duration_pid_off': config.get(CONF_MIN_CYCLE_DURATION_PID_OFF),
-        'min_off_cycle_duration_pid_off': config.get(CONF_MIN_OFF_CYCLE_DURATION_PID_OFF),
-        'keep_alive': config.get(CONF_KEEP_ALIVE),
-        'sampling_period': config.get(CONF_SAMPLING_PERIOD),
-        'sensor_stall': config.get(CONF_SENSOR_STALL),
-        'output_safety': config.get(CONF_OUTPUT_SAFETY),
-        'initial_hvac_mode': config.get(CONF_INITIAL_HVAC_MODE),
-        'preset_sync_mode': config.get(CONF_PRESET_SYNC_MODE),
-        'away_temp': config.get(CONF_AWAY_TEMP),
-        'eco_temp': config.get(CONF_ECO_TEMP),
-        'boost_temp': config.get(CONF_BOOST_TEMP),
-        'comfort_temp': config.get(CONF_COMFORT_TEMP),
-        'home_temp': config.get(CONF_HOME_TEMP),
-        'sleep_temp': config.get(CONF_SLEEP_TEMP),
-        'activity_temp': config.get(CONF_ACTIVITY_TEMP),
-        'precision': config.get(CONF_PRECISION),
-        'target_temp_step': config.get(CONF_TARGET_TEMP_STEP),
+        'heater_entity_id': config.get(const.CONF_HEATER),
+        'invert_heater': config.get(const.CONF_INVERT_HEATER),
+        'sensor_entity_id': config.get(const.CONF_SENSOR),
+        'ext_sensor_entity_id': config.get(const.CONF_OUTDOOR_SENSOR),
+        'min_temp': config.get(const.CONF_MIN_TEMP),
+        'max_temp': config.get(const.CONF_MAX_TEMP),
+        'target_temp': config.get(const.CONF_TARGET_TEMP),
+        'hot_tolerance': config.get(const.CONF_HOT_TOLERANCE),
+        'cold_tolerance': config.get(const.CONF_COLD_TOLERANCE),
+        'ac_mode': config.get(const.CONF_AC_MODE),
+        'min_cycle_duration': config.get(const.CONF_MIN_CYCLE_DURATION),
+        'min_off_cycle_duration': config.get(const.CONF_MIN_OFF_CYCLE_DURATION),
+        'min_cycle_duration_pid_off': config.get(const.CONF_MIN_CYCLE_DURATION_PID_OFF),
+        'min_off_cycle_duration_pid_off': config.get(const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF),
+        'keep_alive': config.get(const.CONF_KEEP_ALIVE),
+        'sampling_period': config.get(const.CONF_SAMPLING_PERIOD),
+        'sensor_stall': config.get(const.CONF_SENSOR_STALL),
+        'output_safety': config.get(const.CONF_OUTPUT_SAFETY),
+        'initial_hvac_mode': config.get(const.CONF_INITIAL_HVAC_MODE),
+        'preset_sync_mode': config.get(const.CONF_PRESET_SYNC_MODE),
+        'away_temp': config.get(const.CONF_AWAY_TEMP),
+        'eco_temp': config.get(const.CONF_ECO_TEMP),
+        'boost_temp': config.get(const.CONF_BOOST_TEMP),
+        'comfort_temp': config.get(const.CONF_COMFORT_TEMP),
+        'home_temp': config.get(const.CONF_HOME_TEMP),
+        'sleep_temp': config.get(const.CONF_SLEEP_TEMP),
+        'activity_temp': config.get(const.CONF_ACTIVITY_TEMP),
+        'precision': config.get(const.CONF_PRECISION),
+        'target_temp_step': config.get(const.CONF_TARGET_TEMP_STEP),
         'unit': hass.config.units.temperature_unit,
-        'difference': config.get(CONF_DIFFERENCE),
-        'kp': config.get(CONF_KP),
-        'ki': config.get(CONF_KI),
-        'kd': config.get(CONF_KD),
-        'ke': config.get(CONF_KE),
-        'pwm': config.get(CONF_PWM),
-        'boost_pid_off': config.get(CONF_BOOST_PID_OFF),
-        'autotune': config.get(CONF_AUTOTUNE),
-        'noiseband': config.get(CONF_NOISEBAND),
-        'lookback': config.get(CONF_LOOKBACK),
+        'difference': config.get(const.CONF_DIFFERENCE),
+        'kp': config.get(const.CONF_KP),
+        'ki': config.get(const.CONF_KI),
+        'kd': config.get(const.CONF_KD),
+        'ke': config.get(const.CONF_KE),
+        'pwm': config.get(const.CONF_PWM),
+        'boost_pid_off': config.get(const.CONF_BOOST_PID_OFF),
+        'autotune': config.get(const.CONF_AUTOTUNE),
+        'noiseband': config.get(const.CONF_NOISEBAND),
+        'lookback': config.get(const.CONF_LOOKBACK),
+        const.CONF_DEBUG: config.get(const.CONF_DEBUG),
     }
 
-    smart_thermostat = SmartThermostat(**parameters)
-    async_add_entities([smart_thermostat])
+    # smart_thermostat = SmartThermostat(**parameters)
+    # async_add_entities([smart_thermostat])
+    add_entities([SmartThermostat(**parameters)])
 
-    platform.async_register_entity_service(  # type: ignore
+    hass.services.async_register(  # type: ignore
+        DOMAIN,
         "set_pid_gain",
+        "async_set_pid",
         {
             vol.Optional("kp"): vol.Coerce(float),
             vol.Optional("ki"): vol.Coerce(float),
             vol.Optional("kd"): vol.Coerce(float),
             vol.Optional("ke"): vol.Coerce(float),
         },
-        "async_set_pid",
     )
-    platform.async_register_entity_service(  # type: ignore
+    hass.services.async_register(  # type: ignore
+        DOMAIN,
         "set_pid_mode",
+        "async_set_pid_mode",
         {
             vol.Required("mode"): vol.In(['auto', 'off']),
         },
-        "async_set_pid_mode",
     )
-    platform.async_register_entity_service(  # type: ignore
+    hass.services.async_register(  # type: ignore
+        DOMAIN,
         "set_preset_temp",
+        "async_set_preset_temp",
         {
             vol.Optional("away_temp"): vol.Coerce(float),
             vol.Optional("eco_temp"): vol.Coerce(float),
@@ -271,12 +218,12 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             vol.Optional("sleep_temp"): vol.Coerce(float),
             vol.Optional("activity_temp"): vol.Coerce(float),
         },
-        "async_set_preset_temp",
     )
-    platform.async_register_entity_service(  # type: ignore
+    hass.services.async_register(  # type: ignore
+        DOMAIN,
+        "clear_integral",
         "clear_integral",
         {},
-        "clear_integral",
     )
 
 
@@ -298,10 +245,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._sampling_period = kwargs.get('sampling_period').seconds
         self._sensor_stall = kwargs.get('sensor_stall').seconds
         self._output_safety = kwargs.get('output_safety')
-        self._hvac_mode = kwargs.get('initial_hvac_mode', None)
+        self._attr_hvac_mode = kwargs.get('initial_hvac_mode', None)
         self._saved_target_temp = kwargs.get('target_temp', None) or kwargs.get('away_temp', None)
         self._temp_precision = kwargs.get('precision')
         self._target_temperature_step = kwargs.get('target_temp_step')
+        self._debug = kwargs.get(const.CONF_DEBUG)
         self._last_heat_cycle_time = time.time()
         self._min_on_cycle_duration_pid_on = kwargs.get('min_cycle_duration')
         self._min_off_cycle_duration_pid_on = kwargs.get('min_off_cycle_duration')
@@ -325,7 +273,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         self._max_temp = kwargs.get('max_temp')
         self._target_temp = kwargs.get('target_temp')
         self._unit = kwargs.get('unit')
-        self._support_flags = SUPPORT_FLAGS
+        self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE
         self._attr_preset_mode = 'none'
         self._away_temp = kwargs.get('away_temp')
         self._eco_temp = kwargs.get('eco_temp')
@@ -342,14 +290,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                                                   self._home_temp,
                                                   self._sleep_temp,
                                                   self._activity_temp]]:
-            self._support_flags = SUPPORT_FLAGS | SUPPORT_PRESET_MODE
+            self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.PRESET_MODE
         self._difference = kwargs.get('difference')
-        if self._ac_mode:
-            self._hvac_list = [HVAC_MODE_COOL, HVAC_MODE_OFF]
+        if self._ac_mode == HVACMode.COOL:
+            self._attr_hvac_modes = [HVACMode.COOL, HVACMode.OFF]
             self._minOut = -self._difference
             self._maxOut = 0
         else:
-            self._hvac_list = [HVAC_MODE_HEAT, HVAC_MODE_OFF]
+            self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
             self._minOut = 0
             self._maxOut = self._difference
         self._kp = kwargs.get('kp')
@@ -440,8 +388,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                     self._pidController is not None:
                 self._i = float(old_state.attributes.get('pid_i'))
                 self._pidController.integral = self._i
-            if self._hvac_mode is None and old_state.state in self._hvac_list:
-                self._hvac_mode = old_state.state
+            if self.hvac_mode is None and old_state.state in self.hvac_modes:
+                self._attr_hvac_mode = old_state.state
             if old_state.attributes.get('Kp') is not None and self._pidController is not None:
                 self._kp = float(old_state.attributes.get('Kp'))
                 self._pidController.set_pid_param(kp=self._kp)
@@ -468,8 +416,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                             self.name, self.unique_id, self._target_temp)
 
         # Set default state to off
-        if not self._hvac_mode:
-            self._hvac_mode = HVAC_MODE_OFF
+        if not self.hvac_mode:
+            self._attr_hvac_mode = HVACMode.OFF
         await self._async_control_heating(calc_pid=True)
 
     @property
@@ -510,32 +458,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         return self._current_temp
 
     @property
-    def hvac_mode(self):
-        """Return current operation."""
-        return self._hvac_mode
-
-    @property
-    def hvac_action(self):
-        """Return the current running hvac operation if supported.
-        Need to be one of CURRENT_HVAC_*.
-        """
-        if self._hvac_mode == HVAC_MODE_OFF:
-            return CURRENT_HVAC_OFF
-        if not self._is_device_active:
-            return CURRENT_HVAC_IDLE
-        if self._ac_mode:
-            return CURRENT_HVAC_COOL
-        return CURRENT_HVAC_HEAT
-
-    @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
         return self._target_temp
-
-    @property
-    def hvac_modes(self):
-        """List of available operation modes."""
-        return self._hvac_list
 
     @property
     def preset_mode(self):
@@ -653,7 +578,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             "Kd": self._kd,
             "Ke": self._ke,
         }
-        if self._autotune != "none":
+        if self._autotune != "none" and self._debug:
             device_state_attributes.update({
                 "pid_mode": 'off',
                 "pid_p": 0,
@@ -669,7 +594,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 "autotune_buffer_full": round(self._pidAutotune.buffer_full, 2),
                 "autotune_buffer_length": self._pidAutotune.buffer_length,
             })
-        else:
+        elif self._debug:
             device_state_attributes.update({
                 "pid_mode": self.pid_mode,
                 "pid_p": self.pid_control_p,
@@ -687,18 +612,21 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             })
         return device_state_attributes
 
-    async def async_set_hvac_mode(self, hvac_mode):
-        """Set hvac mode."""
-        if hvac_mode == HVAC_MODE_HEAT:
-            self._hvac_mode = HVAC_MODE_HEAT
-            await self._async_control_heating(calc_pid=True)
-        elif hvac_mode == HVAC_MODE_COOL:
-            self._hvac_mode = HVAC_MODE_COOL
-            await self._async_control_heating(calc_pid=True)
-        elif hvac_mode == HVAC_MODE_OFF:
-            self._hvac_mode = HVAC_MODE_OFF
+    def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Set new target hvac mode."""
+        if hvac_mode == HVACMode.HEAT:
+            self._attr_hvac_mode = HVACMode.HEAT
+            self._async_control_heating(calc_pid=True)
+        elif hvac_mode == HVACMode.COOL:
+            self._attr_hvac_mode = HVACMode.COOL
+            self._async_control_heating(calc_pid=True)
+        elif hvac_mode == HVACMode.HEAT_COOL:
+            self._attr_hvac_mode = HVACMode.COOL
+            self._async_control_heating(calc_pid=True)
+        elif hvac_mode == HVACMode.OFF:
+            self._attr_hvac_mode = HVACMode.OFF
             if self._is_device_active:
-                await self._async_heater_turn_off(force=True)
+                self._async_heater_turn_off(force=True)
             # Clear the samples to avoid integrating the off period
             self._previous_temp = None
             self._previous_temp_time = None
@@ -857,10 +785,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
         async with self._temp_lock:
             if not self._active and None not in (self._current_temp, self._target_temp):
                 self._active = True
-                _LOGGER.info("Obtained temperature %s with set point %s. Smart thermostat %s (%s) active.",
-                             self._current_temp, self._target_temp, self.name, self.entity_id)
+                _LOGGER.info("Obtained temperature %s with set point %s. Smart thermostat %s (%s) "
+                             "active", self._current_temp, self._target_temp, self.name,
+                             self.entity_id)
 
-            if not self._active or self._hvac_mode == HVAC_MODE_OFF:
+            if not self._active or self._attr_hvac_mode == HVACMode.OFF:
                 await self.async_update_ha_state()
                 return
 
@@ -960,16 +889,16 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
                 if self._pidAutotune.run(self._current_temp, self._target_temp):
                     for tuning_rule in self._pidAutotune.tuning_rules:
                         params = self._pidAutotune.get_pid_parameters(tuning_rule)
-                        _LOGGER.warning("Smart thermostat %s (%s) PID Autotuner output with %s rule: "
-                                        "Kp=%s, Ki=%s, Kd=%s", self.name, self.entity_id, tuning_rule,
-                                        params.Kp, params.Ki, params.Kd)
+                        _LOGGER.warning("Smart thermostat %s (%s) PID Autotuner output with %s "
+                                        "rule: Kp=%s, Ki=%s, Kd=%s", self.name, self.entity_id,
+                                        tuning_rule, params.Kp, params.Ki, params.Kd)
                     params = self._pidAutotune.get_pid_parameters(self._autotune)
                     self._kp = params.Kp
                     self._ki = params.Ki
                     self._kd = params.Kd
-                    _LOGGER.warning("Smart thermostat %s (%s) now runs on PID Controller using rule %s: "
-                                    "Kp=%s, Ki=%s, Kd=%s", self.name, self.entity_id, self._autotune,
-                                    self._kp, self._ki, self._kd)
+                    _LOGGER.warning("Smart thermostat %s (%s) now runs on PID Controller using "
+                                    "rule %s: Kp=%s, Ki=%s, Kd=%s", self.name, self.entity_id,
+                                    self._autotune, self._kp, self._ki, self._kd)
                     self._pidController = pid_controller.PID(self._kp, self._ki, self._kd, self._ke,
                                                              self._minOut, self._maxOut,
                                                              self._sampling_period,
@@ -997,9 +926,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity):
             error = self._pidController.error
             self._dt = self._pidController.dt
         if update:
-            _LOGGER.debug("New PID control output for %s (%s). %.2f (error = %.2f, dt = %.2f, p=%.2f, "
-                          "i=%.2f, d=%.2f, e=%.2f)", self.name, self.entity_id, self._control_output,
-                          error, self._dt, self._p, self._i, self._d, self._e)
+            _LOGGER.debug("New PID control output for %s (%s). %.2f (error = %.2f, dt = %.2f, "
+                          "p=%.2f, i=%.2f, d=%.2f, e=%.2f)", self.name, self.entity_id,
+                          self._control_output, error, self._dt, self._p, self._i, self._d,
+                          self._e)
 
     async def set_control_value(self):
         """Set Output value for heater"""

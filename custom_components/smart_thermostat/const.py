@@ -57,3 +57,4 @@ CONF_BOOST_PID_OFF = 'boost_pid_off'
 CONF_AUTOTUNE = "autotune"
 CONF_NOISEBAND = "noiseband"
 CONF_LOOKBACK = "lookback"
+CONF_DEBUG = 'debug'
