@@ -49,7 +49,7 @@ set_pid_gain:
     # Key of the field
     kp:
       # Field name as shown in UI
-      name: Kp gain
+      name: kp gain
       # Description of the field
       description: Proportional gain
       # Whether or not field is required (default = false)
@@ -69,7 +69,7 @@ set_pid_gain:
           mode: box
     ki:
       # Field name as shown in UI
-      name: Ki gain
+      name: ki gain
       # Description of the field
       description: Integral gain
       # Whether or not field is required (default = false)
@@ -86,7 +86,7 @@ set_pid_gain:
           mode: box
     kd:
       # Field name as shown in UI
-      name: Kd gain
+      name: kd gain
       # Description of the field
       description: Derivative gain
       # Whether or not field is required (default = false)
@@ -103,7 +103,7 @@ set_pid_gain:
           mode: box
     ke:
       # Field name as shown in UI
-      name: Ke gain
+      name: ke gain
       # Description of the field
       description: External temperature compensation gain
       # Whether or not field is required (default = false)

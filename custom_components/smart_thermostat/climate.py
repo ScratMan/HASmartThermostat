@@ -392,17 +392,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._pid_controller.integral = self._i
             if self.hvac_mode is None and old_state.state in self.hvac_modes:
                 self._attr_hvac_mode = old_state.state
-            if old_state.attributes.get('Kp') is not None and self._pid_controller is not None:
-                self._kp = float(old_state.attributes.get('Kp'))
+            if old_state.attributes.get('kp') is not None and self._pid_controller is not None:
+                self._kp = float(old_state.attributes.get('kp'))
                 self._pid_controller.set_pid_param(kp=self._kp)
-            if old_state.attributes.get('Ki') is not None and self._pid_controller is not None:
-                self._ki = float(old_state.attributes.get('Ki'))
+            if old_state.attributes.get('ki') is not None and self._pid_controller is not None:
+                self._ki = float(old_state.attributes.get('ki'))
                 self._pid_controller.set_pid_param(ki=self._ki)
-            if old_state.attributes.get('Kd') is not None and self._pid_controller is not None:
-                self._kd = float(old_state.attributes.get('Kd'))
+            if old_state.attributes.get('kd') is not None and self._pid_controller is not None:
+                self._kd = float(old_state.attributes.get('kd'))
                 self._pid_controller.set_pid_param(kd=self._kd)
-            if old_state.attributes.get('Ke') is not None and self._pid_controller is not None:
-                self._ke = float(old_state.attributes.get('Ke'))
+            if old_state.attributes.get('ke') is not None and self._pid_controller is not None:
+                self._ke = float(old_state.attributes.get('ke'))
                 self._pid_controller.set_pid_param(ke=self._ke)
             if old_state.attributes.get('pid_mode') is not None and \
                     self._pid_controller is not None:
@@ -575,10 +575,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             'sleep_temp': self._sleep_temp,
             'activity_temp': self._activity_temp,
             "control_output": self._control_output,
-            "Kp": self._kp,
-            "Ki": self._ki,
-            "Kd": self._kd,
-            "Ke": self._ke,
+            "kp": self._kp,
+            "ki": self._ki,
+            "kd": self._kd,
+            "ke": self._ke,
         }
         if self._autotune != "none" and self._debug:
             device_state_attributes.update({
@@ -892,14 +892,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     for tuning_rule in self._pid_autotune.tuning_rules:
                         params = self._pid_autotune.get_pid_parameters(tuning_rule)
                         _LOGGER.warning("Smart thermostat %s (%s) PID Autotuner output with %s "
-                                        "rule: Kp=%s, Ki=%s, Kd=%s", self.name, self.entity_id,
-                                        tuning_rule, params.Kp, params.Ki, params.Kd)
+                                        "rule: kp=%s, ki=%s, kd=%s", self.name, self.entity_id,
+                                        tuning_rule, params.kp, params.ki, params.kd)
                     params = self._pid_autotune.get_pid_parameters(self._autotune)
-                    self._kp = params.Kp
-                    self._ki = params.Ki
-                    self._kd = params.Kd
+                    self._kp = params.kp
+                    self._ki = params.ki
+                    self._kd = params.kd
                     _LOGGER.warning("Smart thermostat %s (%s) now runs on PID Controller using "
-                                    "rule %s: Kp=%s, Ki=%s, Kd=%s", self.name, self.entity_id,
+                                    "rule %s: kp=%s, ki=%s, kd=%s", self.name, self.entity_id,
                                     self._autotune, self._kp, self._ki, self._kd)
                     self._pid_controller = pid_controller.PID(self._kp, self._ki, self._kd,
                                                               self._ke, self._min_out,

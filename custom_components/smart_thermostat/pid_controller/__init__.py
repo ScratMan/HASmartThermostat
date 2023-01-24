@@ -216,7 +216,7 @@ class PIDAutotune:
             overshoot/undershoot the setpoint before the state changes.
         time (function): A function which returns the current time in seconds.
     """
-    PIDParams = namedtuple('PIDParams', ['Kp', 'Ki', 'Kd'])
+    PIDParams = namedtuple('PIDParams', ['kp', 'ki', 'kd'])
 
     PEAK_AMPLITUDE_TOLERANCE = 0.05
     STATE_OFF = 'off'

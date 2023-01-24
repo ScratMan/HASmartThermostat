@@ -64,7 +64,7 @@ By default, the PID controller will be called each time the target sensor is upd
 main powered sensor with high sampling rate, the _sampling_period_ parameter should be used to slow 
 down the PID controller refresh rate.
 
-By adjusting the Kp, Ki and Kd gains, you can tune the system response to your liking. You can find 
+By adjusting the kp, ki and kd gains, you can tune the system response to your liking. You can find 
 many tutorials for guidance on the web. Here are a few useful links:
 * [PID Control made easy](https://www.eurotherm.com/temperature-control/pid-control-made-easy/)
 * [Practical PID Process Dynamics with Proportional Pressure Controllers](
@@ -74,13 +74,13 @@ https://clippard.com/cms/wiki/practical-pid-process-dynamics-proportional-pressu
 * [PID controller explained](https://controlguru.com/table-of-contents/)
 
 To make it quick and simple:
-* Kp gain adjusts the proportional part of the error compensation. Higher values means 
+* kp gain adjusts the proportional part of the error compensation. Higher values means 
 stronger reaction to error. Increase the value for faster rise time.
-* Ki gain adjusts the integral part. Integral compensates the residual error when temperature 
+* ki gain adjusts the integral part. Integral compensates the residual error when temperature 
 settles in a cumulative way. The longer the temperature remains below the set point, the higher the 
-integral compensation will be. If your system settles below the set point, increase the Ki value. 
-If it settles over the set point, decrease the Ki value.
-* Kd gain adjusts the derivative part of the compensation. Derivative compensates the inertia of 
+integral compensation will be. If your system settles below the set point, increase the ki value. 
+If it settles over the set point, decrease the ki value.
+* kd gain adjusts the derivative part of the compensation. Derivative compensates the inertia of 
 the system. If the sensor temperature increases quickly between two samples, the PID will decrease 
 the PWM level accordingly to limit the overshoot.
 
@@ -90,9 +90,9 @@ PID output value is the weighted sum of the control terms:\
 `error = target_temp - current_temperature`\
 `di = ` temperature change between last two samples\
 `dt = ` time elapsed between last two samples\
-`P = Kp * error`\
-`I = last_I + (Ki * error * dt)`\
-`D = -(Kd * di) / dt`\
+`P = kp * error`\
+`I = last_I + (ki * error * dt)`\
+`D = -(kd * di) / dt`\
 `output = P + I + D`\
 Output is then limited to 0% to 100% range to control the PWM.
 
@@ -100,10 +100,10 @@ Output is then limited to 0% to 100% range to control the PWM.
 Optionally, when an outdoor temperature sensor entity is provided and ke is set, the thermostat can 
 automatically compensate building losses based on the difference between target temperature and 
 outdoor temperature. An external component E is added to the PID output:
-`E = Ke * (target_temp - outdoor_temp)`\
+`E = ke * (target_temp - outdoor_temp)`\
 `output = P + I + D + E`\
 Output is then limited to 0% to 100% range to control the PWM.
-The Ke gain depends on the insulation of the building, on recent buildings with good insulation, a 
+The ke gain depends on the insulation of the building, on recent buildings with good insulation, a 
 gain of 0.6 is recommended. This compensation will act like the integral of the PID, but with 
 faster response time, so the integral will be more stable.
 
@@ -115,12 +115,12 @@ Restart Home Assistant to start the thermostat in autotune mode and set the desi
 the thermostat. The autotuner will then start analyzing your heating system, measure the sampling 
 rate of the sensor, control the heater switch and monitor the temperature changes.
 
-Wait for the autotune to finish by checking the _autotune_status_ attribute for success. The Kp, Ki 
-and Kd gains will then be computed and set according to the selected rule and the thermostat 
+Wait for the autotune to finish by checking the _autotune_status_ attribute for success. The kp, ki 
+and kd gains will then be computed and set according to the selected rule and the thermostat 
 switches to PID.\
-The Kp, Ki and Kd gains are also computed using the other rules, and all values are shown in the 
+The kp, ki and kd gains are also computed using the other rules, and all values are shown in the 
 Home Assistant log like this: **"Smart thermostat PID Autotuner output with ziegler-nichols rule: 
-Kp=######, Ki=######, Kd=######"**.\
+kp=######, ki=######, kd=######"**.\
 You should then save for reference the gains computed by the autotuner for future testing.
 
 **Warning**: The thermostat set point can't be changed once the autotuner has started monitoring 
