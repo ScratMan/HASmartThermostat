@@ -42,10 +42,10 @@ class PID:
         if out_min >= out_max:
             raise ValueError('out_min must be less than out_max')
 
-        self._Kp = kp
-        self._Ki = ki
-        self._Kd = kd
-        self._Ke = ke
+        self._kp = kp
+        self._ki = ki
+        self._kd = kd
+        self._ke = ke
         self._out_min = out_min
         self._out_max = out_max
         self._integral = 0.0
@@ -92,13 +92,13 @@ class PID:
     def set_pid_param(self, kp=None, ki=None, kd=None, ke=None):
         """Set PID parameters."""
         if kp is not None and isinstance(kp, (int, float)):
-            self._Kp = kp
+            self._kp = kp
         if ki is not None and isinstance(ki, (int, float)):
-            self._Ki = ki
+            self._ki = ki
         if kd is not None and isinstance(kd, (int, float)):
-            self._Kd = kd
+            self._kd = kd
         if ke is not None and isinstance(ke, (int, float)):
-            self._Ke = ke
+            self._ke = ke
 
     def clear_samples(self):
         """Clear the samples values and timestamp to restart PID from clean state after
@@ -173,17 +173,17 @@ class PID:
         # is stable
         if self._out_min < self._last_output < self._out_max and \
                 self._last_set_point == self._set_point:
-            self._integral += self._Ki * self.error * self.dt
+            self._integral += self._ki * self.error * self.dt
             self._integral = max(min(self._integral, self._out_max), self._out_min)
 
-        self.P = self._Kp * self.error
+        self.P = self._kp * self.error
         self.I = self._integral
         if self.dt != 0:
-            self.D = -(self._Kd * self._input_diff) / self.dt
+            self.D = -(self._kd * self._input_diff) / self.dt
         else:
             self.D = 0.0
         # Compensate losses due to external temperature
-        self.E = self._Ke * self.dext
+        self.E = self._ke * self.dext
 
         # Compute PID Output
         output = self.P + self.I + self.D + self.E
@@ -226,7 +226,7 @@ class PIDAutotune:
     STATE_FAILED = 'failed'
 
     _tuning_rules = {
-        # rule: [Kp_divisor, Ki_divisor, Kd_divisor]
+        # rule: [kp_divisor, ki_divisor, kd_divisor]
         "ziegler-nichols": [34, 40, 160],
         "tyreus-luyben": [44,  9, 126],
         "ciancone-marlin": [66, 88, 162],

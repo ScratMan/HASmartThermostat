@@ -336,7 +336,7 @@ value must overshoot/undershoot the set point before the state changes (default 
 can be float in seconds, or time hh:mm:ss (default 2 hours).
 * **autotune** (Optional): Set the name of the selected rule for autotune settings (ie 
 "ziegler-nichols"). If it's not set, autotune is disabled. The following tuning_rules are available:
-ruler | Kp_divisor, Ki_divisor, Kd_divisor
+ruler | kp_divisor, ki_divisor, kd_divisor
 ------------ | -------------
 "ziegler-nichols" | 34, 40, 160
 "tyreus-luyben" | 44,  9, 126
