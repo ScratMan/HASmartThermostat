@@ -202,12 +202,19 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         "set_preset_temp",
         {
             vol.Optional("away_temp"): vol.Coerce(float),
+            vol.Optional("away_temp_disable"): vol.Coerce(bool),
             vol.Optional("eco_temp"): vol.Coerce(float),
+            vol.Optional("eco_temp_disable"): vol.Coerce(bool),
             vol.Optional("boost_temp"): vol.Coerce(float),
+            vol.Optional("boost_temp_disable"): vol.Coerce(bool),
             vol.Optional("comfort_temp"): vol.Coerce(float),
+            vol.Optional("comfort_temp_disable"): vol.Coerce(bool),
             vol.Optional("home_temp"): vol.Coerce(float),
+            vol.Optional("home_temp_disable"): vol.Coerce(bool),
             vol.Optional("sleep_temp"): vol.Coerce(float),
+            vol.Optional("sleep_temp_disable"): vol.Coerce(bool),
             vol.Optional("activity_temp"): vol.Coerce(float),
+            vol.Optional("activity_temp_disable"): vol.Coerce(bool),
         },
         "async_set_preset_temp",
     )
@@ -678,6 +685,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         home_temp = kwargs.get('home_temp', None)
         sleep_temp = kwargs.get('sleep_temp', None)
         activity_temp = kwargs.get('activity_temp', None)
+        away_temp_disable = kwargs.get('away_temp_disable', None)
+        eco_temp_disable = kwargs.get('eco_temp_disable', None)
+        boost_temp_disable = kwargs.get('boost_temp_disable', None)
+        comfort_temp_disable = kwargs.get('comfort_temp_disable', None)
+        home_temp_disable = kwargs.get('home_temp_disable', None)
+        sleep_temp_disable = kwargs.get('sleep_temp_disable', None)
+        activity_temp_disable = kwargs.get('activity_temp_disable', None)
         if away_temp is not None:
             self._away_temp = max(min(float(away_temp), self.max_temp), self.min_temp)
         if eco_temp is not None:
@@ -692,6 +706,20 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._sleep_temp = max(min(float(sleep_temp), self.max_temp), self.min_temp)
         if activity_temp is not None:
             self._activity_temp = max(min(float(activity_temp), self.max_temp), self.min_temp)
+        if away_temp_disable is not None and away_temp_disable:
+            self._away_temp = None
+        if eco_temp_disable is not None and eco_temp_disable:
+            self._eco_temp = None
+        if boost_temp_disable is not None and boost_temp_disable:
+            self._boost_temp = None
+        if comfort_temp_disable is not None and comfort_temp_disable:
+            self._comfort_temp = None
+        if home_temp_disable is not None and home_temp_disable:
+            self._home_temp = None
+        if sleep_temp_disable is not None and sleep_temp_disable:
+            self._sleep_temp = None
+        if activity_temp_disable is not None and activity_temp_disable:
+            self._activity_temp = None
         await self._async_control_heating(calc_pid=True)
 
     async def clear_integral(self, **kwargs):
