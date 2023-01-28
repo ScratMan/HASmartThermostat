@@ -1,6 +1,6 @@
 """Adds support for smart (PID) thermostat units.
 For more details about this platform, please refer to the documentation at
-https://github.com/fabiannydegger/custom_components/"""
+https://github.com/ScratMan/HASmartThermostat"""
 
 import asyncio
 import logging
