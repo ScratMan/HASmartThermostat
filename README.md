@@ -196,8 +196,9 @@ itself.
 ## Parameters:
 * **name** (Optional): Name of the thermostat.
 * **unique_id** (Optional): unique entity_id for the smart thermostat.
-* **heater** (Required): entity_id for heater switch, must be a toggle device. Becomes air 
-conditioning switch when ac_mode is set to True.
+* **heater** (Required): entity_id for heater control, should be a toggle device or a valve 
+accepting direct input between 0% and 100%. If a valve is used, pwm parameter should be set to 0. 
+Becomes air conditioning switch when ac_mode is set to true.
 * **invert_heater** (Optional): if set to true, inverts the polarity of heater switch (switch is on 
 while idle and off while active). Must be a boolean (defaults to false).
 * **target_sensor** (Required): entity_id for a temperature sensor, target_sensor.state must be 
@@ -213,7 +214,8 @@ in seconds, or time hh:mm:ss.
 * **ke** (Optional): Set outdoor temperature compensation gain (e) control value (float, default 0). 
 * **pwm** (Optional): Set period of the pulse width modulation. If too long, the response time of 
 the thermostat will be too slow, leading to lower accuracy of temperature control. Can be float in 
-seconds or time hh:mm:ss (default 15mn).
+seconds or time hh:mm:ss (default 15mn). Set to 0 when using heater entity with direct input of 
+0/100% values like valves.
 * **min_cycle_duration** (Optional): Set a minimum amount of time that the switch specified in the 
 heater option must be in its current state prior to being switched either off or on (useful to 
 protect boilers). Can be float in seconds or time hh:mm:ss (default 0s).
