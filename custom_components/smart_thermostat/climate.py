@@ -10,7 +10,7 @@ from abc import ABC
 import voluptuous as vol
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers import condition, entity_platform
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -125,17 +125,12 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-async def async_setup_platform(
-    hass: HomeAssistant,
-    config: ConfigType,
-    add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType = None
-) -> None:
-    """Set up the thermostat platform."""
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+    """Set up the generic thermostat platform."""
     await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
 
-    if hass.data.get(DOMAIN) is None:
-        hass.data.setdefault(DOMAIN, {})
+    platform = entity_platform.current_platform.get()
+    assert platform
 
     parameters = {
         'name': config.get(CONF_NAME),
@@ -183,33 +178,28 @@ async def async_setup_platform(
         const.CONF_DEBUG: config.get(const.CONF_DEBUG),
     }
 
-    # smart_thermostat = SmartThermostat(**parameters)
-    # async_add_entities([smart_thermostat])
-    add_entities([SmartThermostat(**parameters)])
+    smart_thermostat = SmartThermostat(**parameters)
+    async_add_entities([smart_thermostat])
 
-    hass.services.async_register(  # type: ignore
-        DOMAIN,
+    platform.async_register_entity_service(  # type: ignore
         "set_pid_gain",
-        "async_set_pid",
         {
             vol.Optional("kp"): vol.Coerce(float),
             vol.Optional("ki"): vol.Coerce(float),
             vol.Optional("kd"): vol.Coerce(float),
             vol.Optional("ke"): vol.Coerce(float),
         },
+        "async_set_pid",
     )
-    hass.services.async_register(  # type: ignore
-        DOMAIN,
+    platform.async_register_entity_service(  # type: ignore
         "set_pid_mode",
-        "async_set_pid_mode",
         {
             vol.Required("mode"): vol.In(['auto', 'off']),
         },
+        "async_set_pid_mode",
     )
-    hass.services.async_register(  # type: ignore
-        DOMAIN,
+    platform.async_register_entity_service(  # type: ignore
         "set_preset_temp",
-        "async_set_preset_temp",
         {
             vol.Optional("away_temp"): vol.Coerce(float),
             vol.Optional("eco_temp"): vol.Coerce(float),
@@ -219,12 +209,12 @@ async def async_setup_platform(
             vol.Optional("sleep_temp"): vol.Coerce(float),
             vol.Optional("activity_temp"): vol.Coerce(float),
         },
+        "async_set_preset_temp",
     )
-    hass.services.async_register(  # type: ignore
-        DOMAIN,
-        "clear_integral",
+    platform.async_register_entity_service(  # type: ignore
         "clear_integral",
         {},
+        "clear_integral",
     )
 
 
