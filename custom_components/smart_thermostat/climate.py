@@ -614,21 +614,26 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             })
         return device_state_attributes
 
-    def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
         if hvac_mode == HVACMode.HEAT:
             self._attr_hvac_mode = HVACMode.HEAT
-            self._async_control_heating(calc_pid=True)
+            await self._async_control_heating(calc_pid=True)
         elif hvac_mode == HVACMode.COOL:
             self._attr_hvac_mode = HVACMode.COOL
-            self._async_control_heating(calc_pid=True)
+            await self._async_control_heating(calc_pid=True)
         elif hvac_mode == HVACMode.HEAT_COOL:
             self._attr_hvac_mode = HVACMode.COOL
-            self._async_control_heating(calc_pid=True)
+            await self._async_control_heating(calc_pid=True)
         elif hvac_mode == HVACMode.OFF:
             self._attr_hvac_mode = HVACMode.OFF
-            if self._is_device_active:
-                self._async_heater_turn_off(force=True)
+            self._control_output = 0
+            if self._pwm:
+                await self._async_heater_turn_off(force=True)
+            else:
+                data = {ATTR_ENTITY_ID: self._heater_entity_id,
+                        ATTR_VALUE: self._control_output}
+                await self.hass.services.async_call(NUMBER_DOMAIN, SERVICE_SET_VALUE, data)
             # Clear the samples to avoid integrating the off period
             self._previous_temp = None
             self._previous_temp_time = None
@@ -813,6 +818,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                              self.entity_id)
 
             if not self._active or self._attr_hvac_mode == HVACMode.OFF:
+                if self._attr_hvac_mode == HVACMode.OFF and self._is_device_active:
+                    if self._pwm:
+                        await self._async_heater_turn_off(force=True)
+                    else:
+                        self._control_output = 0
+                        data = {ATTR_ENTITY_ID: self._heater_entity_id,
+                                ATTR_VALUE: self._control_output}
+                        await self.hass.services.async_call(NUMBER_DOMAIN, SERVICE_SET_VALUE, data)
                 await self.async_update_ha_state()
                 return
 
