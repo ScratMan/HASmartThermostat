@@ -579,15 +579,19 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             "Ki": self._ki,
             "Kd": self._kd,
             "Ke": self._ke,
+            "pid_mode": 'off',
         }
-        if self._autotune != "none" and self._debug:
+        if self._debug:
             device_state_attributes.update({
-                "pid_mode": 'off',
-                "pid_p": 0,
-                "pid_i": 0,
-                "pid_d": 0,
-                "pid_e": 0,
-                "pid_dt": 0,
+                "pid_p": 0 if self._autotune != "none" else self.pid_control_p,
+                "pid_i": 0 if self._autotune != "none" else self.pid_control_i,
+                "pid_d": 0 if self._autotune != "none" else self.pid_control_d,
+                "pid_e": 0 if self._autotune != "none" else self.pid_control_e,
+                "pid_dt": 0 if self._autotune != "none" else self._dt,
+            })
+
+        if self._autotune != "none":
+            device_state_attributes.update({
                 "autotune_status": self._pid_autotune.state,
                 "autotune_sample_time": self._pid_autotune.sample_time,
                 "autotune_tuning_rule": self._autotune,
@@ -595,22 +599,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 "autotune_peak_count": self._pid_autotune.peak_count,
                 "autotune_buffer_full": round(self._pid_autotune.buffer_full, 2),
                 "autotune_buffer_length": self._pid_autotune.buffer_length,
-            })
-        elif self._debug:
-            device_state_attributes.update({
-                "pid_mode": self.pid_mode,
-                "pid_p": self.pid_control_p,
-                "pid_i": self.pid_control_i,
-                "pid_d": self.pid_control_d,
-                "pid_e": self.pid_control_e,
-                "pid_dt": self._dt,
-                "autotune_status": 'off',
-                "autotune_sample_time": 0.0,
-                "autotune_tuning_rule": 'none',
-                "autotune_set_point": 0,
-                "autotune_peak_count": 0,
-                "autotune_buffer_full": 0.0,
-                "autotune_buffer_length": 0,
             })
         return device_state_attributes
 
