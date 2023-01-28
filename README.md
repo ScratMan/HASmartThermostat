@@ -321,19 +321,11 @@ helpful to adjust the PID gains), example:
   PID Thermostat is working fine, as the added extra states attributes will fill the Home Assistant 
   database quickly.\
   Available debug attributes are:
-    * `pid_mode`
     * `pid_p`
     * `pid_i`
     * `pid_d`
     * `pid_e`
     * `pid_dt`
-    * `autotune_status`
-    * `autotune_sample_time`
-    * `autotune_tuning_rule`
-    * `autotune_set_point`
-    * `autotune_peak_count`
-    * `autotune_buffer_full`
-    * `autotune_buffer_length`
 * **noiseband** (Optional): set noiseband for autotune (float): Determines by how much the input 
 value must overshoot/undershoot the set point before the state changes (default : 0.5).
 * **lookback** (Optional): length of the autotune buffer for the signal analysis to detect peaks, 
