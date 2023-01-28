@@ -587,10 +587,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             'sleep_temp': self._sleep_temp,
             'activity_temp': self._activity_temp,
             "control_output": self._control_output,
-            "Kp": self._kp,
-            "Ki": self._ki,
-            "Kd": self._kd,
-            "Ke": self._ke,
+            "kp": self._kp,
+            "ki": self._ki,
+            "kd": self._kd,
+            "ke": self._ke,
             "pid_mode": 'off',
         }
         if self._debug:
