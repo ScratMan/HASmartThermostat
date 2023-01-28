@@ -296,7 +296,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE | \
                                   ClimateEntityFeature.PRESET_MODE
         self._difference = kwargs.get('difference')
-        if self._ac_mode == HVACMode.COOL:
+        if self._ac_mode:
             self._attr_hvac_modes = [HVACMode.COOL, HVACMode.OFF]
             self._min_out = -self._difference
             self._max_out = 0
