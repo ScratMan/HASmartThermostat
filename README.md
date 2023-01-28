@@ -176,13 +176,15 @@ Use this service to set the temperatures for the preset modes. It can be adjuste
 for all preset modes, if a preset mode is not enabled through YAML, it will be enabled. You can use 
 any preset temp parameter available in smart thermostat settings.\
 Please note the value will then be saved in the entity's state in database and restored after 
-restarting Home Assistant, ignoring values in YAML.\
+restarting Home Assistant, ignoring values in YAML. Use the disable options to remove active 
+presets.
 Example:
 ```
 service: smart_thermostat.set_preset_temp
 data:
   away_temp: 14.6
   boost_temp: 22.5
+  home_temp_disable: true
 target:
   entity_id: climate.smart_thermostat_example
 ```
