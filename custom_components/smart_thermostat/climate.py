@@ -312,7 +312,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._force_on = False
         self._force_off = False
         self._boost_pid_off = kwargs.get('boost_pid_off')
-        self._autotune = kwargs.get('autotune')
+        self._autotune = kwargs.get('autotune').lower()
+        if self._autotune.lower() not in [
+            "ziegler-nichols",
+            "tyreus-luyben",
+            "ciancone-marlin",
+            "pessen-integral",
+            "some-overshoot",
+            "no-overshoot",
+            "brewing"
+        ]:
+            self._autotune = "none"
         self._lookback = kwargs.get('lookback').seconds + kwargs.get('lookback').days * 86400
         self._noiseband = kwargs.get('noiseband')
         self._cold_tolerance = abs(kwargs.get('cold_tolerance'))
