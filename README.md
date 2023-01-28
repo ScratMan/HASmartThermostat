@@ -190,9 +190,8 @@ target:
 ```
 
 **Clear the integral part:** `smart_thermostat.clear_integral`\
-Use this service to reset the integral part of the PID controller to 0. Useful 
-when tuning the PID gains to quickly test the behavior without waiting the integral to stabilize by 
-itself.
+Use this service to reset the integral part of the PID controller to 0. Useful when tuning the PID 
+gains to quickly test the behavior without waiting the integral to stabilize by itself.
 
 
 ## Parameters:
