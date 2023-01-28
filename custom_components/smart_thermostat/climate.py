@@ -27,6 +27,11 @@ from homeassistant.const import (
     STATE_OFF,
     STATE_UNKNOWN,
 )
+from homeassistant.components.number.const import (
+    ATTR_VALUE,
+    SERVICE_SET_VALUE,
+    DOMAIN as NUMBER_DOMAIN
+)
 from homeassistant.core import DOMAIN as HA_DOMAIN, callback
 from homeassistant.util import slugify
 import homeassistant.helpers.config_validation as cv
@@ -981,7 +986,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         else:
             _LOGGER.info("Change state of %s to %s on %s (%s)", self._heater_entity_id,
                          round(self._control_output, 2), self.name, self.entity_id)
-            self.hass.states.async_set(self._heater_entity_id, self._control_output)
+            # self.hass.states.async_set(self._heater_entity_id, self._control_output)
+            data = {ATTR_ENTITY_ID: self._heater_entity_id, ATTR_VALUE: self._control_output}
+            await self.hass.services.async_call(NUMBER_DOMAIN, SERVICE_SET_VALUE, data)
 
     async def pwm_switch(self, time_on, time_off, time_passed):
         """turn off and on the heater proportionally to control_value."""
