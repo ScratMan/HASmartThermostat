@@ -46,6 +46,7 @@ from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity, Cli
 from homeassistant.components.climate import (
     ATTR_PRESET_MODE,
     HVACMode,
+    HVACAction,
     PRESET_AWAY,
     PRESET_NONE,
     PRESET_ECO,
@@ -471,6 +472,19 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     def current_temperature(self):
         """Return the sensor temperature."""
         return self._current_temp
+
+    @property
+    def hvac_action(self):
+        """Return the current running hvac operation if supported.
+        Need to be one of CURRENT_HVAC_*.
+        """
+        if self._attr_hvac_mode == HVACMode.OFF:
+            return HVACAction.OFF
+        if not self._is_device_active:
+            return HVACAction.IDLE
+        if self._ac_mode:
+            return HVACAction.COOLING
+        return HVACAction.HEATING
 
     @property
     def target_temperature(self):
