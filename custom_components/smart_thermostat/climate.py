@@ -580,7 +580,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     @property
     def pid_mode(self):
         """Return the PID operating mode."""
-        if getattr(self, '_pidController', None) is not None:
+        if getattr(self, '_pid_controller', None) is not None:
             return self._pid_controller.mode.lower()
         return 'off'
 
@@ -605,12 +605,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             "ki": self._ki,
             "kd": self._kd,
             "ke": self._ke,
-            "pid_mode": 'off',
+            "pid_mode": self.pid_mode,
+            "pid_i": 0 if self._autotune != "none" else self.pid_control_i,
         }
         if self._debug:
             device_state_attributes.update({
                 "pid_p": 0 if self._autotune != "none" else self.pid_control_p,
-                "pid_i": 0 if self._autotune != "none" else self.pid_control_i,
                 "pid_d": 0 if self._autotune != "none" else self.pid_control_d,
                 "pid_e": 0 if self._autotune != "none" else self.pid_control_e,
                 "pid_dt": 0 if self._autotune != "none" else self._dt,
