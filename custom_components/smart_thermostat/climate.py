@@ -338,13 +338,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._pid_autotune = pid_controller.PIDAutotune(self._difference, self._lookback,
                                                             self._min_out, self._max_out,
                                                             self._noiseband, time.time)
-            _LOGGER.warning("Autotune will run on %s (%s) with the target temperature "
+            _LOGGER.warning("%s: Autotune will run with the target temperature "
                             "set after 10 temperature samples from sensor. Changes submitted "
                             "after doesn't have any effect until autotuning is finished",
-                            self._name, self._unique_id)
+                            self.entity_id)
         else:
-            _LOGGER.debug("PID Gains for %s (%s): kp = %s, ki = %s, kd = %s", self._name,
-                          self._unique_id, self._kp, self._ki, self._kd)
+            _LOGGER.debug("%s: PID Gains kp = %s, ki = %s, kd = %s", self.entity_id, self._kp,
+                          self._ki, self._kd)
             self._pid_controller = pid_controller.PID(self._kp, self._ki, self._kd, self._ke,
                                                       self._min_out, self._max_out,
                                                       self._sampling_period, self._cold_tolerance,
@@ -389,8 +389,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         self._target_temp = self.max_temp
                     else:
                         self._target_temp = self.min_temp
-                    _LOGGER.warning("Undefined target temperature for %s (%s), falling back to %s",
-                                    self.name, self.unique_id, self._target_temp)
+                    _LOGGER.warning("%s: No setpoint available in old state, falling back to %s",
+                                    self.entity_id, self._target_temp)
                 else:
                     self._target_temp = float(old_state.attributes.get(ATTR_TEMPERATURE))
             for preset_mode in ['away_temp', 'eco_temp', 'boost_temp', 'comfort_temp', 'home_temp',
@@ -440,8 +440,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     self._target_temp = self.max_temp
                 else:
                     self._target_temp = self.min_temp
-            _LOGGER.warning("No previously saved temperature for %s (%s), setting to %s",
-                            self.name, self.unique_id, self._target_temp)
+            _LOGGER.warning("%s: No setpoint to restore, setting to %s", self.entity_id,
+                            self._target_temp)
 
         # Set default state to off
         if not self.hvac_mode:
@@ -649,16 +649,20 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._attr_hvac_mode = HVACMode.COOL
             await self._async_control_heating(calc_pid=True)
         elif hvac_mode == HVACMode.HEAT_COOL:
-            self._attr_hvac_mode = HVACMode.COOL
+            self._attr_hvac_mode = HVACMode.HEAT_COOL
             await self._async_control_heating(calc_pid=True)
         elif hvac_mode == HVACMode.OFF:
             self._attr_hvac_mode = HVACMode.OFF
             self._control_output = 0
             if self._pwm:
+                _LOGGER.debug("%s: Turn OFF heater from async_set_hvac_mode(%s)", self.entity_id,
+                              hvac_mode)
                 await self._async_heater_turn_off(force=True)
             else:
                 data = {ATTR_ENTITY_ID: self._heater_entity_id,
                         ATTR_VALUE: self._control_output}
+                _LOGGER.debug("%s: Set heater to %s from async_set_hvac_mode(%s)", self.entity_id,
+                              self._control_output, hvac_mode)
                 await self.hass.services.async_call(NUMBER_DOMAIN, SERVICE_SET_VALUE, data)
             # Clear the samples to avoid integrating the off period
             self._previous_temp = None
@@ -666,8 +670,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             if self._pid_controller is not None:
                 self._pid_controller.clear_samples()
         else:
-            _LOGGER.error("Unrecognized hvac mode for %s (%s): %s",
-                          self.name, self.unique_id, hvac_mode)
+            _LOGGER.error("%s: Unrecognized HVAC mode: %s", self.entity_id, hvac_mode)
             return
         # Ensure we update the current operation after changing the mode
         self.schedule_update_ha_state()
@@ -791,9 +794,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._cur_temp_time = time.time()
         self._async_update_temp(new_state)
         self._trigger_source = 'sensor'
-        _LOGGER.debug("Received new temperature sensor input for %s (%s) at timestamp %s (before "
-                      "%s): %s (before %s)", self.name, self.entity_id, self._cur_temp_time,
-                      self._previous_temp_time, self._current_temp, self._previous_temp)
+        _LOGGER.debug("%s: Received new temperature: %s", self.entity_id, self._current_temp)
         await self._async_control_heating(calc_pid=True)
 
     async def _async_ext_sensor_changed(self, entity_id, old_state, new_state):
@@ -803,8 +804,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
         self._async_update_ext_temp(new_state)
         self._trigger_source = 'ext_sensor'
-        _LOGGER.debug("Received new outdoor temperature sensor input for %s (%s) at timestamp %s: "
-                      "%s", self.name, self.entity_id, time.time(), self._ext_temp)
+        _LOGGER.debug("%s: Received new external temperature: %s", self.entity_id, self._ext_temp)
         await self._async_control_heating(calc_pid=False)
 
     @callback
@@ -822,8 +822,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._current_temp = float(state.state)
             self._last_sensor_update = time.time()
         except ValueError as ex:
-            _LOGGER.debug("%s (%s) - unable to update from sensor: %s",
-                          self.name, self.entity_id, ex)
+            _LOGGER.debug("%s: Unable to update from sensor %s: %s", self.entity_id,
+                          self._sensor_entity_id, ex)
 
     @callback
     def _async_update_ext_temp(self, state):
@@ -832,20 +832,21 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._ext_temp = float(state.state)
             self._last_ext_sensor_update = time.time()
         except ValueError as ex:
-            _LOGGER.debug("%s (%s) - unable to update from sensor: %s",
-                          self.name, self.entity_id, ex)
+            _LOGGER.debug("%s: Unable to update from sensor %s: %s", self.entity_id,
+                          self._ext_sensor_entity_id, ex)
 
     async def _async_control_heating(self, time_func=None, calc_pid=False):
         """Run PID controller, optional autotune for faster integration"""
         async with self._temp_lock:
             if not self._active and None not in (self._current_temp, self._target_temp):
                 self._active = True
-                _LOGGER.info("Obtained temperature %s with set point %s. Smart thermostat %s (%s) "
-                             "active", self._current_temp, self._target_temp, self.name,
-                             self.entity_id)
+                _LOGGER.info("%s: Obtained temperature %s with set point %s. Activating Smart"
+                             "Thermostat.", self.entity_id, self._current_temp, self._target_temp)
 
             if not self._active or self._attr_hvac_mode == HVACMode.OFF:
                 if self._attr_hvac_mode == HVACMode.OFF and self._is_device_active:
+                    _LOGGER.debug("%s: %s is active while HVAC mode is %s. Turning it OFF.",
+                                  self.entity_id, self._heater_entity_id, self._attr_hvac_mode)
                     if self._pwm:
                         await self._async_heater_turn_off(force=True)
                     else:
@@ -881,8 +882,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """Turn heater toggleable device on."""
         if time.time() - self._last_heat_cycle_time >= self._min_off_cycle_duration.seconds:
             data = {ATTR_ENTITY_ID: self._heater_entity_id}
-            _LOGGER.info("Turning on %s for %s (%s)", self._heater_entity_id,
-                         self.name, self.entity_id)
+            _LOGGER.info("%s: Turning ON %s", self.entity_id, self._heater_entity_id)
             if self._heater_polarity_invert:
                 service = SERVICE_TURN_OFF
             else:
@@ -890,15 +890,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             await self.hass.services.async_call(HA_DOMAIN, service, data)
             self._last_heat_cycle_time = time.time()
         else:
-            _LOGGER.info("Reject request turning on %s for %s (%s): Cycle is too short",
-                         self._heater_entity_id, self.name, self.entity_id)
+            _LOGGER.info("%s: Reject request turning ON %s: Cycle is too short",
+                         self.entity_id, self._heater_entity_id)
 
     async def _async_heater_turn_off(self, force=False):
         """Turn heater toggleable device off."""
         if time.time() - self._last_heat_cycle_time >= self._min_on_cycle_duration.seconds or force:
             data = {ATTR_ENTITY_ID: self._heater_entity_id}
-            _LOGGER.info("Turning off %s for %s (%s)", self._heater_entity_id,
-                         self.name, self.entity_id)
+            _LOGGER.info("%s: Turning OFF %s", self.entity_id, self._heater_entity_id)
             if self._heater_polarity_invert:
                 service = SERVICE_TURN_ON
             else:
@@ -906,8 +905,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             await self.hass.services.async_call(HA_DOMAIN, service, data)
             self._last_heat_cycle_time = time.time()
         else:
-            _LOGGER.info("Reject request turning off %s for %s (%s): Cycle is too short",
-                         self._heater_entity_id, self.name, self.entity_id)
+            _LOGGER.info("%s: Reject request turning OFF %s: Cycle is too short",
+                         self.entity_id, self._heater_entity_id)
 
     async def async_set_preset_mode(self, preset_mode: str):
         """Set new preset mode.
@@ -952,15 +951,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 if self._pid_autotune.run(self._current_temp, self._target_temp):
                     for tuning_rule in self._pid_autotune.tuning_rules:
                         params = self._pid_autotune.get_pid_parameters(tuning_rule)
-                        _LOGGER.warning("Smart thermostat %s (%s) PID Autotuner output with %s "
-                                        "rule: Kp=%s, Ki=%s, Kd=%s", self.name, self.entity_id,
+                        _LOGGER.warning("%s: Now running PID Autotuner with rule %s"
+                                        ": Kp=%s, Ki=%s, Kd=%s", self.entity_id,
                                         tuning_rule, params.Kp, params.Ki, params.Kd)
                     params = self._pid_autotune.get_pid_parameters(self._autotune)
                     self._kp = params.Kp
                     self._ki = params.Ki
                     self._kd = params.Kd
-                    _LOGGER.warning("Smart thermostat %s (%s) now runs on PID Controller using "
-                                    "rule %s: Kp=%s, Ki=%s, Kd=%s", self.name, self.entity_id,
+                    _LOGGER.warning("%s: Now running on PID Controller using "
+                                    "rule %s: Kp=%s, Ki=%s, Kd=%s", self.entity_id,
                                     self._autotune, self._kp, self._ki, self._kd)
                     self._pid_controller = pid_controller.PID(self._kp, self._ki, self._kd,
                                                               self._ke, self._min_out,
@@ -989,8 +988,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             error = self._pid_controller.error
             self._dt = self._pid_controller.dt
         if update:
-            _LOGGER.debug("New PID control output for %s (%s). %.2f (error = %.2f, dt = %.2f, "
-                          "p=%.2f, i=%.2f, d=%.2f, e=%.2f)", self.name, self.entity_id,
+            _LOGGER.debug("%s: New PID control output: %.2f (error = %.2f, dt = %.2f, "
+                          "p=%.2f, i=%.2f, d=%.2f, e=%.2f)", self.entity_id,
                           self._control_output, error, self._dt, self._p, self._i, self._d,
                           self._e)
 
@@ -1011,21 +1010,21 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 time_off = self._min_off_cycle_duration.seconds
             if abs(self._control_output) == self._difference:
                 if not self._is_device_active:
-                    _LOGGER.info("Request turning on %s for %s (%s)", self._heater_entity_id,
-                                 self.name, self.entity_id)
+                    _LOGGER.info("%s: Output is %s. Request turning ON %s", self.entity_id,
+                                 self._difference, self._heater_entity_id)
                     await self._async_heater_turn_on()
                     self._time_changed = time.time()
             elif abs(self._control_output) > 0:
                 await self.pwm_switch(time_on, time_off, time.time() - self._time_changed)
             else:
                 if self._is_device_active:
-                    _LOGGER.info("Request turning off %s for %s (%s)", self._heater_entity_id,
-                                 self.name, self.entity_id)
+                    _LOGGER.info("%s: Output is 0. Request turning OFF %s", self.entity_id,
+                                 self._heater_entity_id)
                     await self._async_heater_turn_off()
                     self._time_changed = time.time()
         else:
-            _LOGGER.info("Change state of %s to %s on %s (%s)", self._heater_entity_id,
-                         round(self._control_output, 2), self.name, self.entity_id)
+            _LOGGER.info("%s: Change state of %s to %s", self.entity_id, self._heater_entity_id,
+                         round(self._control_output, 2))
             # self.hass.states.async_set(self._heater_entity_id, self._control_output)
             data = {ATTR_ENTITY_ID: self._heater_entity_id, ATTR_VALUE: self._control_output}
             await self.hass.services.async_call(NUMBER_DOMAIN, SERVICE_SET_VALUE, data)
@@ -1034,21 +1033,21 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """turn off and on the heater proportionally to control_value."""
         if self._is_device_active:
             if time_on <= time_passed or self._force_off:
-                _LOGGER.info("Request turning off %s for %s (%s)", self._heater_entity_id,
-                             self.name, self.entity_id)
+                _LOGGER.info("%s: ON time passed. Request turning OFF %s", self.entity_id,
+                             self._heater_entity_id)
                 await self._async_heater_turn_off()
                 self._time_changed = time.time()
             else:
-                _LOGGER.info("Time until %s turns off for %s (%s): %s sec", self._heater_entity_id,
-                             self.name, self.entity_id, int(time_on - time_passed))
+                _LOGGER.info("%s: Time until %s turns OFF: %s sec", self.entity_id,
+                             self._heater_entity_id, int(time_on - time_passed))
         else:
             if time_off <= time_passed or self._force_on:
-                _LOGGER.info("Request turning on %s for %s (%s)", self._heater_entity_id,
-                             self.name, self.entity_id)
+                _LOGGER.info("%s: OFF time passed. Request turning ON %s", self.entity_id,
+                             self._heater_entity_id, self.name)
                 await self._async_heater_turn_on()
                 self._time_changed = time.time()
             else:
-                _LOGGER.info("Time until %s turns on for %s (%s): %s sec", self._heater_entity_id,
-                             self.name, self.entity_id, int(time_off - time_passed))
+                _LOGGER.info("%s: Time until %s turns ON: %s sec", self.entity_id,
+                             self._heater_entity_id, int(time_off - time_passed))
         self._force_on = False
         self._force_off = False
