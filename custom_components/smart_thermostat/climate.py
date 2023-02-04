@@ -980,10 +980,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._control_output, update = self._pid_controller.calc(self._current_temp,
                                                                          self._target_temp,
                                                                          ext_temp=self._ext_temp)
-            self._p = round(self._pid_controller.P, 1)
-            self._i = round(self._pid_controller.I, 1)
-            self._d = round(self._pid_controller.D, 1)
-            self._e = round(self._pid_controller.E, 1)
+            self._p = round(self._pid_controller.proportional, 1)
+            self._i = round(self._pid_controller.integral, 1)
+            self._d = round(self._pid_controller.derivative, 1)
+            self._e = round(self._pid_controller.external, 1)
             self._control_output = round(self._control_output, 1)
             error = self._pid_controller.error
             self._dt = self._pid_controller.dt
