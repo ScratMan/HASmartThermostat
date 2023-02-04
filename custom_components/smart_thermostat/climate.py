@@ -761,6 +761,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     async def clear_integral(self, **kwargs):
         """Clear the integral value."""
         self._pid_controller.integral = 0.0
+        self._i = self._pid_controller.integral
         await self.async_update_ha_state()
 
     @property
