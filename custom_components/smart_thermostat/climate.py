@@ -341,9 +341,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             _LOGGER.warning("%s: Autotune will run with the target temperature "
                             "set after 10 temperature samples from sensor. Changes submitted "
                             "after doesn't have any effect until autotuning is finished",
-                            self.entity_id)
+                            self.unique_id)
         else:
-            _LOGGER.debug("%s: PID Gains kp = %s, ki = %s, kd = %s", self.entity_id, self._kp,
+            _LOGGER.debug("%s: PID Gains kp = %s, ki = %s, kd = %s", self.unique_id, self._kp,
                           self._ki, self._kd)
             self._pid_controller = pid_controller.PID(self._kp, self._ki, self._kd, self._ke,
                                                       self._min_out, self._max_out,
