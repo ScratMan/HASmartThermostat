@@ -381,18 +381,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         # Check If we have an old state
         old_state = await self.async_get_last_state()
         if old_state is not None:
-            # If we have no initial temperature, restore
-            if self._target_temp is None:
-                # If we have a previously saved temperature
-                if old_state.attributes.get(ATTR_TEMPERATURE) is None:
+            # If we have a previously saved temperature
+            if old_state.attributes.get(ATTR_TEMPERATURE) is None:
+                if self._target_temp is None:
                     if self._ac_mode:
                         self._target_temp = self.max_temp
                     else:
                         self._target_temp = self.min_temp
-                    _LOGGER.warning("%s: No setpoint available in old state, falling back to %s",
-                                    self.entity_id, self._target_temp)
-                else:
-                    self._target_temp = float(old_state.attributes.get(ATTR_TEMPERATURE))
+                _LOGGER.warning("%s: No setpoint available in old state, falling back to %s",
+                                self.entity_id, self._target_temp)
+            else:
+                self._target_temp = float(old_state.attributes.get(ATTR_TEMPERATURE))
             for preset_mode in ['away_temp', 'eco_temp', 'boost_temp', 'comfort_temp', 'home_temp',
                                 'sleep_temp', 'activity_temp']:
                 if old_state.attributes.get(preset_mode) is not None:
