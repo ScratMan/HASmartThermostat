@@ -249,7 +249,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._sampling_period = kwargs.get('sampling_period').seconds
         self._sensor_stall = kwargs.get('sensor_stall').seconds
         self._output_safety = kwargs.get('output_safety')
-        self._attr_hvac_mode = kwargs.get('initial_hvac_mode', None)
+        self._hvac_mode = kwargs.get('initial_hvac_mode', None)
         self._saved_target_temp = kwargs.get('target_temp', None) or kwargs.get('away_temp', None)
         self._temp_precision = kwargs.get('precision')
         self._target_temperature_step = kwargs.get('target_temp_step')
@@ -402,8 +402,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     self._pid_controller is not None:
                 self._i = float(old_state.attributes.get('pid_i'))
                 self._pid_controller.integral = self._i
-            if self.hvac_mode is None and old_state.state in self.hvac_modes:
-                self._attr_hvac_mode = old_state.state
+            if not self._hvac_mode and old_state.state:
+                self._hvac_mode = old_state.state
             if old_state.attributes.get('kp') is not None and self._pid_controller is not None:
                 self._kp = float(old_state.attributes.get('kp'))
                 self._pid_controller.set_pid_param(kp=self._kp)
@@ -443,8 +443,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                             self._target_temp)
 
         # Set default state to off
-        if not self.hvac_mode:
-            self._attr_hvac_mode = HVACMode.OFF
+        if not self._hvac_mode:
+            self._hvac_mode = HVACMode.OFF
         await self._async_control_heating(calc_pid=True)
 
     @property
@@ -485,11 +485,16 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         return self._current_temp
 
     @property
+    def hvac_mode(self):
+        """Return current operation."""
+        return self._hvac_mode
+
+    @property
     def hvac_action(self):
         """Return the current running hvac operation if supported.
         Need to be one of CURRENT_HVAC_*.
         """
-        if self._attr_hvac_mode == HVACMode.OFF:
+        if self._hvac_mode == HVACMode.OFF:
             return HVACAction.OFF
         if not self._is_device_active:
             return HVACAction.IDLE
@@ -642,16 +647,16 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
         if hvac_mode == HVACMode.HEAT:
-            self._attr_hvac_mode = HVACMode.HEAT
+            self._hvac_mode = HVACMode.HEAT
             await self._async_control_heating(calc_pid=True)
         elif hvac_mode == HVACMode.COOL:
-            self._attr_hvac_mode = HVACMode.COOL
+            self._hvac_mode = HVACMode.COOL
             await self._async_control_heating(calc_pid=True)
         elif hvac_mode == HVACMode.HEAT_COOL:
-            self._attr_hvac_mode = HVACMode.HEAT_COOL
+            self._hvac_mode = HVACMode.HEAT_COOL
             await self._async_control_heating(calc_pid=True)
         elif hvac_mode == HVACMode.OFF:
-            self._attr_hvac_mode = HVACMode.OFF
+            self._hvac_mode = HVACMode.OFF
             self._control_output = 0
             if self._pwm:
                 _LOGGER.debug("%s: Turn OFF heater from async_set_hvac_mode(%s)", self.entity_id,
@@ -842,10 +847,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 _LOGGER.info("%s: Obtained temperature %s with set point %s. Activating Smart"
                              "Thermostat.", self.entity_id, self._current_temp, self._target_temp)
 
-            if not self._active or self._attr_hvac_mode == HVACMode.OFF:
-                if self._attr_hvac_mode == HVACMode.OFF and self._is_device_active:
+            if not self._active or self._hvac_mode == HVACMode.OFF:
+                if self._hvac_mode == HVACMode.OFF and self._is_device_active:
                     _LOGGER.debug("%s: %s is active while HVAC mode is %s. Turning it OFF.",
-                                  self.entity_id, self._heater_entity_id, self._attr_hvac_mode)
+                                  self.entity_id, self._heater_entity_id, self._hvac_mode)
                     if self._pwm:
                         await self._async_heater_turn_off(force=True)
                     else:
