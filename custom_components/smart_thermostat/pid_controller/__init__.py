@@ -211,14 +211,6 @@ class PID:
         # Compute PID Output
         output = self._proportional + self._integral + self._derivative + self._external
         self._output = max(min(output, self._out_max), self._out_min)
-
-        # Log some debug info
-        _LOGGER.debug('P: %.2f', self._proportional)
-        _LOGGER.debug('I: %.2f', self._integral)
-        _LOGGER.debug('D: %.2f', self._derivative)
-        _LOGGER.debug('E: %.2f', self._external)
-        _LOGGER.debug('output: %.2f', self._output)
-
         return self._output, True
 
 
