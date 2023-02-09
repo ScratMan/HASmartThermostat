@@ -677,7 +677,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             _LOGGER.error("%s: Unrecognized HVAC mode: %s", self.entity_id, hvac_mode)
             return
         # Ensure we update the current operation after changing the mode
-        self.schedule_update_ha_state()
+        self.async_write_ha_state()
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
@@ -694,6 +694,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             await self.async_set_preset_mode(PRESET_NONE)
             self._target_temp = temperature
         await self._async_control_heating(calc_pid=True)
+        self.async_write_ha_state()
 
     async def async_set_pid(self, **kwargs):
         """Set PID parameters."""
@@ -800,6 +801,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._trigger_source = 'sensor'
         _LOGGER.debug("%s: Received new temperature: %s", self.entity_id, self._current_temp)
         await self._async_control_heating(calc_pid=True)
+        self.async_write_ha_state()
 
     async def _async_ext_sensor_changed(self, entity_id, old_state, new_state):
         """Handle temperature changes."""
@@ -816,7 +818,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """Handle heater switch state changes."""
         if new_state is None:
             return
-        self.async_schedule_update_ha_state()
+        self.async_write_ha_state()
 
     @callback
     def _async_update_temp(self, state):
