@@ -356,14 +356,28 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         await super().async_added_to_hass()
 
         # Add listener
-        async_track_state_change(self.hass, self._sensor_entity_id, self._async_sensor_changed)
+        self.async_on_remove(
+            async_track_state_change(
+                self.hass,
+                self._sensor_entity_id,
+                self._async_sensor_changed))
         if self._ext_sensor_entity_id is not None:
-            async_track_state_change(self.hass, self._ext_sensor_entity_id,
-                                     self._async_ext_sensor_changed)
-        async_track_state_change(self.hass, self._heater_entity_id, self._async_switch_changed)
-
+            self.async_on_remove(
+                async_track_state_change(
+                    self.hass,
+                    self._ext_sensor_entity_id,
+                    self._async_ext_sensor_changed))
+        self.async_on_remove(
+            async_track_state_change(
+                self.hass,
+                self._heater_entity_id,
+                self._async_switch_changed))
         if self._keep_alive:
-            async_track_time_interval(self.hass, self._async_control_heating, self._keep_alive)
+            self.async_on_remove(
+                async_track_time_interval(
+                    self.hass,
+                    self._async_control_heating,
+                    self._keep_alive))
 
         @callback
         def _async_startup(event):
