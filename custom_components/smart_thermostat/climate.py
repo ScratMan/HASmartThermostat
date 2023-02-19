@@ -1066,7 +1066,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         else:
             if time_off <= time_passed or self._force_on:
                 _LOGGER.info("%s: OFF time passed. Request turning ON %s", self.entity_id,
-                             self._heater_entity_id, self.name)
+                             self._heater_entity_id)
                 await self._async_heater_turn_on()
                 self._time_changed = time.time()
             else:
