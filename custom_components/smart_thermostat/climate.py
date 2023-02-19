@@ -32,7 +32,7 @@ from homeassistant.components.number.const import (
     SERVICE_SET_VALUE,
     DOMAIN as NUMBER_DOMAIN
 )
-from homeassistant.core import DOMAIN as HA_DOMAIN, callback
+from homeassistant.core import DOMAIN as HA_DOMAIN, CoreState, callback
 from homeassistant.util import slugify
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import (
@@ -380,7 +380,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     self._keep_alive))
 
         @callback
-        def _async_startup(event):
+        def _async_startup(*_):
             """Init on startup."""
             sensor_state = self.hass.states.get(self._sensor_entity_id)
             if sensor_state and sensor_state.state != STATE_UNKNOWN:
@@ -390,7 +390,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 if ext_sensor_state and ext_sensor_state.state != STATE_UNKNOWN:
                     self._async_update_ext_temp(ext_sensor_state)
 
-        self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _async_startup)
+        if self.hass.state == CoreState.running:
+            _async_startup()
+        else:
+            self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _async_startup)
 
         # Check If we have an old state
         old_state = await self.async_get_last_state()
