@@ -1,11 +1,11 @@
 {
   "domain": "smart_thermostat",
   "name": "Smart thermostat",
+  "codeowners": ["@ScratMan"],
+  "dependencies": [],
   "documentation": "https://github.com/ScratMan/HASmartThermostat",
+  "iot_class": "local_push",
   "issue_tracker": "https://github.com/ScratMan/HASmartThermostat/issues",
   "requirements": [],
-  "dependencies": [],
-  "codeowners": ["@ScratMan"],
-  "version": "2021.11.1",
-  "iot_class": "local_push"
+  "version": "2021.11.1"
 }
