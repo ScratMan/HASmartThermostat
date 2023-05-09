@@ -193,12 +193,13 @@ class PID:
         else:
             self._dext = 0
 
-        # In order to prevent windup, only integrate if the process is not saturated and set point
-        # is stable
-        if self._out_min < self._last_output < self._out_max and \
-                self._last_set_point == self._set_point:
-            self._integral += self._Ki * self._error * self._dt
-            self._integral = max(min(self._integral, self._out_max), self._out_min)
+        # In order to prevent windup, only integrate if set point is stable and
+        # integration is not trying to over-saturate the output value
+        if self._last_set_point == self._set_point:
+            delta = self._Ki * self._error * self._dt
+            if (delta > 0 and self._last_output < self._out_max) or \
+                (delta < 0 and self._last_output > self._out_min):
+                self._integral += delta
 
         self._proportional = self._Kp * self._error
         if self._dt != 0:
