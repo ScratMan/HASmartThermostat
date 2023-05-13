@@ -291,31 +291,32 @@ room in case of sensor failure. The value should be a float between 0.0 and 100.
 not specified, the thermostat will restore the previous operation mode.
 * **debug** (Optional): Make the climate entity expose the following internal values as extra 
 states attributes, so they can be accessed in HA with sensor templates for debugging purposes (
-helpful to adjust the PID gains), example:
+helpful to adjust the PID gains), example configuration.yaml:
   ```
+  sensor:
   - platform: template
-      sensors:
-        smart_thermostat_output:
-          friendly_name: PID Output
-          unit_of_measurement: "%"
-          value_template: "{{ state_attr('climate.smart_thermostat_example', 'control_output') | float }}"
+    sensors:
+      smart_thermostat_output:
+        friendly_name: PID Output
+        unit_of_measurement: "%"
+        value_template: "{{ state_attr('climate.smart_thermostat_example', 'control_output') | float(0) }}"
         smart_thermostat_p:
-          friendly_name: PID P
-          unit_of_measurement: "%"
-          value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_p') | float }}"
-        smart_thermostat_i:
-          friendly_name: PID I
-          unit_of_measurement: "%"
-          value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_i') | float }}"
-        smart_thermostat_d:
-          friendly_name: PID D
-          unit_of_measurement: "%"
-          value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_d') | float }}"
-        smart_thermostat_e:
-          friendly_name: PID E
-          unit_of_measurement: "%"
-          value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_e') | float }}"
-  ```
+        friendly_name: PID P
+        unit_of_measurement: "%"
+        value_template: "{{ state_attr('climate.ssmart_thermostat_example', 'pid_p') | float(0) }}"
+      smart_thermostat_i:
+        friendly_name: PID I
+        unit_of_measurement: "%"
+        value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_i') | float(0) }}"
+      smart_thermostat_d:
+        friendly_name: PID D
+        unit_of_measurement: "%"
+        value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_d') | float(0) }}"
+      smart_thermostat_e:
+        friendly_name: PID E
+        unit_of_measurement: "%"
+        value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_e') | float(0) }}"
+    ```
   It is strongly recommended to disable the debug mode once the 
   PID Thermostat is working fine, as the added extra states attributes will fill the Home Assistant 
   database quickly.\
