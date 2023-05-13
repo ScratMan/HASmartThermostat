@@ -303,7 +303,7 @@ helpful to adjust the PID gains), example configuration.yaml:
         smart_thermostat_p:
         friendly_name: PID P
         unit_of_measurement: "%"
-        value_template: "{{ state_attr('climate.ssmart_thermostat_example', 'pid_p') | float(0) }}"
+        value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_p') | float(0) }}"
       smart_thermostat_i:
         friendly_name: PID I
         unit_of_measurement: "%"
