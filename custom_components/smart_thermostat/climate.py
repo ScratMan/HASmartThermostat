@@ -787,7 +787,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """Clear the integral value."""
         self._pid_controller.integral = 0.0
         self._i = self._pid_controller.integral
-        await self.async_write_ha_state()
+        self.async_write_ha_state()
 
     @property
     def min_temp(self):
@@ -877,7 +877,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         data = {ATTR_ENTITY_ID: self._heater_entity_id,
                                 ATTR_VALUE: self._control_output}
                         await self.hass.services.async_call(NUMBER_DOMAIN, SERVICE_SET_VALUE, data)
-                await self.async_write_ha_state()
+                self.async_write_ha_state()
                 return
 
             if self._sensor_stall != 0 and time.time() - self._last_sensor_update > \
@@ -887,7 +887,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             elif calc_pid or self._sampling_period != 0:
                 await self.calc_output()
             await self.set_control_value()
-            await self.async_write_ha_state()
+            self.async_write_ha_state()
 
     @property
     def _is_device_active(self):
