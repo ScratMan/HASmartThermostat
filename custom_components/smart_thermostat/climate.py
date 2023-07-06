@@ -71,6 +71,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(const.CONF_SENSOR): cv.entity_id,
         vol.Optional(const.CONF_OUTDOOR_SENSOR): cv.entity_id,
         vol.Optional(const.CONF_AC_MODE): cv.boolean,
+        vol.Optional(const.CONF_FORCE_OFF_STATE, default=True): cv.boolean,
         vol.Optional(const.CONF_MAX_TEMP): vol.Coerce(float),
         vol.Optional(const.CONF_MIN_TEMP): vol.Coerce(float),
         vol.Optional(CONF_NAME, default=const.DEFAULT_NAME): cv.string,
@@ -151,6 +152,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'hot_tolerance': config.get(const.CONF_HOT_TOLERANCE),
         'cold_tolerance': config.get(const.CONF_COLD_TOLERANCE),
         'ac_mode': config.get(const.CONF_AC_MODE),
+        'force_off_state': config.get(const.CONF_FORCE_OFF_STATE),
         'min_cycle_duration': config.get(const.CONF_MIN_CYCLE_DURATION),
         'min_off_cycle_duration': config.get(const.CONF_MIN_OFF_CYCLE_DURATION),
         'min_cycle_duration_pid_off': config.get(const.CONF_MIN_CYCLE_DURATION_PID_OFF),
@@ -245,6 +247,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         if self._unique_id == 'none':
             self._unique_id = slugify(f"{DOMAIN}_{self._name}_{self._heater_entity_id}")
         self._ac_mode = kwargs.get('ac_mode')
+        self._force_off_state = kwargs.get('force_off_state', True)
         self._keep_alive = kwargs.get('keep_alive')
         self._sampling_period = kwargs.get('sampling_period').seconds
         self._sensor_stall = kwargs.get('sensor_stall').seconds
@@ -867,7 +870,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                              "Thermostat.", self.entity_id, self._current_temp, self._target_temp)
 
             if not self._active or self._hvac_mode == HVACMode.OFF:
-                if self._hvac_mode == HVACMode.OFF and self._is_device_active:
+                if self._force_off_state and self._hvac_mode == HVACMode.OFF and \
+                        self._is_device_active:
                     _LOGGER.debug("%s: %s is active while HVAC mode is %s. Turning it OFF.",
                                   self.entity_id, self._heater_entity_id, self._hvac_mode)
                     if self._pwm:

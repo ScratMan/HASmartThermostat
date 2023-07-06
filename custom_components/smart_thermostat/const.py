@@ -28,6 +28,7 @@ CONF_TARGET_TEMP = "target_temp"
 CONF_HOT_TOLERANCE = "hot_tolerance"
 CONF_COLD_TOLERANCE = "cold_tolerance"
 CONF_AC_MODE = "ac_mode"
+CONF_FORCE_OFF_STATE = "force_off_state"
 CONF_MIN_CYCLE_DURATION = "min_cycle_duration"
 CONF_MIN_OFF_CYCLE_DURATION = "min_off_cycle_duration"
 CONF_MIN_CYCLE_DURATION_PID_OFF = 'min_cycle_duration_pid_off'

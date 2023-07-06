@@ -253,6 +253,9 @@ tolerance is 0.5 the heater will stop when the sensor equals or goes above 25.5 
 0.3).
 * **ac_mode** (Optional): Set the switch specified in the heater option to be treated as a cooling 
 device instead of a heating device. Should be a boolean (default: false).
+* **force_off_state** (Optional): If set to true (default value), Home Assistant will force the 
+heater entity to OFF state when the thermostat is in OFF. Set parameter to false to be able to 
+control the heater entity externally while the thermostat is OFF.
 * **preset_sync_mode** (Optional): If set to sync mode, manually setting a temperature will enable 
 the corresponding preset. In example, if away temperature is set to 14°C, manually setting the 
 temperature to 14°C on the thermostat will automatically enable the away preset mode. Should be 
