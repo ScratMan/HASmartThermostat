@@ -11,8 +11,8 @@ _LOGGER = logging.getLogger(__name__)
 class PID:
     error: float
 
-    def __init__(self, kp, ki, kd, ke=0, out_min=float('-inf'), out_max=float('+inf'), sampling_period=0,
-                 cold_tolerance=0.3, hot_tolerance=0.3):
+    def __init__(self, kp, ki, kd, ke=0, out_min=float('-inf'), out_max=float('+inf'),
+                 sampling_period=0, cold_tolerance=0.3, hot_tolerance=0.3):
         """A proportional-integral-derivative controller.
             :param kp: Proportional coefficient.
             :type kp: float
@@ -79,6 +79,22 @@ class PID:
     def mode(self, mode):
         assert mode.upper() in ['AUTO', 'OFF']
         self._mode = mode.upper()
+
+    @property
+    def out_max(self):
+        return self._out_max
+
+    @out_max.setter
+    def out_max(self, out_max):
+        self._out_max = out_max
+
+    @property
+    def out_min(self):
+        return self._out_min
+
+    @out_min.setter
+    def out_min(self, out_min):
+        self._out_min = out_min
 
     @property
     def sampling_period(self):

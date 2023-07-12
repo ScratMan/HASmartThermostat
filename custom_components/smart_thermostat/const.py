@@ -19,6 +19,7 @@ DEFAULT_OUTPUT_SAFETY = 5.0
 DEFAULT_PRESET_SYNC_MODE = "none"
 
 CONF_HEATER = "heater"
+CONF_COOLER = "cooler"
 CONF_INVERT_HEATER = 'invert_heater'
 CONF_SENSOR = "target_sensor"
 CONF_OUTDOOR_SENSOR = "outdoor_sensor"
