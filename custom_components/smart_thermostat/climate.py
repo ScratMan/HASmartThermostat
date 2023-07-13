@@ -32,6 +32,7 @@ from homeassistant.components.number.const import (
     SERVICE_SET_VALUE,
     DOMAIN as NUMBER_DOMAIN
 )
+from homeassistant.components.input_number import DOMAIN as INPUT_NUMBER_DOMAIN
 from homeassistant.core import DOMAIN as HA_DOMAIN, CoreState, callback
 from homeassistant.util import slugify
 import homeassistant.helpers.config_validation as cv
@@ -491,6 +492,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """Return a unique ID."""
         return self._unique_id
 
+    def _get_number_entity_domain(self, entity_id):
+        return INPUT_NUMBER_DOMAIN if "input_number" in entity_id else NUMBER_DOMAIN
+
     @property
     def precision(self):
         """Return the precision of the system."""
@@ -725,13 +729,19 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         ATTR_VALUE: self._control_output}
                 _LOGGER.debug("%s: Set heater to %s from async_set_hvac_mode(%s)", self.entity_id,
                               self._control_output, hvac_mode)
-                await self.hass.services.async_call(NUMBER_DOMAIN, SERVICE_SET_VALUE, data)
+                await self.hass.services.async_call(
+                    self._get_number_entity_domain(self._heater_entity_id),
+                    SERVICE_SET_VALUE,
+                    data)
                 if self._cooler_entity_id is not None:
                     data = {ATTR_ENTITY_ID: self._cooler_entity_id,
                             ATTR_VALUE: self._control_output}
                     _LOGGER.debug("%s: Set cooler to %s from async_set_hvac_mode(%s)", self.entity_id,
                                   self._control_output, hvac_mode)
-                    await self.hass.services.async_call(NUMBER_DOMAIN, SERVICE_SET_VALUE, data)
+                    await self.hass.services.async_call(
+                        self._get_number_entity_domain(self._cooler_entity_id),
+                        SERVICE_SET_VALUE,
+                        data)
             # Clear the samples to avoid integrating the off period
             self._previous_temp = None
             self._previous_temp_time = None
@@ -929,11 +939,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         self._control_output = 0
                         data = {ATTR_ENTITY_ID: self._heater_entity_id,
                                 ATTR_VALUE: self._control_output}
-                        await self.hass.services.async_call(NUMBER_DOMAIN, SERVICE_SET_VALUE, data)
+                        await self.hass.services.async_call(
+                        self._get_number_entity_domain(self._heater_entity_id),
+                            SERVICE_SET_VALUE,
+                            data)
                         if self._cooler_entity_id is not None:
                             data = {ATTR_ENTITY_ID: self._cooler_entity_id,
                                     ATTR_VALUE: self._control_output}
-                            await self.hass.services.async_call(NUMBER_DOMAIN, SERVICE_SET_VALUE, data)
+                            await self.hass.services.async_call(
+                            self._get_number_entity_domain(self._cooler_entity_id),
+                                SERVICE_SET_VALUE,
+                                data)
                 self.async_write_ha_state()
                 return
 
@@ -1000,7 +1016,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                          self.heater_or_cooler_entity, 0)
             # self.hass.states.async_set(self._heater_entity_id, self._control_output)
             data = {ATTR_ENTITY_ID: self.heater_or_cooler_entity, ATTR_VALUE: 0}
-            await self.hass.services.async_call(NUMBER_DOMAIN, SERVICE_SET_VALUE, data)
+            await self.hass.services.async_call(
+                self._get_number_entity_domain(self.heater_or_cooler_entity),
+                SERVICE_SET_VALUE,
+                data)
 
     async def async_set_preset_mode(self, preset_mode: str):
         """Set new preset mode.
@@ -1123,7 +1142,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             # self.hass.states.async_set(self._heater_entity_id, self._control_output)
             data = {ATTR_ENTITY_ID: self.heater_or_cooler_entity,
                     ATTR_VALUE: abs(self._control_output)}
-            await self.hass.services.async_call(NUMBER_DOMAIN, SERVICE_SET_VALUE, data)
+            await self.hass.services.async_call(
+                self._get_number_entity_domain(self.heater_or_cooler_entity),
+                SERVICE_SET_VALUE,
+                data)
 
     async def pwm_switch(self, time_on, time_off, time_passed):
         """turn off and on the heater proportionally to control_value."""
