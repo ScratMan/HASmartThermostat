@@ -200,6 +200,9 @@ gains to quickly test the behavior without waiting the integral to stabilize by 
 * **heater** (Required): entity_id for heater control, should be a toggle device or a valve 
 accepting direct input between 0% and 100%. If a valve is used, pwm parameter should be set to 0. 
 Becomes air conditioning switch when ac_mode is set to true.
+* **cooler** (Optional): entity_id for cooling control, should be a toggle device or a valve 
+accepting direct input between 0% and 100%. If a valve is used, pwm parameter should be set to 0. 
+Becomes air conditioning switch when ac_mode is set to true.
 * **invert_heater** (Optional): if set to true, inverts the polarity of heater switch (switch is on 
 while idle and off while active). Must be a boolean (defaults to false).
 * **target_sensor** (Required): entity_id for a temperature sensor, target_sensor.state must be 
@@ -251,12 +254,15 @@ temperature read by the sensor specified in the target_sensor option and the tar
 that must change prior to being switched off. For example, if the target temperature is 25 and the 
 tolerance is 0.5 the heater will stop when the sensor equals or goes above 25.5 (float, default 
 0.3).
-* **ac_mode** (Optional): Set the switch specified in the heater option to be treated as a cooling 
-device instead of a heating device. Should be a boolean (default: false).
+* **ac_mode** (Optional): Set the switch specified in the heater option to be treated as a 
+heating/cooling device instead of a pure heating device. Should be a boolean (default: false).
+* **force_off_state** (Optional): If set to true (default value), Home Assistant will force the 
+heater entity to OFF state when the thermostat is in OFF. Set parameter to false to control the 
+heater entity externally while the thermostat is OFF.
 * **preset_sync_mode** (Optional): If set to sync mode, manually setting a temperature will enable 
 the corresponding preset. In example, if away temperature is set to 14°C, manually setting the 
 temperature to 14°C on the thermostat will automatically enable the away preset mode. Should be 
-string either 'sync' or 'none' (default: 'none').
+a string, either 'sync' or 'none' (default: 'none').
 * **boost_pid_off** (Optional): When set to true, the PID will be set to OFF state while boost 
 preset is selected, and the thermostat will operate in hysteresis mode. This helps to quickly raise 
 the temperature in a room for a short period of time. Should be a boolean (default: false).
