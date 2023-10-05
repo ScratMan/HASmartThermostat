@@ -971,8 +971,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             return self.hass.states.is_state(self.heater_or_cooler_entity, STATE_ON)
         else:
             """If the valve device is currently active."""
-            if self._heater_polarity_invert:
-                return float(self.hass.states.get(self.heater_or_cooler_entity).state) == 0
             return float(self.hass.states.get(self.heater_or_cooler_entity).state) > 0
       
     @property
