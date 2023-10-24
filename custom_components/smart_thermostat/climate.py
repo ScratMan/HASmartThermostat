@@ -923,10 +923,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     async def _async_control_heating(self, time_func=None, calc_pid=False):
         """Run PID controller, optional autotune for faster integration"""
         async with self._temp_lock:
-            if not self._active and None not in (self._current_temp, self._target_temp):
-                self._active = True
-                _LOGGER.info("%s: Obtained temperature %s with set point %s. Activating Smart"
-                             "Thermostat.", self.entity_id, self._current_temp, self._target_temp)
+            if not self._active:
+                if self._ext_sensor_entity_id is None:
+                    if None not in (self._current_temp, self._target_temp):
+                        self._active = True
+                        _LOGGER.info("%s: Obtained temperature %s with set point %s. Activating Smart"
+                                     "Thermostat.", self.entity_id, self._current_temp, self._target_temp)
+                else:
+                    if None not in (self._current_temp, self._ext_temp, self._target_temp):
+                        self._active = True
+                        _LOGGER.info("%s: Obtained temperature %s, outdoor %s with set point %s. Activating Smart"
+                                     "Thermostat.", self.entity_id, self._current_temp, self._ext_temp, self._target_temp)
 
             if not self._active or self._hvac_mode == HVACMode.OFF:
                 if self._force_off_state and self._hvac_mode == HVACMode.OFF and \
