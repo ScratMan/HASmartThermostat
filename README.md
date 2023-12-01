@@ -37,7 +37,8 @@ climate:
   - platform: smart_thermostat
     name: Smart Thermostat Example
     unique_id: smart_thermostat_example
-    heater: switch.on_off_heater
+    heater:
+      - switch.on_off_heater
     target_sensor: sensor.ambient_temperature
     min_temp: 7
     max_temp: 28
@@ -197,11 +198,14 @@ gains to quickly test the behavior without waiting the integral to stabilize by 
 ## Parameters:
 * **name** (Optional): Name of the thermostat.
 * **unique_id** (Optional): unique entity_id for the smart thermostat.
-* **heater** (Required): entity_id for heater control, should be a toggle device or a valve 
+* **heater** (Required): entity_id for heater control. If you have e.g. multiple radiators in
+one room, you can enter all of them in a list, and the thermostat will apply the output value to
+each of them. Should be a toggle device or a valve 
 accepting direct input between 0% and 100%. If a valve is used, pwm parameter should be set to 0. 
 Becomes air conditioning switch when ac_mode is set to true.
-* **cooler** (Optional): entity_id for cooling control, should be a toggle device or a valve 
-accepting direct input between 0% and 100%. If a valve is used, pwm parameter should be set to 0. 
+* **cooler** (Optional): entity_id for cooling control. Can be a single entity or a list of 
+entities. Should be a toggle device or a valve accepting direct input between 0% and 100%.
+If a valve is used, pwm parameter should be set to 0. 
 Becomes air conditioning switch when ac_mode is set to true.
 * **invert_heater** (Optional): if set to true, inverts the polarity of heater switch (switch is on 
 while idle and off while active). Must be a boolean (defaults to false).
@@ -212,7 +216,10 @@ must be temperature.
 * **keep_alive** (Required): sets update interval for the PWM pulse width. If interval is too big, 
 the PWM granularity will be reduced, leading to lower accuracy of temperature control, can be float 
 in seconds, or time hh:mm:ss.
-* **kp** (Recommended): Set PID parameter, proportional (p) control value (float, default 100).
+* **kp** (Recommended): Set PID parameter, proportional (p) control value (float, default 100). 
+*Note:* Once the thermostat has been created, changing the configuration PID values will not
+update the PID controller. Use the `smart_thermostat.set_pid_gain` service to update the PID
+values instead.
 * **ki** (Recommended): Set PID parameter, integral (i) control value (float, default 0).
 * **kd** (Recommended): Set PID parameter, derivative (d) control value (float, default 0). 
 * **ke** (Optional): Set outdoor temperature compensation gain (e) control value (float, default 0). 
@@ -220,6 +227,11 @@ in seconds, or time hh:mm:ss.
 the thermostat will be too slow, leading to lower accuracy of temperature control. Can be float in 
 seconds or time hh:mm:ss (default 15mn). Set to 0 when using heater entity with direct input of 
 0/100% values like valves.
+* **min_output** (Optional): Set the minimum value of the thermostat control output range. 
+(float, default 0).
+* **max_output** (Optional): Set the maximum value of the thermostat control output range.
+(float, default 100). Set this if your heater/cooler valve input range is not 0-100%. Leave unset
+when using PWM control.
 * **min_cycle_duration** (Optional): Set a minimum amount of time that the switch specified in the 
 heater option must be in its current state prior to being switched either off or on (useful to 
 protect boilers). Can be float in seconds or time hh:mm:ss (default 0s).
