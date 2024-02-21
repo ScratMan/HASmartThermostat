@@ -1135,15 +1135,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     _LOGGER.info("%s: Output is %s. Request turning ON %s", self.entity_id,
                                  self._difference, self.heater_or_cooler_entity)
                     await self._async_heater_turn_on()
-                    self._time_changed = time.time()
             elif abs(self._control_output) > 0:
-                await self.pwm_switch(time_on, time_off, time.time() - self._time_changed)
+                await self.pwm_switch(time_on, time_off, time.time() - self._last_heat_cycle_time)
             else:
                 if self._is_device_active:
                     _LOGGER.info("%s: Output is 0. Request turning OFF %s", self.entity_id,
                                  self.heater_or_cooler_entity)
                     await self._async_heater_turn_off()
-                    self._time_changed = time.time()
         else:
             _LOGGER.info("%s: Change state of %s to %s", self.entity_id,
                          self.heater_or_cooler_entity,
@@ -1163,7 +1161,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 _LOGGER.info("%s: ON time passed. Request turning OFF %s", self.entity_id,
                              self.heater_or_cooler_entity)
                 await self._async_heater_turn_off()
-                self._time_changed = time.time()
             else:
                 _LOGGER.info("%s: Time until %s turns OFF: %s sec", self.entity_id,
                              self.heater_or_cooler_entity, int(time_on - time_passed))
@@ -1172,7 +1169,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 _LOGGER.info("%s: OFF time passed. Request turning ON %s", self.entity_id,
                              self.heater_or_cooler_entity)
                 await self._async_heater_turn_on()
-                self._time_changed = time.time()
             else:
                 _LOGGER.info("%s: Time until %s turns ON: %s sec", self.entity_id,
                              self.heater_or_cooler_entity, int(time_off - time_passed))
