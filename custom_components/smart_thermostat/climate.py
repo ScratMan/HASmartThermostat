@@ -261,7 +261,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._temp_precision = kwargs.get('precision')
         self._target_temperature_step = kwargs.get('target_temp_step')
         self._debug = kwargs.get(const.CONF_DEBUG)
-        self._last_heat_cycle_time = time.time()
+        self._last_heat_cycle_time = 0
         self._min_on_cycle_duration_pid_on = kwargs.get('min_cycle_duration')
         self._min_off_cycle_duration_pid_on = kwargs.get('min_off_cycle_duration')
         self._min_on_cycle_duration_pid_off = kwargs.get('min_cycle_duration_pid_off')
