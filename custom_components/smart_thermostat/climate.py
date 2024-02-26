@@ -188,7 +188,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'autotune': config.get(const.CONF_AUTOTUNE),
         'noiseband': config.get(const.CONF_NOISEBAND),
         'lookback': config.get(const.CONF_LOOKBACK),
-        'period_for_derivative_calculation_in_seconds': config.get(const.CONF_PERIOD_FOR_DERIVATIVE_CALCULATION),
+        'period_for_derivative_calculation': config.get(const.CONF_PERIOD_FOR_DERIVATIVE_CALCULATION),
         const.CONF_DEBUG: config.get(const.CONF_DEBUG),
     }
 
@@ -345,7 +345,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._time_changed = 0
         self._last_sensor_update = time.time()
         self._last_ext_sensor_update = time.time()
-        self._period_for_derivative_calculation_in_seconds = kwargs.get('period_for_derivative_calculation_in_seconds')
+        self._period_for_derivative_calculation = kwargs.get('period_for_derivative_calculation')
         if self._autotune != "none":
             self._pid_controller = None
             self._pid_autotune = pid_controller.PIDAutotune(self._difference, self._lookback,
@@ -361,7 +361,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._pid_controller = pid_controller.PID(self._kp, self._ki, self._kd, self._ke,
                                                       self._min_out, self._max_out,
                                                       self._sampling_period, self._cold_tolerance,
-                                                      self._hot_tolerance, self._period_for_derivative_calculation_in_seconds)
+                                                      self._hot_tolerance, self._period_for_derivative_calculation)
             self._pid_controller.mode = "AUTO"
 
     async def async_added_to_hass(self):
@@ -1092,7 +1092,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                                                               self._max_out, self._sampling_period,
                                                               self._cold_tolerance,
                                                               self._hot_tolerance,
-                                                              self._period_for_derivative_calculation_in_seconds)
+                                                              self._period_for_derivative_calculation)
                     self._autotune = "none"
             self._control_output = self._pid_autotune.output
             self._p = self._i = self._d = error = self._dt = 0

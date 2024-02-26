@@ -13,7 +13,7 @@ class PID:
     error: float
 
     def __init__(self, kp, ki, kd, ke=0, out_min=float('-inf'), out_max=float('+inf'),
-                 sampling_period=0, cold_tolerance=0.3, hot_tolerance=0.3, period_for_derivative_calculation_in_seconds=3600.0):
+                 sampling_period=0, cold_tolerance=0.3, hot_tolerance=0.3, period_for_derivative_calculation=3600.0):
         """A proportional-integral-derivative controller.
             :param kp: Proportional coefficient.
             :type kp: float
@@ -71,7 +71,7 @@ class PID:
         self._sampling_period = sampling_period
         self._cold_tolerance = cold_tolerance
         self._hot_tolerance = hot_tolerance
-        self._period_for_derivative_calculation_in_seconds = period_for_derivative_calculation_in_seconds
+        self._period_for_derivative_calculation = period_for_derivative_calculation
         
         self._input_point_for_derivative_calculation = 0
         self._input_point_timestamp_for_derivative_calculation = time()
@@ -190,10 +190,10 @@ class PID:
         seconds_elapsed_since_last_derivative_input = datetime.timedelta(seconds=self.elapsed_time(
             self._input_point_timestamp_for_derivative_calculation))
         idx = 999999
-        if seconds_elapsed_since_last_derivative_input > self._period_for_derivative_calculation_in_seconds:
+        if seconds_elapsed_since_last_derivative_input > self._period_for_derivative_calculation:
             for i, timestamp in enumerate(self._previous_input_points_timestamp_for_derivative_calculation):
                 seconds_elapsed = self.elapsed_time(timestamp)
-                if seconds_elapsed >= self._period_for_derivative_calculation_in_seconds:
+                if seconds_elapsed >= self._period_for_derivative_calculation:
                     idx = i
                     break
             new_input_time = self._previous_input_points_timestamp_for_derivative_calculation[idx]
@@ -252,7 +252,7 @@ class PID:
             self._integral = max(min(self._integral, self._out_max), self._out_min)
 
         self._proportional = self._Kp * self._error
-        self._derivative = -(self._Kd * error_for_derivative) / self._period_for_derivative_calculation_in_seconds.total_seconds()
+        self._derivative = -(self._Kd * error_for_derivative) / self._period_for_derivative_calculation.total_seconds()
         # Compensate losses due to external temperature
         self._external = self._Ke * self._dext
 
