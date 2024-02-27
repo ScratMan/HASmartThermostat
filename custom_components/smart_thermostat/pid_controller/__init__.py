@@ -190,7 +190,7 @@ class PID:
         seconds_elapsed_since_last_derivative_input = datetime.timedelta(seconds=self.elapsed_time(
             self._input_point_timestamp_for_derivative_calculation))
         idx = 999999
-        if seconds_elapsed_since_last_derivative_input > self._period_for_derivative_calculation:
+        if seconds_elapsed_since_last_derivative_input > self._period_for_derivative_calculation.total_seconds():
             for i, timestamp in enumerate(self._previous_input_points_timestamp_for_derivative_calculation):
                 seconds_elapsed = self.elapsed_time(timestamp)
                 if seconds_elapsed >= self._period_for_derivative_calculation:
