@@ -116,7 +116,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(const.CONF_TARGET_TEMP_STEP): vol.In(
             [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
         ),
-        vol.Optional(const.CONF_DIFFERENCE, default=const.DEFAULT_DIFFERENCE): vol.Coerce(float),
+        vol.Optional(const.CONF_OUTPUT_MIN, default=const.DEFAULT_OUTPUT_MIN): vol.Coerce(float),
+        vol.Optional(const.CONF_OUTPUT_MAX, default=const.DEFAULT_OUTPUT_MAX): vol.Coerce(float),
+        vol.Optional(const.CONF_OUT_CLAMP_LOW, default=const.DEFAULT_OUT_CLAMP_LOW): vol.Coerce(float),
+        vol.Optional(const.CONF_OUT_CLAMP_HIGH, default=const.DEFAULT_OUT_CLAMP_HIGH): vol.Coerce(float),
         vol.Optional(const.CONF_KP, default=const.DEFAULT_KP): vol.Coerce(float),
         vol.Optional(const.CONF_KI, default=const.DEFAULT_KI): vol.Coerce(float),
         vol.Optional(const.CONF_KD, default=const.DEFAULT_KD): vol.Coerce(float),
@@ -176,7 +179,10 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'precision': config.get(const.CONF_PRECISION),
         'target_temp_step': config.get(const.CONF_TARGET_TEMP_STEP),
         'unit': hass.config.units.temperature_unit,
-        'difference': config.get(const.CONF_DIFFERENCE),
+        'output_min': config.get(const.CONF_OUTPUT_MIN),
+        'output_max': config.get(const.CONF_OUTPUT_MAX),
+        'output_clamp_low': config.get(const.CONF_OUT_CLAMP_LOW),
+        'output_clamp_high': config.get(const.CONF_OUT_CLAMP_HIGH),
         'kp': config.get(const.CONF_KP),
         'ki': config.get(const.CONF_KI),
         'kd': config.get(const.CONF_KD),
@@ -305,15 +311,20 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                                                   self._sleep_temp,
                                                   self._activity_temp]]:
             self._support_flags |= ClimateEntityFeature.PRESET_MODE
-        self._difference = kwargs.get('difference')
+
+        self._output_min = kwargs.get('output_min')
+        self._output_max = kwargs.get('output_max')
+        self._output_clamp_low = kwargs.get('output_clamp_low')
+        self._output_clamp_high = kwargs.get('output_clamp_high')
+        self._difference = self._output_max - self._output_min
         if self._ac_mode:
             self._attr_hvac_modes = [HVACMode.COOL, HVACMode.HEAT, HVACMode.OFF]
-            self._min_out = -self._difference
-            self._max_out = 0
+            self._min_out = -self._output_clamp_high
+            self._max_out = -self._output_clamp_low
         else:
             self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
-            self._min_out = 0
-            self._max_out = self._difference
+            self._min_out = self._output_clamp_low
+            self._max_out = self._output_clamp_high
         self._kp = kwargs.get('kp')
         self._ki = kwargs.get('ki')
         self._kd = kwargs.get('kd')
@@ -682,16 +693,16 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
         if hvac_mode == HVACMode.HEAT:
-            self._min_out = 0
-            self._max_out = self._difference
+            self._min_out = self._output_clamp_min
+            self._max_out = self._output_clamp_high
             self._hvac_mode = HVACMode.HEAT
         elif hvac_mode == HVACMode.COOL:
-            self._min_out = -self._difference
-            self._max_out = 0
+            self._min_out = -self._output_clamp_high
+            self._max_out = -self._output_clamp_min
             self._hvac_mode = HVACMode.COOL
         elif hvac_mode == HVACMode.HEAT_COOL:
-            self._min_out = -self._difference
-            self._max_out = self._difference
+            self._min_out = -self._output_clamp_high
+            self._max_out = self._output_clamp_high
             self._hvac_mode = HVACMode.HEAT_COOL
         elif hvac_mode == HVACMode.OFF:
             self._hvac_mode = HVACMode.OFF
@@ -708,16 +719,16 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """Set new target hvac mode."""
         await self._async_heater_turn_off(force=True)
         if hvac_mode == HVACMode.HEAT:
-            self._min_out = 0
-            self._max_out = self._difference
+            self._min_out = self._output_clamp_low
+            self._max_out = self._output_clamp_high
             self._hvac_mode = HVACMode.HEAT
         elif hvac_mode == HVACMode.COOL:
-            self._min_out = -self._difference
-            self._max_out = 0
+            self._min_out = -self._output_clamp_high
+            self._max_out = -self._output_clamp_low
             self._hvac_mode = HVACMode.COOL
         elif hvac_mode == HVACMode.HEAT_COOL:
-            self._min_out = -self._difference
-            self._max_out = self._difference
+            self._min_out = -self._output_clamp_high
+            self._max_out = self._output_clamp_high
             self._hvac_mode = HVACMode.HEAT_COOL
         elif hvac_mode == HVACMode.OFF:
             self._hvac_mode = HVACMode.OFF
