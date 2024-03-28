@@ -96,6 +96,46 @@ PID output value is the weighted sum of the control terms:\
 `output = P + I + D`\
 Output is then limited to 0% to 100% range to control the PWM.
 
+#### Cascading PID
+Optionally, 2 PIDs can be used in a cascading matter, e.g. for underfloor heating define an outer
+PID between the room temperature and the floor temperature, and an inner PID between the floor
+temperature and the PWM. See details [here](
+https://en.wikipedia.org/wiki/Proportional%E2%80%93integral%E2%80%93derivative_controller#Cascade_control).
+
+To enable, add an `inner_sensor` parameter, as well as `inner_kp`, `inner_ki`, `inner_kd` and optionally
+`inner_min_temp`, `inner_max_temp`. The `kp`, `ki`, `kd` parameters etc. are used for the outer PID.
+Note that `inner_sampling_period` should be smaller than `sampling_period`. If used, the outer temperature
+compensation affects the outer PID.
+
+Example:
+```
+climate:
+  - platform: smart_thermostat
+    name: Smart Thermostat Example
+    unique_id: smart_thermostat_example
+    heater: switch.on_off_heater
+    target_sensor: sensor.ambient_temperature
+    inner_sensor: sensor.floor_temperature
+    min_temp: 7
+    max_temp: 28
+    inner_min_temp: 7
+    inner_max_temp: 28
+    ac_mode: False
+    target_temp: 19
+    keep_alive:
+      seconds: 60
+    sampling_period: 600
+    inner_sampling_period: 120
+    away_temp: 14
+    kp: 5
+    ki: 0.01
+    kd: 500
+    inner_kp: 3
+    inner_ki: 0.01
+    inner_kd: 300
+    pwm: 00:15:00
+```
+
 #### Outdoor temperature compensation
 Optionally, when an outdoor temperature sensor entity is provided and ke is set, the thermostat can 
 automatically compensate building losses based on the difference between target temperature and 
@@ -135,6 +175,9 @@ Assistant is restarted.\
 However, it is recommended to save the new gains in the YAML configuration file to keep it in case 
 of Home Assistant database's is corrupted.
 
+**Warning**: The autotuner supports only a single PID. If enabled, any secondary PID definition
+will be ignored.
+
 ### Services
 Services can be used in Home Assistant to configure the thermostat.\
 The following services are available:
@@ -148,6 +191,22 @@ Optional parameters : kp, ki and kd, as float.\
 Example:
 ```
 service: smart_thermostat.set_pid_gain
+data:
+  kp: 11.8
+  ki: 0.00878
+target:
+  entity_id: climate.smart_thermostat_example
+```
+
+**Set inner PID gains:** `smart_thermostat.set_inner_pid_gain`\
+Use this service to adjust the inner PID gains without requiring a restart of Home 
+Assistant. Values are saved to Home Assistant database and restored after a restart.\
+Please consider saving the final gain parameters in YAML configuration file when satisfied to keep 
+it safe in case of database corruption.\
+Optional parameters : kp, ki and kd, as float.\
+Example:
+```
+service: smart_thermostat.set_inner_pid_gain
 data:
   kp: 11.8
   ki: 0.00878
@@ -207,6 +266,8 @@ Becomes air conditioning switch when ac_mode is set to true.
 while idle and off while active). Must be a boolean (defaults to false).
 * **target_sensor** (Required): entity_id for a temperature sensor, target_sensor.state must be 
 temperature.
+* **inner_sensor** (Optional): entity_id for a second temperature sensor, more directly affected by
+the heater, inner_sensor.state must be temperature.
 * **outdoor_sensor** (Optional): entity_id for an outdoor temperature sensor, outdoor_sensor.state 
 must be temperature.
 * **keep_alive** (Required): sets update interval for the PWM pulse width. If interval is too big, 
@@ -216,6 +277,9 @@ in seconds, or time hh:mm:ss.
 * **ki** (Recommended): Set PID parameter, integral (i) control value (float, default 0).
 * **kd** (Recommended): Set PID parameter, derivative (d) control value (float, default 0). 
 * **ke** (Optional): Set outdoor temperature compensation gain (e) control value (float, default 0). 
+* **inner_kp** (Recommended): Set inner PID parameter, proportional (p) control value (float, default 100).
+* **inner_ki** (Recommended): Set inner PID parameter, integral (i) control value (float, default 0).
+* **inner_kd** (Recommended): Set inner PID parameter, derivative (d) control value (float, default 0). 
 * **pwm** (Optional): Set period of the pulse width modulation. If too long, the response time of 
 the thermostat will be too slow, leading to lower accuracy of temperature control. Can be float in 
 seconds or time hh:mm:ss (default 15mn). Set to 0 when using heater entity with direct input of 
@@ -236,12 +300,17 @@ min_off_cycle_duration but is used specifically when PID is set to OFF. Defaults
 * **sampling_period** (Optional): interval between two computation of the PID. If set to 0, PID 
 computation is called each time the temperature sensor sends an update. Can be float in seconds or 
 time hh:mm:ss (default 0). 
+* **inner_sampling_period** (Optional): interval between two computation of the inner PID. Should be
+smaller than sampling_period. If set to 0, inner PID computation is called each time the inner
+temperature sensor sends an update. Can be float in seconds or time hh:mm:ss (default 0). 
 * **target_temp_step** (Optional): the adjustment step of target temperature (valid are 0.1, 0.5 
 and 1.0, default 0.5 for Celsius and 1.0 for Fahrenheit).
 * **precision** (Optional): the displayed temperature precision (valid are 0.1, 0.5 and 1.0, 
 default 0.1 for Celsius and 1.0 for Fahrenheit).
 * **min_temp** (Optional): Set minimum set point available (default: 7).
 * **max_temp** (Optional): Set maximum set point available (default: 35).
+* **inner_min_temp** (Optional): Set inner sensor minimum set point available (default: 7).
+* **inner_max_temp** (Optional): Set inner sensor maximum set point available (default: 35).
 * **target_temp** (Optional): Set initial target temperature. If not set target temperature will be 
 set to null on startup.
 * **cold_tolerance** (Optional): When PID is off, set a minimum amount of difference between the 
