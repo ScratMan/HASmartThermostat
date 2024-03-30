@@ -1,0 +1,8 @@
+{
+  "services": {
+    "clear_integral":  "mdi:thermostat-cog",
+    "set_pid_mode": "mdi:thermostat-cog",
+    "set_pid_gain":  "mdi:thermostat-cog",
+    "set_preset_temp": "mdi:thermostat"
+  }
+}

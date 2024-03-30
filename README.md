@@ -407,15 +407,16 @@ value must overshoot/undershoot the set point before the state changes (default 
 can be float in seconds, or time hh:mm:ss (default 2 hours).
 * **autotune** (Optional): Set the name of the selected rule for autotune settings (ie 
 "ziegler-nichols"). If it's not set, autotune is disabled. The following tuning_rules are available:
-ruler | Kp_divisor, Ki_divisor, Kd_divisor
------------- | -------------
-"ziegler-nichols" | 34, 40, 160
-"tyreus-luyben" | 44,  9, 126
-"ciancone-marlin" | 66, 88, 162
-"pessen-integral" | 28, 50, 133
-"some-overshoot" | 60, 40,  60
-"no-overshoot" | 100, 40,  60
-"brewing" | 2.5, 6, 380
+
+|rule|Kp_divisor|Ki_divisor|Kd_divisor|
+|:-:|-:|-:|-:|
+|"ziegler-nichols"|34|40|160|
+|"tyreus-luyben"|44|9|126|
+|"ciancone-marlin"|66|88|162|
+|"pessen-integral"|28|50|133|
+|"some-overshoot"|60|40|60|
+|"no-overshoot"|100|40|60|
+|"brewing"|2.5|6|380|
 
 
 ### Credits

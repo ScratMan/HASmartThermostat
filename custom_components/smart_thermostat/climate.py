@@ -316,6 +316,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._inner_target_temp = None
         self._unit = kwargs.get('unit')
         self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE
+        self._support_flags |= ClimateEntityFeature.TURN_OFF
+        self._support_flags |= ClimateEntityFeature.TURN_ON
+        self._enable_turn_on_off_backwards_compatibility = False  # To be removed after deprecation period
         self._attr_preset_mode = 'none'
         self._away_temp = kwargs.get('away_temp')
         self._eco_temp = kwargs.get('eco_temp')
@@ -332,8 +335,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                                                   self._home_temp,
                                                   self._sleep_temp,
                                                   self._activity_temp]]:
-            self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE | \
-                                  ClimateEntityFeature.PRESET_MODE
+            self._support_flags |= ClimateEntityFeature.PRESET_MODE
         self._difference = kwargs.get('difference')
         if self._ac_mode:
             self._attr_hvac_modes = [HVACMode.COOL, HVACMode.HEAT, HVACMode.OFF]
@@ -1131,8 +1133,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             return self.hass.states.is_state(self.heater_or_cooler_entity, STATE_ON)
         else:
             """If the valve device is currently active."""
-            return float(self.hass.states.get(self.heater_or_cooler_entity).state) > 0
-      
+            try: # do not throw an error if the state is not yet available on startup
+                return float(self.hass.states.get(self.heater_or_cooler_entity).state) > 0
+            except:
+                return False
+
     @property
     def supported_features(self):
         """Return the list of supported features."""

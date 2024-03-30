@@ -1,5 +1,5 @@
 {
   "name": "Smart thermostat (PID)",
   "render_readme": true,
-  "homeassistant": "0.104.2"
+  "homeassistant": "2024.2.0"
 }
