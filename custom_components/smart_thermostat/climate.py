@@ -779,18 +779,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     async def async_set_pid(self, **kwargs):
         """Set PID parameters."""
-        gain_kp = kwargs.get('kp', None)
-        gain_ki = kwargs.get('ki', None)
-        gain_kd = kwargs.get('kd', None)
-        gain_ke = kwargs.get('ke', None)
-        if gain_kp is not None:
-            self._kp = float(gain_kp)
-        if gain_ki is not None:
-            self._ki = float(gain_ki)
-        if gain_kd is not None:
-            self._kd = float(gain_kd)
-        if gain_ke is not None:
-            self._ke = float(gain_ke)
+        for pid_kx, gain in kwargs.items():
+            if gain is not None:
+                setattr(self, f'_{pid_kx}', float(gain))
         self._pid_controller.set_pid_param(self._kp, self._ki, self._kd, self._ke)
         await self._async_control_heating(calc_pid=True)
 
