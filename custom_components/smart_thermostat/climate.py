@@ -803,48 +803,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     async def async_set_preset_temp(self, **kwargs):
         """Set the presets modes temperatures."""
-        away_temp = kwargs.get('away_temp', None)
-        eco_temp = kwargs.get('eco_temp', None)
-        boost_temp = kwargs.get('boost_temp', None)
-        comfort_temp = kwargs.get('comfort_temp', None)
-        home_temp = kwargs.get('home_temp', None)
-        sleep_temp = kwargs.get('sleep_temp', None)
-        activity_temp = kwargs.get('activity_temp', None)
-        away_temp_disable = kwargs.get('away_temp_disable', None)
-        eco_temp_disable = kwargs.get('eco_temp_disable', None)
-        boost_temp_disable = kwargs.get('boost_temp_disable', None)
-        comfort_temp_disable = kwargs.get('comfort_temp_disable', None)
-        home_temp_disable = kwargs.get('home_temp_disable', None)
-        sleep_temp_disable = kwargs.get('sleep_temp_disable', None)
-        activity_temp_disable = kwargs.get('activity_temp_disable', None)
-        if away_temp is not None:
-            self._away_temp = max(min(float(away_temp), self.max_temp), self.min_temp)
-        if eco_temp is not None:
-            self._eco_temp = max(min(float(eco_temp), self.max_temp), self.min_temp)
-        if boost_temp is not None:
-            self._boost_temp = max(min(float(boost_temp), self.max_temp), self.min_temp)
-        if comfort_temp is not None:
-            self._comfort_temp = max(min(float(comfort_temp), self.max_temp), self.min_temp)
-        if home_temp is not None:
-            self._home_temp = max(min(float(home_temp), self.max_temp), self.min_temp)
-        if sleep_temp is not None:
-            self._sleep_temp = max(min(float(sleep_temp), self.max_temp), self.min_temp)
-        if activity_temp is not None:
-            self._activity_temp = max(min(float(activity_temp), self.max_temp), self.min_temp)
-        if away_temp_disable is not None and away_temp_disable:
-            self._away_temp = None
-        if eco_temp_disable is not None and eco_temp_disable:
-            self._eco_temp = None
-        if boost_temp_disable is not None and boost_temp_disable:
-            self._boost_temp = None
-        if comfort_temp_disable is not None and comfort_temp_disable:
-            self._comfort_temp = None
-        if home_temp_disable is not None and home_temp_disable:
-            self._home_temp = None
-        if sleep_temp_disable is not None and sleep_temp_disable:
-            self._sleep_temp = None
-        if activity_temp_disable is not None and activity_temp_disable:
-            self._activity_temp = None
+        for preset_name, preset_temp in kwargs.items():
+            value = None if 'disable' in preset_name and preset_temp else (
+                max(min(float(preset_temp), self.max_temp), self.min_temp)
+            )
+            setattr(
+                self,
+                f'_{preset_name.replace('_disable', '')}',
+                value
+            )
         await self._async_control_heating(calc_pid=True)
 
     async def clear_integral(self, **kwargs):
