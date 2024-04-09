@@ -293,7 +293,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE
         self._support_flags |= ClimateEntityFeature.TURN_OFF
         self._support_flags |= ClimateEntityFeature.TURN_ON
-        self._enable_turn_on_off_backwards_compatibility = False  # To be removed after deprecation period
+        self._enable_turn_on_off_backwards_compatibility = False  # Remove after deprecation period
         self._attr_preset_mode = 'none'
         self._away_temp = kwargs.get('away_temp')
         self._eco_temp = kwargs.get('eco_temp')
@@ -505,7 +505,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """Return a unique ID."""
         return self._unique_id
 
-    def _get_number_entity_domain(self, entity_id):
+    @staticmethod
+    def _get_number_entity_domain(entity_id):
         return INPUT_NUMBER_DOMAIN if "input_number" in entity_id else NUMBER_DOMAIN
 
     @property
@@ -544,7 +545,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             return HVACAction.OFF
         if not self._is_device_active:
             return HVACAction.IDLE
-        elif self._hvac_mode == HVACMode.COOL:
+        if self._hvac_mode == HVACMode.COOL:
             return HVACAction.COOLING
         return HVACAction.HEATING
 
@@ -880,7 +881,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             _LOGGER.debug("%s: Unable to update from sensor %s: %s", self.entity_id,
                           self._ext_sensor_entity_id, ex)
 
-    async def _async_control_heating(self, time_func=None, calc_pid=False):
+    async def _async_control_heating(
+            self, time_func: object = None, calc_pid: object = False) -> object:
         """Run PID controller, optional autotune for faster integration"""
         async with self._temp_lock:
             if not self._active and None not in (self._current_temp, self._target_temp):
@@ -919,7 +921,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             return self.hass.states.is_state(self.heater_or_cooler_entity, STATE_ON)
         else:
             """If the valve device is currently active."""
-            try: # do not throw an error if the state is not yet available on startup
+            try:  # do not throw an error if the state is not yet available on startup
                 return float(self.hass.states.get(self.heater_or_cooler_entity).state) > 0
             except:
                 return False
