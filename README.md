@@ -1,6 +1,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](
 https://github.com/custom-components/hacs)
 
+<a href="https://www.buymeacoffee.com/scratman" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
 # HASmartThermostat
 ## Smart Thermostat with PID controller for Home Assistant
 Create a virtual thermostat with accurate and reactive temperature control through PID controller.
