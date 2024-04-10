@@ -1,3 +1,4 @@
+import datetime
 import math
 import logging
 from time import time
@@ -12,7 +13,7 @@ class PID:
     error: float
 
     def __init__(self, kp, ki, kd, ke=0, out_min=float('-inf'), out_max=float('+inf'),
-                 sampling_period=0, cold_tolerance=0.3, hot_tolerance=0.3):
+                 sampling_period=0, cold_tolerance=0.3, hot_tolerance=0.3, period_for_derivative_calculation=3600.0):
         """A proportional-integral-derivative controller.
             :param kp: Proportional coefficient.
             :type kp: float
@@ -70,6 +71,13 @@ class PID:
         self._sampling_period = sampling_period
         self._cold_tolerance = cold_tolerance
         self._hot_tolerance = hot_tolerance
+        self._period_for_derivative_calculation = period_for_derivative_calculation
+        
+        self._input_point_for_derivative_calculation = 0
+        self._input_point_timestamp_for_derivative_calculation = time()
+        self._previous_input_points_for_derivative_calculation = []
+        self._previous_input_points_timestamp_for_derivative_calculation = []
+        self._is_this_first_input = True
 
     @property
     def mode(self):
@@ -140,6 +148,9 @@ class PID:
         if ke is not None and isinstance(ke, (int, float)):
             self._Ke = ke
 
+    def elapsed_time(self, timestamp: float):
+        return time() - timestamp
+
     def clear_samples(self):
         """Clear the samples values and timestamp to restart PID from clean state after
         a switch off of the thermostat"""
@@ -173,6 +184,29 @@ class PID:
             self._last_input_time = self._input_time
         self._last_output = self._output
 
+        self._previous_input_points_timestamp_for_derivative_calculation.append(input_time)
+        self._previous_input_points_for_derivative_calculation.append(input_val)
+                
+        seconds_elapsed_since_last_derivative_input = datetime.timedelta(seconds=self.elapsed_time(
+            self._input_point_timestamp_for_derivative_calculation))
+        idx = 999999
+        if seconds_elapsed_since_last_derivative_input > self._period_for_derivative_calculation.total_seconds():
+            for i, timestamp in enumerate(self._previous_input_points_timestamp_for_derivative_calculation):
+                seconds_elapsed = self.elapsed_time(timestamp)
+                if seconds_elapsed >= self._period_for_derivative_calculation:
+                    idx = i
+                    break
+            new_input_time = self._previous_input_points_timestamp_for_derivative_calculation[idx]
+            new_input_val = self._previous_input_points_for_derivative_calculation[idx]
+            self._input_point_timestamp_for_derivative_calculation = new_input_time
+            self._input_point_for_derivative_calculation = new_input_val
+        if self._is_this_first_input:
+            self._is_this_first_input = False
+            self._input_point_for_derivative_calculation = input_val
+            self._input_point_timestamp_for_derivative_calculation = input_time
+        
+        self._previous_input_points_timestamp_for_derivative_calculation = self._previous_input_points_timestamp_for_derivative_calculation[:idx]
+        self._previous_input_points_for_derivative_calculation = self._previous_input_points_for_derivative_calculation[:idx]
         # Refresh with actual values
         self._input = input_val
         if self._sampling_period == 0:
@@ -209,6 +243,7 @@ class PID:
         else:
             self._dext = 0
 
+        error_for_derivative = input_val - self._input_point_for_derivative_calculation
         # In order to prevent windup, only integrate if the process is not saturated and set point
         # is stable
         if self._out_min < self._last_output < self._out_max and \
@@ -217,16 +252,31 @@ class PID:
             self._integral = max(min(self._integral, self._out_max), self._out_min)
 
         self._proportional = self._Kp * self._error
-        if self._dt != 0:
-            self._derivative = -(self._Kd * self._input_diff) / self._dt
-        else:
-            self._derivative = 0.0
+        self._derivative = -(self._Kd * error_for_derivative) / self._period_for_derivative_calculation.total_seconds()
         # Compensate losses due to external temperature
         self._external = self._Ke * self._dext
 
         # Compute PID Output
         output = self._proportional + self._integral + self._derivative + self._external
         self._output = max(min(output, self._out_max), self._out_min)
+
+        # Log some debug info
+        # _LOGGER.debug('P: %.2f', self._proportional)
+        # _LOGGER.debug('I: %.2f', self._integral)
+        # _LOGGER.debug('D: %.2f', self._derivative)
+        # _LOGGER.debug('E: %.2f', self._external)
+        # _LOGGER.debug('output: %.2f', self._output)
+        # _LOGGER.debug('[mihadebug] input_point_for_derivative_calculation, input_val: %f %f', self._input_point_for_derivative_calculation, input_val)
+        # _LOGGER.debug('[mihadebug] input_point_timestamp_for_derivative_calculation: %f', self._input_point_timestamp_for_derivative_calculation)
+        # _LOGGER.debug('[mihadebug] error_for_derivative: %f', error_for_derivative)
+        # _LOGGER.debug('[mihadebug] dt_for_derivative: %f', dt_for_derivative)
+        # _LOGGER.warning(f"self._dext = set_point - ext_temp,\n{self._dext} = {set_point} * {ext_temp}")
+        # _LOGGER.warning(f"self._external = self._Ke * self._dext,\n{self._external} = {self._Ke} * {self._dext}")
+        # try:
+        #     _LOGGER.warning('-(self._Kd * error_for_derivative) / dt = -(%1.2f * %1.2f) / %4.0f = %1.2f', self._Kd, error_for_derivative,  dt_for_derivative, -(self._Kd * error_for_derivative) / dt_for_derivative)
+        # except ZeroDivisionError:
+        #     pass
+
         return self._output, True
 
 
