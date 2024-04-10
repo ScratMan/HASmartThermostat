@@ -32,14 +32,37 @@ Set up the smart thermostat and have fun.
 The smart thermostat can be added to Home Assistant after installation by adding a climate section 
 to your configuration.yaml file.
 
-### Configuration example:
+### Configuration examples:
 #### configuration.yaml
 ```
 climate:
   - platform: smart_thermostat
-    name: Smart Thermostat Example
-    unique_id: smart_thermostat_example
+    name: Smart Thermostat Single ON/OFF Heater Example
+    unique_id: smart_thermostat_single_on_off_heat_example
     heater: switch.on_off_heater
+    target_sensor: sensor.ambient_temperature
+    min_temp: 7
+    max_temp: 28
+    ac_mode: False
+    target_temp: 19
+    keep_alive:
+      seconds: 60
+    away_temp: 14
+    kp: 50
+    ki: 0.01
+    kd: 2000
+    pwm: 00:15:00
+```
+
+```
+climate:
+  - platform: smart_thermostat
+    name: Smart Thermostat Multiple Valves Example
+    unique_id: smart_thermostat_m_valve_example
+    heater:
+      - valve.radiator_valve_1
+      - valve.radiator_valve_2
+      - valve.radiator_valve_3
     target_sensor: sensor.ambient_temperature
     min_temp: 7
     max_temp: 28
@@ -51,7 +74,9 @@ climate:
     kp: 5
     ki: 0.01
     kd: 500
-    pwm: 00:15:00
+    output_min: 0
+    output_max: 99
+    pwm: 0
 ```
 
 ## Usage:
@@ -199,12 +224,14 @@ gains to quickly test the behavior without waiting the integral to stabilize by 
 ## Parameters:
 * **name** (Optional): Name of the thermostat.
 * **unique_id** (Optional): unique entity_id for the smart thermostat.
-* **heater** (Required): entity_id for heater control, should be a toggle device or a valve 
-accepting direct input between 0% and 100%. If a valve is used, pwm parameter should be set to 0. 
-Becomes air conditioning switch when ac_mode is set to true.
-* **cooler** (Optional): entity_id for cooling control, should be a toggle device or a valve 
-accepting direct input between 0% and 100%. If a valve is used, pwm parameter should be set to 0. 
-Becomes air conditioning switch when ac_mode is set to true.
+* **heater** (Required): entity_id for heater control, should be a single or list of toggle 
+device, or valve accepting direct input between 0% and 100%. If a valve is used, pwm parameter 
+should be set to 0. Becomes air conditioning switch when ac_mode is set to true.
+If you have e.g. multiple radiators in one room, you can enter all of them in a list, and the 
+thermostat will apply the output value to each of them.
+* **cooler** (Optional): entity_id for cooling control, should be a single or list of toggle 
+device, or a valve accepting direct input between 0% and 100%. If a valve is used, pwm parameter 
+should be set to 0. Becomes air conditioning switch when ac_mode is set to true.
 * **invert_heater** (Optional): if set to true, inverts the polarity of heater switch (switch is on 
 while idle and off while active). Must be a boolean (defaults to false).
 * **target_sensor** (Required): entity_id for a temperature sensor, target_sensor.state must be 
@@ -215,6 +242,9 @@ must be temperature.
 the PWM granularity will be reduced, leading to lower accuracy of temperature control, can be float 
 in seconds, or time hh:mm:ss.
 * **kp** (Recommended): Set PID parameter, proportional (p) control value (float, default 100).
+*Note:* Once the thermostat has been created, changing the configuration PID values will not
+update the PID controller. Use the `smart_thermostat.set_pid_gain` service to update the PID
+values instead.
 * **ki** (Recommended): Set PID parameter, integral (i) control value (float, default 0).
 * **kd** (Recommended): Set PID parameter, derivative (d) control value (float, default 0). 
 * **ke** (Optional): Set outdoor temperature compensation gain (e) control value (float, default 0). 
