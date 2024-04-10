@@ -331,7 +331,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._ke = kwargs.get('ke')
         self._pwm = kwargs.get('pwm').seconds
         self._p = self._i = self._d = self._e = self._dt = 0
-        self._control_output = 0
+        self._control_output = self._output_min
         self._force_on = False
         self._force_off = False
         self._boost_pid_off = kwargs.get('boost_pid_off')
@@ -707,7 +707,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._hvac_mode = HVACMode.HEAT_COOL
         elif hvac_mode == HVACMode.OFF:
             self._hvac_mode = HVACMode.OFF
-            self._control_output = 0
+            self._control_output = self._output_min
             self._previous_temp = None
             self._previous_temp_time = None
             if self._pid_controller is not None:
@@ -733,7 +733,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._hvac_mode = HVACMode.HEAT_COOL
         elif hvac_mode == HVACMode.OFF:
             self._hvac_mode = HVACMode.OFF
-            self._control_output = 0
+            self._control_output = self._output_min
             if self._pwm:
                 _LOGGER.debug("%s: Turn OFF heater from async_set_hvac_mode(%s)",
                               self.entity_id,
@@ -898,7 +898,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     if self._pwm:
                         await self._async_heater_turn_off(force=True)
                     else:
-                        self._control_output = 0
+                        self._control_output = self._output_min
                         await self._async_set_valve_value(self._control_output)
                 self.async_write_ha_state()
                 return
