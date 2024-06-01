@@ -33,11 +33,11 @@ from homeassistant.components.number.const import (
     DOMAIN as NUMBER_DOMAIN
 )
 from homeassistant.components.input_number import DOMAIN as INPUT_NUMBER_DOMAIN
-from homeassistant.core import DOMAIN as HA_DOMAIN, CoreState, callback
+from homeassistant.core import DOMAIN as HA_DOMAIN, CoreState, Event, EventStateChangedData, callback
 from homeassistant.util import slugify
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import (
-    async_track_state_change,
+    async_track_state_change_event,
     async_track_time_interval,
 )
 from homeassistant.helpers.reload import async_setup_reload_service
@@ -377,24 +377,24 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
         # Add listener
         self.async_on_remove(
-            async_track_state_change(
+            async_track_state_change_event(
                 self.hass,
                 self._sensor_entity_id,
                 self._async_sensor_changed))
         if self._ext_sensor_entity_id is not None:
             self.async_on_remove(
-                async_track_state_change(
+                async_track_state_change_event(
                     self.hass,
                     self._ext_sensor_entity_id,
                     self._async_ext_sensor_changed))
         self.async_on_remove(
-            async_track_state_change(
+            async_track_state_change_event(
                 self.hass,
                 self._heater_entity_id,
                 self._async_switch_changed))
         if self._cooler_entity_id is not None:
             self.async_on_remove(
-                async_track_state_change(
+                async_track_state_change_event(
                     self.hass,
                     self._cooler_entity_id,
                     self._async_switch_changed))
@@ -830,8 +830,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         # Get default temp from super class
         return super().max_temp
 
-    async def _async_sensor_changed(self, entity_id, old_state, new_state):
+    @callback
+    async def _async_sensor_changed(self, event: Event[EventStateChangedData]):
         """Handle temperature changes."""
+        new_state = event.data["new_state"]
         if new_state is None:
             return
 
@@ -843,8 +845,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         await self._async_control_heating(calc_pid=True)
         self.async_write_ha_state()
 
-    async def _async_ext_sensor_changed(self, entity_id, old_state, new_state):
+    @callback
+    async def _async_ext_sensor_changed(self, event: Event[EventStateChangedData]):
         """Handle temperature changes."""
+        new_state = event.data["new_state"]
         if new_state is None:
             return
 
@@ -854,8 +858,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         await self._async_control_heating(calc_pid=False)
 
     @callback
-    def _async_switch_changed(self, entity_id, old_state, new_state):
+    def _async_switch_changed(self, event: Event[EventStateChangedData]):
         """Handle heater switch state changes."""
+        new_state = event.data["new_state"]
         if new_state is None:
             return
         self.async_write_ha_state()
