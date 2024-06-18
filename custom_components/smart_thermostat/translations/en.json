@@ -1,0 +1,23 @@
+{
+  "entity": {
+    "climate": {
+      "smart_thermostat_translation": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "activity": "Activity",
+              "away": "Away",
+              "frost": "Frost Protect",
+              "boost": "Boost",
+              "comfort": "Comfort",
+              "eco": "Eco",
+              "home": "Home",
+              "none": "None",
+              "sleep": "Sleep"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "title": "Coucou Smart Thermostat",
+  "entity": {
+    "climate": {
+      "smart_thermostat_translation": {
+        "state_attributes": {
+          "preset_mode": {
+            "name": "Preset",
+            "state": {
+              "none": "None",
+              "eco": "Eco",
+              "away": "Away",
+              "boost": "Boost",
+              "comfort": "Comfort",
+              "home": "[%key:common::state::home%]",
+              "sleep": "Sleep",
+              "activity": "Activity",
+              "frost": "Frost Protect"
+            }
+          },
+          "preset_modes": {
+            "name": "Presets"
+          }
+        }
+      }
+    }
+  }
+}

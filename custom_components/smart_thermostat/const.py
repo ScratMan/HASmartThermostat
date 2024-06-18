@@ -43,6 +43,7 @@ CONF_SENSOR_STALL = 'sensor_stall'
 CONF_OUTPUT_SAFETY = 'output_safety'
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
 CONF_PRESET_SYNC_MODE = "preset_sync_mode"
+CONF_ANTI_FROST_TEMP = "frost_temp"
 CONF_AWAY_TEMP = "away_temp"
 CONF_ECO_TEMP = "eco_temp"
 CONF_BOOST_TEMP = "boost_temp"

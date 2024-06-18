@@ -65,6 +65,9 @@ from . import pid_controller
 _LOGGER = logging.getLogger(__name__)
 
 
+# Device is in frost guard mode
+PRESET_ANTI_FROST = "frost"
+
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(const.CONF_HEATER): cv.entity_ids,
@@ -103,6 +106,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(const.CONF_PRESET_SYNC_MODE, default=const.DEFAULT_PRESET_SYNC_MODE): vol.In(
             ['sync', 'none']
         ),
+        vol.Optional(const.CONF_ANTI_FROST_TEMP): vol.Coerce(float),
         vol.Optional(const.CONF_AWAY_TEMP): vol.Coerce(float),
         vol.Optional(const.CONF_ECO_TEMP): vol.Coerce(float),
         vol.Optional(const.CONF_BOOST_TEMP): vol.Coerce(float),
@@ -169,6 +173,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'output_safety': config.get(const.CONF_OUTPUT_SAFETY),
         'initial_hvac_mode': config.get(const.CONF_INITIAL_HVAC_MODE),
         'preset_sync_mode': config.get(const.CONF_PRESET_SYNC_MODE),
+        'frost_temp': config.get(const.CONF_ANTI_FROST_TEMP),
         'away_temp': config.get(const.CONF_AWAY_TEMP),
         'eco_temp': config.get(const.CONF_ECO_TEMP),
         'boost_temp': config.get(const.CONF_BOOST_TEMP),
@@ -218,6 +223,8 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     platform.async_register_entity_service(  # type: ignore
         "set_preset_temp",
         {
+            vol.Optional("frost_temp"): vol.Coerce(float),
+            vol.Optional("frost_temp_disable"): vol.Coerce(bool),
             vol.Optional("away_temp"): vol.Coerce(float),
             vol.Optional("away_temp_disable"): vol.Coerce(bool),
             vol.Optional("eco_temp"): vol.Coerce(float),
@@ -244,6 +251,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
 class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     """Representation of a Smart Thermostat device."""
+    _attr_translation_key = "smart_thermostat_translation"
 
     def __init__(self, **kwargs):
         """Initialize the thermostat."""
@@ -295,6 +303,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._support_flags |= ClimateEntityFeature.TURN_ON
         self._enable_turn_on_off_backwards_compatibility = False  # Remove after deprecation period
         self._attr_preset_mode = 'none'
+        self._frost_temp = kwargs.get('frost_temp')
         self._away_temp = kwargs.get('away_temp')
         self._eco_temp = kwargs.get('eco_temp')
         self._boost_temp = kwargs.get('boost_temp')
@@ -303,7 +312,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._sleep_temp = kwargs.get('sleep_temp')
         self._activity_temp = kwargs.get('activity_temp')
         self._preset_sync_mode = kwargs.get('preset_sync_mode')
-        if True in [temp is not None for temp in [self._away_temp,
+        if True in [temp is not None for temp in [self._frost_temp,
+                                                  self._away_temp,
                                                   self._eco_temp,
                                                   self._boost_temp,
                                                   self._comfort_temp,
@@ -435,7 +445,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                                 self.entity_id, self._target_temp)
             else:
                 self._target_temp = float(old_state.attributes.get(ATTR_TEMPERATURE))
-            for preset_mode in ['away_temp', 'eco_temp', 'boost_temp', 'comfort_temp', 'home_temp',
+            for preset_mode in ['frost_temp', 'away_temp', 'eco_temp', 'boost_temp', 'comfort_temp', 'home_temp',
                                 'sleep_temp', 'activity_temp']:
                 if old_state.attributes.get(preset_mode) is not None:
                     setattr(self, f"_{preset_mode}", float(old_state.attributes.get(preset_mode)))
@@ -489,6 +499,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         if not self._hvac_mode:
             self._hvac_mode = HVACMode.OFF
         await self._async_control_heating(calc_pid=True)
+
+    @property
+    def translation_key(self):
+        return "smart_thermostat_translation"
 
     @property
     def should_poll(self):
@@ -572,6 +586,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     def _preset_modes_temp(self):
         """Return a list of preset modes and their temperatures"""
         return {
+            PRESET_ANTI_FROST: self._frost_temp,
             PRESET_AWAY: self._away_temp,
             PRESET_ECO: self._eco_temp,
             PRESET_BOOST: self._boost_temp,
@@ -585,6 +600,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     def _preset_temp_modes(self):
         """Return a list of preset temperature and their modes"""
         return {
+            self._frost_temp: PRESET_ANTI_FROST,
             self._away_temp: PRESET_AWAY,
             self._eco_temp: PRESET_ECO,
             self._boost_temp: PRESET_BOOST,
@@ -656,6 +672,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     def extra_state_attributes(self):
         """attributes to include in entity"""
         device_state_attributes = {
+            'frost_temp': self._frost_temp,
             'away_temp': self._away_temp,
             'eco_temp': self._eco_temp,
             'boost_temp': self._boost_temp,

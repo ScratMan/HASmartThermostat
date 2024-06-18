@@ -89,6 +89,18 @@ set_preset_temp:
       integration: smart_thermostat
       domain: climate
   fields:
+    frost_temp:
+      name: Frost Guard
+      description: Frost Guard mode temperature
+      required: false
+      advanced: false
+      example: 5.0
+      selector:
+        number:
+          min: 0
+          max: 95
+          step: 0.1
+          mode: slider
     away_temp:
       name: Away
       description: Away mode temperature
@@ -173,6 +185,14 @@ set_preset_temp:
           max: 95
           step: 0.1
           mode: slider
+    frost_temp_disable:
+      name: Disable anti-frost
+      description: Disable the anti-frost mode temperature
+      required: false
+      advanced: false
+      example: true
+      selector:
+        boolean:
     away_temp_disable:
       name: Disable away
       description: Disable the away mode temperature
