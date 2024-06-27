@@ -116,6 +116,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(const.CONF_TARGET_TEMP_STEP): vol.In(
             [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
         ),
+        vol.Optional(const.CONF_OUTPUT_PRECISION, default=const.DEFAULT_OUTPUT_PRECISION): vol.Coerce(int),
         vol.Optional(const.CONF_OUTPUT_MIN, default=const.DEFAULT_OUTPUT_MIN): vol.Coerce(float),
         vol.Optional(const.CONF_OUTPUT_MAX, default=const.DEFAULT_OUTPUT_MAX): vol.Coerce(float),
         vol.Optional(const.CONF_OUT_CLAMP_LOW, default=const.DEFAULT_OUT_CLAMP_LOW): vol.Coerce(float),
@@ -179,6 +180,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'precision': config.get(const.CONF_PRECISION),
         'target_temp_step': config.get(const.CONF_TARGET_TEMP_STEP),
         'unit': hass.config.units.temperature_unit,
+        'output_precision': config.get(const.CONF_OUTPUT_PRECISION),
         'output_min': config.get(const.CONF_OUTPUT_MIN),
         'output_max': config.get(const.CONF_OUTPUT_MAX),
         'output_clamp_low': config.get(const.CONF_OUT_CLAMP_LOW),
@@ -312,6 +314,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                                                   self._activity_temp]]:
             self._support_flags |= ClimateEntityFeature.PRESET_MODE
 
+        self._output_precision = kwargs.get('output_precision')
         self._output_min = kwargs.get('output_min')
         self._output_max = kwargs.get('output_max')
         self._output_clamp_low = kwargs.get('output_clamp_low')
@@ -1069,13 +1072,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._i = round(self._pid_controller.integral, 1)
             self._d = round(self._pid_controller.derivative, 1)
             self._e = round(self._pid_controller.external, 1)
-            self._control_output = round(self._control_output, 1)
+            self._control_output = round(self._control_output, self._output_precision)
+            if not self._output_precision:
+                self._control_output = int(self._control_output)
             error = self._pid_controller.error
             self._dt = self._pid_controller.dt
         if update:
-            _LOGGER.debug("%s: New PID control output: %.2f (error = %.2f, dt = %.2f, "
+            _LOGGER.debug("%s: New PID control output: %s (error = %.2f, dt = %.2f, "
                           "p=%.2f, i=%.2f, d=%.2f, e=%.2f)", self.entity_id,
-                          self._control_output, error, self._dt, self._p, self._i, self._d,
+                          str(self._control_output), error, self._dt, self._p, self._i, self._d,
                           self._e)
 
     async def set_control_value(self):

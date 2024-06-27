@@ -320,7 +320,7 @@ is not specified, activity feature will not be available. The temperature can th
 the `set_preset_temp` service, new value being restored after restarting HA.
 * **sensor_stall** (Optional): Sets the maximum time period between two sensor updates. If no 
 update received from sensor after this time period, the system considers the sensor as stall and 
-switch to safety mode, the output being forced to output_safety. If set to 0, the feature is 
+switch to safety mode, the output being forced to `output_safety`. If set to 0, the feature is 
 disabled. Can be float in seconds or time hh:mm:ss (default 6 hours).
 * **output_safety** (Optional): Sets the output level of the PID once the thermostat enters safety 
 mode due to unresponsive temperature sensor. This can help to keep a minimum temperature in the 
@@ -333,6 +333,9 @@ may be used instead (default 0). USE WITH CAUTION!
 * **output_max** (Optional): Sets the maximum value for control output to match the heating 
 controller. In example, when controlling a valve, it may not accept a value of 100 as maximum, and 
 99 may be used instead (default 100). USE WITH CAUTION!
+* **output_precision** (Optional): Sets the precision (number of decimals) of the `control_output` 
+value (default 1). This setting may be useful when driving a valve that takes integer values as 
+input for example, by setting the parameter to 0 to round the PID output to integers.
 * **out_clamp_low** (Optional): Allows clamping the minimum value of control output. It allows to 
 keep a minimum heating whatever the temperature is (default 0). USE WITH CAUTION!
 * **out_clamp_high** (Optional): Allows clamping the maximum value of control output. Can be used 
