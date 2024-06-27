@@ -209,20 +209,24 @@ class PID:
         else:
             self._dext = 0
 
+        # Compensate losses due to external temperature
+        self._external = self._Ke * self._dext
+
         # In order to prevent windup, only integrate if the process is not saturated and set point
         # is stable
         if self._out_min < self._last_output < self._out_max and \
                 self._last_set_point == self._set_point:
             self._integral += self._Ki * self._error * self._dt
-            self._integral = max(min(self._integral, self._out_max), self._out_min)
+            # Take external temperature compensation into account for integral clamping
+            self._integral = max(min(self._integral, self._out_max - self._external), self._out_min - self._external)
+        if ext_temp is not None and self._last_set_point != self._set_point:
+            self._integral = 0  # Reset integral if set point has changed as system will need to converge to a new value
 
         self._proportional = self._Kp * self._error
         if self._dt != 0:
             self._derivative = -(self._Kd * self._input_diff) / self._dt
         else:
             self._derivative = 0.0
-        # Compensate losses due to external temperature
-        self._external = self._Ke * self._dext
 
         # Compute PID Output
         output = self._proportional + self._integral + self._derivative + self._external
