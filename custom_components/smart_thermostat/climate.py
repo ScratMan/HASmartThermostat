@@ -691,7 +691,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             })
         return device_state_attributes
 
-    def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+    def set_hvac_mode(self, hvac_mode: (HVACMode, str)) -> None:
         """Set new target hvac mode."""
         if hvac_mode == HVACMode.HEAT:
             self._min_out = self._output_clamp_low
