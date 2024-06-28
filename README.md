@@ -225,13 +225,15 @@ gains to quickly test the behavior without waiting the integral to stabilize by 
 * **name** (Optional): Name of the thermostat.
 * **unique_id** (Optional): unique entity_id for the smart thermostat.
 * **heater** (Required): entity_id for heater control, should be a single or list of toggle 
-device, or valve accepting direct input between 0% and 100%. If a valve is used, pwm parameter 
-should be set to 0. Becomes air conditioning switch when ac_mode is set to true.
+device (switch or input_boolean), light or valve (light, number, input_number). If a valve 
+or a light entity is used, pwm parameter should be set to 0. Becomes air conditioning switch 
+when ac_mode is set to true.
 If you have e.g. multiple radiators in one room, you can enter all of them in a list, and the 
 thermostat will apply the output value to each of them.
 * **cooler** (Optional): entity_id for cooling control, should be a single or list of toggle 
-device, or a valve accepting direct input between 0% and 100%. If a valve is used, pwm parameter 
-should be set to 0. Becomes air conditioning switch when ac_mode is set to true.
+device (switch or input_boolean), light or valve (light, number, input_number). If a valve 
+or a light is used, pwm parameter should be set to 0. Becomes air conditioning switch when 
+ac_mode is set to true.
 * **invert_heater** (Optional): if set to true, inverts the polarity of heater switch (switch is on 
 while idle and off while active). Must be a boolean (defaults to false).
 * **target_sensor** (Required): entity_id for a temperature sensor, target_sensor.state must be 
@@ -251,7 +253,7 @@ values instead.
 * **pwm** (Optional): Set period of the pulse width modulation. If too long, the response time of 
 the thermostat will be too slow, leading to lower accuracy of temperature control. Can be float in 
 seconds or time hh:mm:ss (default 15mn). Set to 0 when using heater entity with direct input of 
-0/100% values like valves.
+0/100% values like valves or lights.
 * **min_cycle_duration** (Optional): Set a minimum amount of time that the switch specified in the 
 heater option must be in its current state prior to being switched either off or on (useful to 
 protect boilers). Can be float in seconds or time hh:mm:ss (default 0s).
