@@ -33,6 +33,8 @@ from homeassistant.components.number.const import (
     DOMAIN as NUMBER_DOMAIN
 )
 from homeassistant.components.input_number import DOMAIN as INPUT_NUMBER_DOMAIN
+from homeassistant.components.light import (DOMAIN as LIGHT_DOMAIN, SERVICE_TURN_ON as SERVICE_TURN_LIGHT_ON,
+                                            ATTR_BRIGHTNESS_PCT)
 from homeassistant.core import DOMAIN as HA_DOMAIN, CoreState, Event, EventStateChangedData, callback
 from homeassistant.util import slugify
 import homeassistant.helpers.config_validation as cv
@@ -990,11 +992,18 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         _LOGGER.info("%s: Change state of %s to %s", self.entity_id,
                      ", ".join([entity for entity in self.heater_or_cooler_entity]), value)
         for heater_or_cooler_entity in self.heater_or_cooler_entity:
-            data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_VALUE: value}
-            await self.hass.services.async_call(
-                self._get_number_entity_domain(heater_or_cooler_entity),
-                SERVICE_SET_VALUE,
-                data)
+            if heater_or_cooler_entity[0:6] == 'light.':
+                data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_BRIGHTNESS_PCT: value}
+                await self.hass.services.async_call(
+                    LIGHT_DOMAIN,
+                    SERVICE_TURN_LIGHT_ON,
+                    data)
+            else:
+                data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_VALUE: value}
+                await self.hass.services.async_call(
+                    self._get_number_entity_domain(heater_or_cooler_entity),
+                    SERVICE_SET_VALUE,
+                    data)
 
     async def async_set_preset_mode(self, preset_mode: str):
         """Set new preset mode.
