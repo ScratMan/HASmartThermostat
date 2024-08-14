@@ -121,6 +121,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(const.CONF_OUTPUT_PRECISION, default=const.DEFAULT_OUTPUT_PRECISION): vol.Coerce(int),
         vol.Optional(const.CONF_OUTPUT_MIN, default=const.DEFAULT_OUTPUT_MIN): vol.Coerce(float),
         vol.Optional(const.CONF_OUTPUT_MAX, default=const.DEFAULT_OUTPUT_MAX): vol.Coerce(float),
+        vol.Optional(const.CONF_OUTPUT_MUL_FACTOR, default=const.DEFAULT_OUTPUT_MUL_FACTOR): vol.Coerce(float),
         vol.Optional(const.CONF_OUT_CLAMP_LOW, default=const.DEFAULT_OUT_CLAMP_LOW): vol.Coerce(float),
         vol.Optional(const.CONF_OUT_CLAMP_HIGH, default=const.DEFAULT_OUT_CLAMP_HIGH): vol.Coerce(float),
         vol.Optional(const.CONF_KP, default=const.DEFAULT_KP): vol.Coerce(float),
@@ -185,6 +186,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'output_precision': config.get(const.CONF_OUTPUT_PRECISION),
         'output_min': config.get(const.CONF_OUTPUT_MIN),
         'output_max': config.get(const.CONF_OUTPUT_MAX),
+        'output_mul_factor': config.get(const.CONF_OUTPUT_MUL_FACTOR),
         'output_clamp_low': config.get(const.CONF_OUT_CLAMP_LOW),
         'output_clamp_high': config.get(const.CONF_OUT_CLAMP_HIGH),
         'kp': config.get(const.CONF_KP),
@@ -319,6 +321,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._output_precision = kwargs.get('output_precision')
         self._output_min = kwargs.get('output_min')
         self._output_max = kwargs.get('output_max')
+        self._output_mul_factor = kwargs.get('output_mul_factor')
         self._output_clamp_low = kwargs.get('output_clamp_low')
         self._output_clamp_high = kwargs.get('output_clamp_high')
         self._difference = self._output_max - self._output_min
@@ -1110,7 +1113,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     await self._async_heater_turn_off()
                     self._time_changed = time.time()
         else:
-            await self._async_set_valve_value(abs(self._control_output))
+            await self._async_set_valve_value(abs(self._control_output* self._output_mul_factor))
 
     async def pwm_switch(self):
         """turn off and on the heater proportionally to control_value."""

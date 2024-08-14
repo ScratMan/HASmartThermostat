@@ -76,6 +76,7 @@ climate:
     kd: 500
     output_min: 0
     output_max: 99
+    output_multiplication_factor: 1.0
     pwm: 0
 ```
 
@@ -335,6 +336,9 @@ may be used instead (default 0). USE WITH CAUTION!
 * **output_max** (Optional): Sets the maximum value for control output to match the heating 
 controller. In example, when controlling a valve, it may not accept a value of 100 as maximum, and 
 99 may be used instead (default 100). USE WITH CAUTION!
+* **output_multiplication_factor** (Optional): Sets a factor to reach the maximum valve of a thermostat. 
+Some thermostat have a max. value not  equal 100 for full open the valve, i.e. 244 for some Eurotronic TRVs. 
+Set this value to 2.44 will open the valve to 244 if PID-controller calulate 100 % (default 1.0)
 * **output_precision** (Optional): Sets the precision (number of decimals) of the `control_output` 
 value (default 1). This setting may be useful when driving a valve that takes integer values as 
 input for example, by setting the parameter to 0 to round the PID output to integers.
