@@ -2,7 +2,11 @@
 DOMAIN = "smart_thermostat"
 
 DEFAULT_NAME = "Smart Thermostat"
-DEFAULT_DIFFERENCE = 100
+DEFAULT_OUTPUT_PRECISION = 1
+DEFAULT_OUTPUT_MIN = 0
+DEFAULT_OUTPUT_MAX = 100
+DEFAULT_OUT_CLAMP_LOW = 0
+DEFAULT_OUT_CLAMP_HIGH = 100
 DEFAULT_PWM = '00:15:00'
 DEFAULT_MIN_CYCLE_DURATION = '00:00:00'
 DEFAULT_TOLERANCE = 0.3
@@ -53,7 +57,11 @@ CONF_SLEEP_TEMP = "sleep_temp"
 CONF_ACTIVITY_TEMP = "activity_temp"
 CONF_PRECISION = "precision"
 CONF_TARGET_TEMP_STEP = "target_temp_step"
-CONF_DIFFERENCE = "difference"
+CONF_OUTPUT_PRECISION = "output_precision"
+CONF_OUTPUT_MIN = "output_min"
+CONF_OUTPUT_MAX = "output_max"
+CONF_OUT_CLAMP_LOW = "out_clamp_low"
+CONF_OUT_CLAMP_HIGH = "out_clamp_high"
 CONF_KP = "kp"
 CONF_KI = "ki"
 CONF_KD = "kd"

@@ -1,6 +1,8 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](
 https://github.com/custom-components/hacs)
 
+<a href="https://www.buymeacoffee.com/scratman" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
+
 # HASmartThermostat
 ## Smart Thermostat with PID controller for Home Assistant
 Create a virtual thermostat with accurate and reactive temperature control through PID controller.
@@ -30,14 +32,37 @@ Set up the smart thermostat and have fun.
 The smart thermostat can be added to Home Assistant after installation by adding a climate section 
 to your configuration.yaml file.
 
-### Configuration example:
+### Configuration examples:
 #### configuration.yaml
 ```
 climate:
   - platform: smart_thermostat
-    name: Smart Thermostat Example
-    unique_id: smart_thermostat_example
+    name: Smart Thermostat Single ON/OFF Heater Example
+    unique_id: smart_thermostat_single_on_off_heat_example
     heater: switch.on_off_heater
+    target_sensor: sensor.ambient_temperature
+    min_temp: 7
+    max_temp: 28
+    ac_mode: False
+    target_temp: 19
+    keep_alive:
+      seconds: 60
+    away_temp: 14
+    kp: 50
+    ki: 0.01
+    kd: 2000
+    pwm: 00:15:00
+```
+
+```
+climate:
+  - platform: smart_thermostat
+    name: Smart Thermostat Multiple Valves Example
+    unique_id: smart_thermostat_m_valve_example
+    heater:
+      - valve.radiator_valve_1
+      - valve.radiator_valve_2
+      - valve.radiator_valve_3
     target_sensor: sensor.ambient_temperature
     min_temp: 7
     max_temp: 28
@@ -49,7 +74,9 @@ climate:
     kp: 5
     ki: 0.01
     kd: 500
-    pwm: 00:15:00
+    output_min: 0
+    output_max: 99
+    pwm: 0
 ```
 
 ## Usage:
@@ -256,12 +283,16 @@ gains to quickly test the behavior without waiting the integral to stabilize by 
 ## Parameters:
 * **name** (Optional): Name of the thermostat.
 * **unique_id** (Optional): unique entity_id for the smart thermostat.
-* **heater** (Required): entity_id for heater control, should be a toggle device or a valve 
-accepting direct input between 0% and 100%. If a valve is used, pwm parameter should be set to 0. 
-Becomes air conditioning switch when ac_mode is set to true.
-* **cooler** (Optional): entity_id for cooling control, should be a toggle device or a valve 
-accepting direct input between 0% and 100%. If a valve is used, pwm parameter should be set to 0. 
-Becomes air conditioning switch when ac_mode is set to true.
+* **heater** (Required): entity_id for heater control, should be a single or list of toggle 
+device (switch or input_boolean), light or valve (light, number, input_number). If a valve 
+or a light entity is used, pwm parameter should be set to 0. Becomes air conditioning switch 
+when ac_mode is set to true.
+If you have e.g. multiple radiators in one room, you can enter all of them in a list, and the 
+thermostat will apply the output value to each of them.
+* **cooler** (Optional): entity_id for cooling control, should be a single or list of toggle 
+device (switch or input_boolean), light or valve (light, number, input_number). If a valve 
+or a light is used, pwm parameter should be set to 0. Becomes air conditioning switch when 
+ac_mode is set to true.
 * **invert_heater** (Optional): if set to true, inverts the polarity of heater switch (switch is on 
 while idle and off while active). Must be a boolean (defaults to false).
 * **target_sensor** (Required): entity_id for a temperature sensor, target_sensor.state must be 
@@ -274,6 +305,9 @@ must be temperature.
 the PWM granularity will be reduced, leading to lower accuracy of temperature control, can be float 
 in seconds, or time hh:mm:ss.
 * **kp** (Recommended): Set PID parameter, proportional (p) control value (float, default 100).
+*Note:* Once the thermostat has been created, changing the configuration PID values will not
+update the PID controller. Use the `smart_thermostat.set_pid_gain` service to update the PID
+values instead.
 * **ki** (Recommended): Set PID parameter, integral (i) control value (float, default 0).
 * **kd** (Recommended): Set PID parameter, derivative (d) control value (float, default 0). 
 * **ke** (Optional): Set outdoor temperature compensation gain (e) control value (float, default 0). 
@@ -283,7 +317,7 @@ in seconds, or time hh:mm:ss.
 * **pwm** (Optional): Set period of the pulse width modulation. If too long, the response time of 
 the thermostat will be too slow, leading to lower accuracy of temperature control. Can be float in 
 seconds or time hh:mm:ss (default 15mn). Set to 0 when using heater entity with direct input of 
-0/100% values like valves.
+0/100% values like valves or lights.
 * **min_cycle_duration** (Optional): Set a minimum amount of time that the switch specified in the 
 heater option must be in its current state prior to being switched either off or on (useful to 
 protect boilers). Can be float in seconds or time hh:mm:ss (default 0s).
@@ -357,13 +391,26 @@ is not specified, activity feature will not be available. The temperature can th
 the `set_preset_temp` service, new value being restored after restarting HA.
 * **sensor_stall** (Optional): Sets the maximum time period between two sensor updates. If no 
 update received from sensor after this time period, the system considers the sensor as stall and 
-switch to safety mode, the output being forced to output_safety. If set to 0, the feature is 
+switch to safety mode, the output being forced to `output_safety`. If set to 0, the feature is 
 disabled. Can be float in seconds or time hh:mm:ss (default 6 hours).
 * **output_safety** (Optional): Sets the output level of the PID once the thermostat enters safety 
 mode due to unresponsive temperature sensor. This can help to keep a minimum temperature in the 
 room in case of sensor failure. The value should be a float between 0.0 and 100.0 (default 5.0).
 * **initial_hvac_mode** (Optional): Forces the operation mode after Home Assistant is restarted. If 
 not specified, the thermostat will restore the previous operation mode.
+* **output_min** (Optional): Sets the minimum value for control output to match the heating 
+controller. In example, when controlling a valve, it may not accept a value of 0 as minimum, and 1 
+may be used instead (default 0). USE WITH CAUTION!
+* **output_max** (Optional): Sets the maximum value for control output to match the heating 
+controller. In example, when controlling a valve, it may not accept a value of 100 as maximum, and 
+99 may be used instead (default 100). USE WITH CAUTION!
+* **output_precision** (Optional): Sets the precision (number of decimals) of the `control_output` 
+value (default 1). This setting may be useful when driving a valve that takes integer values as 
+input for example, by setting the parameter to 0 to round the PID output to integers.
+* **out_clamp_low** (Optional): Allows clamping the minimum value of control output. It allows to 
+keep a minimum heating whatever the temperature is (default 0). USE WITH CAUTION!
+* **out_clamp_high** (Optional): Allows clamping the maximum value of control output. Can be used 
+with electric heating systems to limit the ON/OFF duty-cycle (default 100).
 * **debug** (Optional): Make the climate entity expose the following internal values as extra 
 states attributes, so they can be accessed in HA with sensor templates for debugging purposes (
 helpful to adjust the PID gains), example configuration.yaml:
