@@ -10,7 +10,7 @@ from abc import ABC
 import voluptuous as vol
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import condition, entity_platform
+from homeassistant.helpers import condition, entity_platform, entity_registry
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -35,6 +35,7 @@ from homeassistant.components.number.const import (
 from homeassistant.components.input_number import DOMAIN as INPUT_NUMBER_DOMAIN
 from homeassistant.components.light import (DOMAIN as LIGHT_DOMAIN, SERVICE_TURN_ON as SERVICE_TURN_LIGHT_ON,
                                             ATTR_BRIGHTNESS_PCT)
+from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN, SERVICE_SET_VALVE_POSITION, ATTR_POSITION
 from homeassistant.core import DOMAIN as HA_DOMAIN, CoreState, Event, EventStateChangedData, callback
 from homeassistant.util import slugify
 import homeassistant.helpers.config_validation as cv
@@ -65,6 +66,43 @@ from . import const
 from . import pid_controller
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class ValueSettingService:
+    """A helper class for defining HA services which set values."""
+
+    def __init__(self, domain, service, value_attribute):
+        self._domain = domain
+        self._service = service
+        self._value_attribute = value_attribute
+
+    @property
+    def domain(self):
+        """The domain of the service."""
+        return self._domain
+
+    @property
+    def service(self):
+        """The name of the service being called."""
+        return self._service
+
+    @property
+    def value_attribute(self):
+        """The attribute representing the value."""
+        return self._value_attribute
+
+    async def async_call(self, hass: HomeAssistant, entity_id: str, value):
+        """Actually call the service."""
+        data = {ATTR_ENTITY_ID: entity_id, self._value_attribute: value}
+        await hass.services.async_call(self._domain, self._service, data)
+
+
+VALUE_SETTING_SERVICES = {
+    INPUT_NUMBER_DOMAIN: ValueSettingService(INPUT_NUMBER_DOMAIN, SERVICE_SET_VALUE, ATTR_VALUE),
+    LIGHT_DOMAIN: ValueSettingService(LIGHT_DOMAIN, SERVICE_TURN_ON, ATTR_BRIGHTNESS_PCT),
+    NUMBER_DOMAIN: ValueSettingService(NUMBER_DOMAIN, SERVICE_SET_VALUE, ATTR_VALUE),
+    VALVE_DOMAIN: ValueSettingService(VALVE_DOMAIN, SERVICE_SET_VALVE_POSITION, ATTR_POSITION),
+}
 
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -991,19 +1029,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     async def _async_set_valve_value(self, value: float):
         _LOGGER.info("%s: Change state of %s to %s", self.entity_id,
                      ", ".join([entity for entity in self.heater_or_cooler_entity]), value)
+
+        er = entity_registry.async_get(self.hass)
         for heater_or_cooler_entity in self.heater_or_cooler_entity:
-            if heater_or_cooler_entity[0:6] == 'light.':
-                data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_BRIGHTNESS_PCT: value}
-                await self.hass.services.async_call(
-                    LIGHT_DOMAIN,
-                    SERVICE_TURN_LIGHT_ON,
-                    data)
-            else:
-                data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_VALUE: value}
-                await self.hass.services.async_call(
-                    self._get_number_entity_domain(heater_or_cooler_entity),
-                    SERVICE_SET_VALUE,
-                    data)
+            if (registry_entry := er.async_get(heater_or_cooler_entity)) is None:
+                continue
+            if (domain := registry_entry.domain) not in VALUE_SETTING_SERVICES:
+                continue
+            await VALUE_SETTING_SERVICES[domain].async_call(self.hass, heater_or_cooler_entity, value)
 
     async def async_set_preset_mode(self, preset_mode: str):
         """Set new preset mode.
