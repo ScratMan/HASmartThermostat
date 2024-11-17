@@ -934,9 +934,18 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         in self.heater_or_cooler_entity])
         else:
             """If the valve device is currently active."""
+            is_active = False
             try:  # do not throw an error if the state is not yet available on startup
-                return any([float(self.hass.states.get(heater_or_cooler_entity).state) > 0 for heater_or_cooler_entity
-                            in self.heater_or_cooler_entity])
+                for heater_or_cooler_entity in self.heater_or_cooler_entity:
+                    state = self.hass.states.get(heater_or_cooler_entity).state
+                    try:
+                        value = float(state)
+                        if value > 0:
+                            is_active = True
+                    except ValueError:
+                        if state in ['on', 'open']:
+                            is_active = True
+                return is_active
             except:
                 return False
 
