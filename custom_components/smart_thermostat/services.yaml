@@ -81,6 +81,50 @@ set_pid_gain:
           max: 1000000
           step: 0.001
           mode: box
+set_inner_pid_gain:
+  name: Set inner PID gains
+  description: Sets the kp, ki and kd gains for the inner PID.
+  target:
+    entity:
+      integration: smart_thermostat
+      domain: climate
+  fields:
+    kp:
+      name: Kp gain
+      description: Proportional gain
+      required: false
+      advanced: false
+      example: 12.5
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.001
+          mode: box
+    ki:
+      name: Ki gain
+      description: Integral gain
+      required: false
+      advanced: false
+      example: 0.007
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.001
+          mode: box
+    kd:
+      name: Inner Kd gain
+      description: Derivative gain
+      required: false
+      advanced: false
+      example: 345.12
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.001
+          mode: box
 set_preset_temp:
   name: Set preset modes temperature
   description: Sets the temperature for the preset modes.
