@@ -398,19 +398,21 @@ mode due to unresponsive temperature sensor. This can help to keep a minimum tem
 room in case of sensor failure. The value should be a float between 0.0 and 100.0 (default 5.0).
 * **initial_hvac_mode** (Optional): Forces the operation mode after Home Assistant is restarted. If 
 not specified, the thermostat will restore the previous operation mode.
-* **output_min** (Optional): Sets the minimum value for control output to match the heating 
-controller. In example, when controlling a valve, it may not accept a value of 0 as minimum, and 1 
-may be used instead (default 0). USE WITH CAUTION!
-* **output_max** (Optional): Sets the maximum value for control output to match the heating 
-controller. In example, when controlling a valve, it may not accept a value of 100 as maximum, and 
-99 may be used instead (default 100). USE WITH CAUTION!
 * **output_precision** (Optional): Sets the precision (number of decimals) of the `control_output` 
 value (default 1). This setting may be useful when driving a valve that takes integer values as 
 input for example, by setting the parameter to 0 to round the PID output to integers.
+* **output_min** (Optional): Sets the minimum value for control output to match the heating 
+controller. In example, when controlling a valve, it may not accept a value of 0 as minimum, and 1 
+may be used instead (default 0). USE WITH CAUTION! SHOULD BE USED WITH CLAMP SETTINGS SET!
+* **output_max** (Optional): Sets the maximum value for control output to match the heating 
+controller. In example, when controlling a valve, it may not accept a value of 100 as maximum, and 
+99 may be used instead (default 100). USE WITH CAUTION! SHOULD BE USED WITH CLAMP SETTINGS SET!
 * **out_clamp_low** (Optional): Allows clamping the minimum value of control output. It allows to 
-keep a minimum heating whatever the temperature is (default 0). USE WITH CAUTION!
+keep a minimum heating whatever the temperature is (default 0). USE WITH CAUTION! SHOULD BE USED
+WITH OUTPUT_MIN AND OUTPUT_MAX SETTINGS!
 * **out_clamp_high** (Optional): Allows clamping the maximum value of control output. Can be used 
-with electric heating systems to limit the ON/OFF duty-cycle (default 100).
+with electric heating systems to limit the ON/OFF duty-cycle (default 100). USE WITH CAUTION!
+SHOULD BE USED WITH OUTPUT_MIN AND OUTPUT_MAX SETTINGS!
 * **debug** (Optional): Make the climate entity expose the following internal values as extra 
 states attributes, so they can be accessed in HA with sensor templates for debugging purposes (
 helpful to adjust the PID gains), example configuration.yaml:
