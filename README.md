@@ -79,6 +79,28 @@ climate:
     pwm: 0
 ```
 
+```
+climate:
+  - platform: smart_thermostat
+    name: Smart Thermostat Cascading PID Example
+    unique_id: smart_thermostat_outer_pid_example
+    heater: climate.smart_thermostat_single_on_off_heat_example
+    target_sensor: sensor.ambient_temperature2
+    min_temp: 7
+    max_temp: 28
+    ac_mode: False
+    target_temp: 19
+    keep_alive:
+      seconds: 60
+    away_temp: 14
+    kp: 5
+    ki: 0.01
+    kd: 500
+    output_min: 7
+    output_max: 28
+    pwm: 0
+```
+
 ## Usage:
 The target sensor measures the ambient temperature while the heater switch controls an ON/OFF 
 heating system.\
@@ -123,6 +145,15 @@ PID output value is the weighted sum of the control terms:\
 `D = -(Kd * di) / dt`\
 `output = P + I + D`\
 Output is then limited to 0% to 100% range to control the PWM.
+
+#### Cascading PID
+Optionally, 2 (or more) PIDs can be used in a cascading matter, e.g. for underfloor heating define an outer
+PID between the room temperature and the floor temperature, and an inner PID between the floor
+temperature and the PWM. See details [here](
+https://en.wikipedia.org/wiki/Proportional%E2%80%93integral%E2%80%93derivative_controller#Cascade_control).
+
+To enable, create the inner thermostate as detailed above, and then create another thermostate that will
+control the inner one.
 
 #### Outdoor temperature compensation
 Optionally, when an outdoor temperature sensor entity is provided and ke is set, the thermostat can 
