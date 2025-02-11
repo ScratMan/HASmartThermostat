@@ -985,6 +985,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             try:  # do not throw an error if the state is not yet available on startup
                 for heater_or_cooler_entity in self.heater_or_cooler_entity:
                     state = getattr(self.hass.states.get(heater_or_cooler_entity), 'state', None)
+                    if heater_or_cooler_entity[0:8] == 'climate.':
+                        return state != HVACMode.OFF
                     try:
                         value = float(state)
                         if value > 0:
@@ -1125,13 +1127,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     SERVICE_TURN_FAN_ON,
                     data)
             elif heater_or_cooler_entity[0:8] == 'climate.':
-                if hvac_mode == HVACMode.OFF:
-                    data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_HVAC_MODE: hvac_mode}
-                    await self.hass.services.async_call(
-                        CLIMATE_DOMAIN,
-                        SERVICE_SET_HVAC_MODE,
-                        data)
-                else:
+                data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_HVAC_MODE: hvac_mode}
+                await self.hass.services.async_call(
+                    CLIMATE_DOMAIN,
+                    SERVICE_SET_HVAC_MODE,
+                    data)
+                if hvac_mode != HVACMode.OFF:
                     data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_TEMPERATURE: value, ATTR_HVAC_MODE: hvac_mode}
                     await self.hass.services.async_call(
                         CLIMATE_DOMAIN,
