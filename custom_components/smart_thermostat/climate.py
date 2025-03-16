@@ -866,9 +866,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     @callback
     def _async_switch_changed(self, event: Event[EventStateChangedData]):
         """Handle heater switch state changes."""
+        event_type = event.event_type
         new_state = event.data["new_state"]
         if new_state is None:
+            _LOGGER.debug("%s: Switch change event received, new state is None, ignoring.", self.entity_id)
             return
+        _LOGGER.debug("%s: Switch change event received, writing state to DB.", self.entity_id)
         self.async_write_ha_state()
 
     @callback
@@ -930,8 +933,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             expected = STATE_ON
             if self._heater_polarity_invert:
                 expected = STATE_OFF
-            return any([self.hass.states.is_state(heater_or_cooler_entity, expected) for heater_or_cooler_entity
-                        in self.heater_or_cooler_entity])
+            expected_states = []
+            for heater_or_cooler_entity in self.heater_or_cooler_entity:
+                state = self.hass.states.is_state(heater_or_cooler_entity, expected)
+                _LOGGER.debug("%s: checking %s state is %s: %s", self.entity_id, heater_or_cooler_entity,
+                              expected, "OK" if state else "NOK")
+                expected_states.append(state)
+            return any(expected_states)
         else:
             """If the valve device is currently active."""
             is_active = False
@@ -981,6 +989,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 service = SERVICE_TURN_OFF
             else:
                 service = SERVICE_TURN_ON
+            _LOGGER.debug("%s: Calling %s service on %s", self.entity_id, str(service),
+                          str(heater_or_cooler_entity))
             await self.hass.services.async_call(HA_DOMAIN, service, data)
 
     async def _async_heater_turn_off(self, force=False):
@@ -1006,6 +1016,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     service = SERVICE_TURN_ON
                 else:
                     service = SERVICE_TURN_OFF
+                _LOGGER.debug("%s: Calling %s service on %s", self.entity_id, str(service),
+                              str(heater_or_cooler_entity))
                 await self.hass.services.async_call(HA_DOMAIN, service, data)
 
     async def _async_set_valve_value(self, value: float):
