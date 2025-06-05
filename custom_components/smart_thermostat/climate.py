@@ -182,7 +182,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         'activity_temp': config.get(const.CONF_ACTIVITY_TEMP),
         'precision': config.get(const.CONF_PRECISION),
         'target_temp_step': config.get(const.CONF_TARGET_TEMP_STEP),
-        'unit': hass.config.units.temperature_unit,
+        'unit': config.get(const.CONF_UNIT),
         'output_precision': config.get(const.CONF_OUTPUT_PRECISION),
         'output_min': config.get(const.CONF_OUTPUT_MIN),
         'output_max': config.get(const.CONF_OUTPUT_MAX),
