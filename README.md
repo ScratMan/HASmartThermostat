@@ -93,6 +93,7 @@ down the PID controller refresh rate.
 
 By adjusting the Kp, Ki and Kd gains, you can tune the system response to your liking. You can find 
 many tutorials for guidance on the web. Here are a few useful links:
+* [PID Tuning for on/off gas boiler](https://docs.google.com/document/d/1SYQxjMJ8vJnhU-7zxUrSQMOWPfgQsHsOKm13ai4pnsU), thanks to [@nistvan86](https://github.com/nistvan86)
 * [PID Control made easy](https://www.eurotherm.com/temperature-control/pid-control-made-easy/)
 * [Practical PID Process Dynamics with Proportional Pressure Controllers](
 https://clippard.com/cms/wiki/practical-pid-process-dynamics-proportional-pressure-controllers)
