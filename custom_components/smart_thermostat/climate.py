@@ -452,7 +452,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._i = float(old_state.attributes.get('pid_i'))
                 self._pid_controller.integral = self._i
             if not self._hvac_mode and old_state.state:
-                self.set_hvac_mode(old_state.state)
+                await self.async_set_hvac_mode(old_state.state)
             if old_state.attributes.get('kp') is not None and self._pid_controller is not None:
                 self._kp = float(old_state.attributes.get('kp'))
                 self._pid_controller.set_pid_param(kp=self._kp)
@@ -696,31 +696,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 "autotune_buffer_length": self._pid_autotune.buffer_length,
             })
         return device_state_attributes
-
-    def set_hvac_mode(self, hvac_mode: (HVACMode, str)) -> None:
-        """Set new target hvac mode."""
-        if hvac_mode == HVACMode.HEAT:
-            self._min_out = self._output_clamp_low
-            self._max_out = self._output_clamp_high
-            self._hvac_mode = HVACMode.HEAT
-        elif hvac_mode == HVACMode.COOL:
-            self._min_out = -self._output_clamp_high
-            self._max_out = -self._output_clamp_low
-            self._hvac_mode = HVACMode.COOL
-        elif hvac_mode == HVACMode.HEAT_COOL:
-            self._min_out = -self._output_clamp_high
-            self._max_out = self._output_clamp_high
-            self._hvac_mode = HVACMode.HEAT_COOL
-        elif hvac_mode == HVACMode.OFF:
-            self._hvac_mode = HVACMode.OFF
-            self._control_output = self._output_min
-            self._previous_temp = None
-            self._previous_temp_time = None
-            if self._pid_controller is not None:
-                self._pid_controller.clear_samples()
-        if self._pid_controller:
-            self._pid_controller.out_max = self._max_out
-            self._pid_controller.out_min = self._min_out
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
