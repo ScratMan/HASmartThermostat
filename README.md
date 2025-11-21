@@ -119,7 +119,7 @@ many tutorials for guidance on the web. Here are a few useful links:
 * [PID Control made easy](https://www.eurotherm.com/temperature-control/pid-control-made-easy/)
 * [Practical PID Process Dynamics with Proportional Pressure Controllers](
 https://clippard.com/cms/wiki/practical-pid-process-dynamics-proportional-pressure-controllers)
-* [PID Tuner](https://pidtuner.com/)
+* [PID Tuner](https://pidtuner.github.io/)
 * [PID development blog from Brett Beauregard](http://brettbeauregard.com/blog/category/pid/)
 * [PID controller explained](https://controlguru.com/table-of-contents/)
 
@@ -147,13 +147,64 @@ PID output value is the weighted sum of the control terms:\
 Output is then limited to 0% to 100% range to control the PWM.
 
 #### Cascading PID
-Optionally, 2 (or more) PIDs can be used in a cascading matter, e.g. for underfloor heating define an outer
+Optionally, 2 (or more) PIDs can be used in a cascading manner, e.g. for underfloor heating define an outer
 PID between the room temperature and the floor temperature, and an inner PID between the floor
-temperature and the PWM. See details [here](
+temperature and the PWM. That way can avoid overheating the floor. See details [here](
 https://en.wikipedia.org/wiki/Proportional%E2%80%93integral%E2%80%93derivative_controller#Cascade_control).
 
-To enable, create the inner thermostate as detailed above, and then create another thermostate that will
-control the inner one.
+For the example mentioned above, first measure the effect of turning the underfloor heating on and off again
+on the floor temperature. Use that as input for [PID Tuner](https://pidtuner.github.io/), and create a
+Smart Thermostat (with "inner" in its name and `unique_id`). Set the `min_temp` and `max_temp` to farthest
+acceptable values.
+Next, measure the effect on the room temperature of turning the new inner thermostat to the highest
+temperature and then turning it off again. Feed that into PID Tuner, and create the main Smart Thermostat,
+with the `unique_id` of the inner thermostat as the heater. The `sampling_period` and `min_cycle_duration`
+should be higher for the outer thermostat, and naturally its `pwm` should be `0`.
+
+See here a full example:
+```yaml
+climate:                             
+  - platform: smart_thermostat
+    name: "Bedroom Underfloor Heating Thermostat"
+    unique_id: bedroom_underfloor_heating_thermostat
+    heater: climate.bedroom_underfloor_heating_inner_thermostat
+    target_sensor: sensor.bedroom_room_temperature             
+    min_temp: 7                                                        
+    max_temp: 28                                                       
+    output_min: 7                                                      
+    output_max: 28                                                     
+    out_clamp_low: 7                                                                                             
+    out_clamp_high: 28                                      
+    ac_mode: False                                                   
+    target_temp: 23        
+    keep_alive:                                                          
+      seconds: 60     
+    sampling_period: 600                                               
+    min_cycle_duration: 50
+    force_off_state: false                                              
+    kp: 19.4    
+    ki: 0.005                                              
+    kd: 0                     
+    pwm: 0                                                                
+                            
+  - platform: smart_thermostat   
+    name: "Bedroom Underfloor Heating Inner Thermostat"
+    unique_id: bedroom_underfloor_heating_inner_thermostat
+    heater: switch.bedroom_heating                        
+    target_sensor: sensor.bedroom_floor_temperature       
+    min_temp: 7                                                   
+    max_temp: 28                                                  
+    ac_mode: False                                                
+    target_temp: 23                                               
+    keep_alive:                                                   
+      seconds: 60                                                 
+    sampling_period: 120                                          
+    min_cycle_duration: 10                                        
+    kp: 2.06                                        
+    ki: 0.001                                     
+    kd: 0                                                         
+    pwm: 00:15:00                                                 
+```
 
 #### Outdoor temperature compensation
 Optionally, when an outdoor temperature sensor entity is provided and ke is set, the thermostat can 
@@ -255,7 +306,7 @@ gains to quickly test the behavior without waiting the integral to stabilize by 
 
 ## Parameters:
 * **name** (Optional): Name of the thermostat.
-* **unique_id** (Optional): unique entity_id for the smart thermostat.
+* **unique_id** (Optional): unique entity_id for the smart thermostat. Required for inner thermostats.
 * **heater** (Optional): entity_id for heater control, should be a single or list of toggle 
 device (switch or input_boolean), light or valve (light, number, input_number). If a valve 
 or a light entity is used, pwm parameter should be set to 0. Becomes air conditioning switch 
