@@ -36,6 +36,7 @@ from homeassistant.components.input_number import DOMAIN as INPUT_NUMBER_DOMAIN
 from homeassistant.components.light import (DOMAIN as LIGHT_DOMAIN, SERVICE_TURN_ON as SERVICE_TURN_LIGHT_ON,
                                             ATTR_BRIGHTNESS_PCT)
 from homeassistant.components.valve import (DOMAIN as VALVE_DOMAIN, SERVICE_SET_VALVE_POSITION, ATTR_POSITION)
+from homeassistant.components.fan import (DOMAIN as FAN_DOMAIN, SERVICE_TURN_ON as SERVICE_TURN_FAN_ON, ATTR_PERCENTAGE)
 from homeassistant.core import DOMAIN as HA_DOMAIN, CoreState, Event, EventStateChangedData, callback
 from homeassistant.util import slugify
 import homeassistant.helpers.config_validation as cv
@@ -1023,6 +1024,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 await self.hass.services.async_call(
                     VALVE_DOMAIN,
                     SERVICE_SET_VALVE_POSITION,
+                    data)
+            elif heater_or_cooler_entity[0:4] == 'fan.':
+                data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_PERCENTAGE: value}
+                await self.hass.services.async_call(
+                    FAN_DOMAIN,
+                    SERVICE_TURN_FAN_ON,
                     data)
             else:
                 data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_VALUE: value}
