@@ -1,6 +1,11 @@
 clear_integral:
   name: Clear Integral
   description: Clears the integrating part of the PID.
+  fields:
+    value:
+      description: Integral value to apply
+      example: 1.0
+      required: false
   target:
     entity:
       integration: smart_thermostat
