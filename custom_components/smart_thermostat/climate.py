@@ -48,7 +48,9 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity, ClimateEntityFeature
 from homeassistant.components.climate import (
+    ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
+    DOMAIN as CLIMATE_DOMAIN,
     HVACMode,
     HVACAction,
     PRESET_AWAY,
@@ -59,6 +61,8 @@ from homeassistant.components.climate import (
     PRESET_HOME,
     PRESET_SLEEP,
     PRESET_ACTIVITY,
+    SERVICE_SET_HVAC_MODE,
+    SERVICE_SET_TEMPERATURE,
 )
 
 from . import DOMAIN, PLATFORMS
@@ -750,7 +754,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                               self.entity_id,
                               self._control_output,
                               hvac_mode)
-                await self._async_set_valve_value(self._control_output)
+                await self._async_set_valve_value(self._control_output, self._hvac_mode)
             # Clear the samples to avoid integrating the off period
             self._previous_temp = None
             self._previous_temp_time = None
@@ -910,7 +914,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         await self._async_heater_turn_off(force=True)
                     else:
                         self._control_output = self._output_min
-                        await self._async_set_valve_value(self._control_output)
+                        await self._async_set_valve_value(self._control_output, self._hvac_mode)
                 self.async_write_ha_state()
                 return
 
@@ -938,6 +942,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             try:  # do not throw an error if the state is not yet available on startup
                 for heater_or_cooler_entity in self.heater_or_cooler_entity:
                     state = self.hass.states.get(heater_or_cooler_entity).state
+                    if heater_or_cooler_entity[0:8] == 'climate.':
+                        return state != HVACMode.OFF
                     try:
                         value = float(state)
                         if value > 0:
@@ -1008,7 +1014,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     service = SERVICE_TURN_OFF
                 await self.hass.services.async_call(HA_DOMAIN, service, data)
 
-    async def _async_set_valve_value(self, value: float):
+    async def _async_set_valve_value(self, value: float, hvac_mode: HVACMode):
         _LOGGER.info("%s: Change state of %s to %s", self.entity_id,
                      ", ".join([entity for entity in self.heater_or_cooler_entity]), value)
         for heater_or_cooler_entity in self.heater_or_cooler_entity:
@@ -1024,6 +1030,20 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     VALVE_DOMAIN,
                     SERVICE_SET_VALVE_POSITION,
                     data)
+            elif heater_or_cooler_entity[0:8] == 'climate.':
+                state = self.hass.states.get(heater_or_cooler_entity).state
+                if hvac_mode != state:
+                    data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_HVAC_MODE: hvac_mode}
+                    await self.hass.services.async_call(
+                        CLIMATE_DOMAIN,
+                        SERVICE_SET_HVAC_MODE,
+                        data)
+                if hvac_mode != HVACMode.OFF:
+                    data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_TEMPERATURE: value, ATTR_HVAC_MODE: hvac_mode}
+                    await self.hass.services.async_call(
+                        CLIMATE_DOMAIN,
+                        SERVICE_SET_TEMPERATURE,
+                        data)
             else:
                 data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_VALUE: value}
                 await self.hass.services.async_call(
@@ -1136,7 +1156,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     self._time_changed = time.time()
                 await self._async_heater_turn_off()
         else:
-            await self._async_set_valve_value(abs(self._control_output))
+            await self._async_set_valve_value(abs(self._control_output), self._hvac_mode)
 
     async def pwm_switch(self):
         """turn off and on the heater proportionally to control_value."""
