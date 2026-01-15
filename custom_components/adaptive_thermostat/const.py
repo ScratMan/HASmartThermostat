@@ -61,6 +61,7 @@ CONF_BOOST_PID_OFF = 'boost_pid_off'
 CONF_DEBUG = 'debug'
 DEFAULT_DEBUG = False
 CONF_HEATING_TYPE = "heating_type"
+CONF_DERIVATIVE_FILTER = "derivative_filter_alpha"
 
 # Heating system types
 HEATING_TYPE_FLOOR_HYDRONIC = "floor_hydronic"
@@ -82,21 +83,25 @@ HEATING_TYPE_CHARACTERISTICS = {
     HEATING_TYPE_FLOOR_HYDRONIC: {
         "pid_modifier": 0.5,      # Very conservative
         "pwm_period": 900,        # 15 minutes
+        "derivative_filter_alpha": 0.05,  # Heavy filtering - high thermal mass reduces noise sensitivity
         "description": "Floor heating with water - high thermal mass, slow response",
     },
     HEATING_TYPE_RADIATOR: {
         "pid_modifier": 0.7,      # Moderately conservative
         "pwm_period": 600,        # 10 minutes
+        "derivative_filter_alpha": 0.10,  # Moderate filtering
         "description": "Traditional radiators - moderate thermal mass",
     },
     HEATING_TYPE_CONVECTOR: {
         "pid_modifier": 1.0,      # Standard
         "pwm_period": 300,        # 5 minutes
+        "derivative_filter_alpha": 0.15,  # Light filtering - default balance
         "description": "Convection heaters - low thermal mass, faster response",
     },
     HEATING_TYPE_FORCED_AIR: {
         "pid_modifier": 1.3,      # Aggressive
         "pwm_period": 180,        # 3 minutes
+        "derivative_filter_alpha": 0.25,  # Minimal filtering - fast response needed
         "description": "Forced air heating - very low thermal mass, fast response",
     },
 }

@@ -131,6 +131,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         ),
         # Adaptive learning options
         vol.Optional(const.CONF_HEATING_TYPE): vol.In(const.VALID_HEATING_TYPES),
+        vol.Optional(const.CONF_DERIVATIVE_FILTER): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=1.0)),
         vol.Optional(const.CONF_AREA_M2): vol.Coerce(float),
         vol.Optional(const.CONF_CEILING_HEIGHT, default=const.DEFAULT_CEILING_HEIGHT): vol.Coerce(float),
         vol.Optional(const.CONF_WINDOW_AREA_M2): vol.Coerce(float),
@@ -275,6 +276,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         # New adaptive learning parameters
         'zone_id': zone_id,
         'heating_type': config.get(const.CONF_HEATING_TYPE),
+        'derivative_filter_alpha': config.get(const.CONF_DERIVATIVE_FILTER),
         'area_m2': config.get(const.CONF_AREA_M2),
         'ceiling_height': config.get(const.CONF_CEILING_HEIGHT),
         'window_area_m2': config.get(const.CONF_WINDOW_AREA_M2),
@@ -435,6 +437,13 @@ class AdaptiveThermostat(ClimateEntity, RestoreEntity, ABC):
         self._window_rating = kwargs.get('window_rating', 'hr++')
         self._window_orientation = kwargs.get('window_orientation')
 
+        # Derivative filter alpha - get from config or use heating-type-specific default
+        self._derivative_filter_alpha = kwargs.get('derivative_filter_alpha')
+        if self._derivative_filter_alpha is None:
+            # Use heating-type-specific default from HEATING_TYPE_CHARACTERISTICS
+            heating_chars = const.HEATING_TYPE_CHARACTERISTICS.get(self._heating_type, {})
+            self._derivative_filter_alpha = heating_chars.get('derivative_filter_alpha', 0.15)
+
         # Night setback
         self._night_setback = None
         self._night_setback_config = None
@@ -585,12 +594,12 @@ class AdaptiveThermostat(ClimateEntity, RestoreEntity, ABC):
         self._time_changed = time.time()
         self._last_sensor_update = time.time()
         self._last_ext_sensor_update = time.time()
-        _LOGGER.info("%s: Active PID values - Kp=%.4f, Ki=%.5f, Kd=%.3f, Ke=%s",
-                     self.unique_id, self._kp, self._ki, self._kd, self._ke or 0)
+        _LOGGER.info("%s: Active PID values - Kp=%.4f, Ki=%.5f, Kd=%.3f, Ke=%s, D_filter_alpha=%.2f",
+                     self.unique_id, self._kp, self._ki, self._kd, self._ke or 0, self._derivative_filter_alpha)
         self._pid_controller = pid_controller.PID(self._kp, self._ki, self._kd, self._ke,
                                                   self._min_out, self._max_out,
                                                   self._sampling_period, self._cold_tolerance,
-                                                  self._hot_tolerance)
+                                                  self._hot_tolerance, self._derivative_filter_alpha)
         self._pid_controller.mode = "AUTO"
 
     async def async_added_to_hass(self):

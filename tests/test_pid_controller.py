@@ -438,7 +438,8 @@ class TestPIDIntegralDimensionalFix:
         With Kd = 2.5 %/(°C/hour) and 1°C change over 1 hour,
         the derivative should contribute -2.5% (negative of derivative of process variable).
         """
-        pid = PID(kp=0.3, ki=1.2, kd=2.5, out_min=-100, out_max=100)
+        # Disable derivative filter for this test (alpha=1.0 = no filtering)
+        pid = PID(kp=0.3, ki=1.2, kd=2.5, out_min=-100, out_max=100, derivative_filter_alpha=1.0)
 
         # First reading at 20°C
         pid.calc(input_val=20.0, set_point=22.0, input_time=0.0, last_input_time=None)
@@ -492,6 +493,150 @@ class TestPIDIntegralDimensionalFix:
         # Integral contribution should be meaningful but not overwhelming
         # After 2 hours with average 2°C error, integral accumulated ~4%
         # This is reasonable for a slow floor heating system
+
+
+class TestPIDDerivativeFilter:
+    """Test derivative term filtering to reduce sensor noise amplification.
+
+    Tests verify EMA filtering of derivative term works correctly across
+    different alpha values and reduces noise sensitivity.
+    """
+
+    def test_derivative_filter_noise_reduction(self):
+        """Test that derivative filter reduces sensor noise amplification.
+
+        Inject ±0.1°C noise on temperature readings and verify filtered
+        derivative is more stable than unfiltered.
+        """
+        # Create two PIDs: one with filtering (alpha=0.15), one without (alpha=1.0)
+        pid_filtered = PID(kp=10, ki=1.0, kd=5.0, out_min=0, out_max=100,
+                          derivative_filter_alpha=0.15)
+        pid_unfiltered = PID(kp=10, ki=1.0, kd=5.0, out_min=0, out_max=100,
+                            derivative_filter_alpha=1.0)
+
+        # Start at 20.0°C, target 22.0°C
+        pid_filtered.calc(input_val=20.0, set_point=22.0, input_time=0.0, last_input_time=None)
+        pid_unfiltered.calc(input_val=20.0, set_point=22.0, input_time=0.0, last_input_time=None)
+
+        # Temperature readings with injected noise: 20.1 (noise +0.1), 20.15 (noise -0.05), 20.3 (noise +0.1)
+        # Real trend: heating from 20.0 -> 20.1 -> 20.2 -> 20.3
+        # Noisy readings: 20.0 -> 20.1 -> 20.15 -> 20.3
+
+        # Reading 1: 20.1°C (rise of 0.1°C in 60s)
+        pid_filtered.calc(input_val=20.1, set_point=22.0, input_time=60.0, last_input_time=0.0)
+        pid_unfiltered.calc(input_val=20.1, set_point=22.0, input_time=60.0, last_input_time=0.0)
+        deriv_filtered_1 = pid_filtered.derivative
+        deriv_unfiltered_1 = pid_unfiltered.derivative
+
+        # Reading 2: 20.15°C (apparent rise of only 0.05°C in 60s due to noise)
+        # This should show noise impact
+        pid_filtered.calc(input_val=20.15, set_point=22.0, input_time=120.0, last_input_time=60.0)
+        pid_unfiltered.calc(input_val=20.15, set_point=22.0, input_time=120.0, last_input_time=60.0)
+        deriv_filtered_2 = pid_filtered.derivative
+        deriv_unfiltered_2 = pid_unfiltered.derivative
+
+        # Reading 3: 20.3°C (large apparent rise of 0.15°C in 60s due to noise)
+        pid_filtered.calc(input_val=20.3, set_point=22.0, input_time=180.0, last_input_time=120.0)
+        pid_unfiltered.calc(input_val=20.3, set_point=22.0, input_time=180.0, last_input_time=120.0)
+        deriv_filtered_3 = pid_filtered.derivative
+        deriv_unfiltered_3 = pid_unfiltered.derivative
+
+        # Calculate variance of derivative values (measure of noise)
+        # Filtered should have lower variance (more stable)
+        import statistics
+        variance_filtered = statistics.variance([deriv_filtered_1, deriv_filtered_2, deriv_filtered_3])
+        variance_unfiltered = statistics.variance([deriv_unfiltered_1, deriv_unfiltered_2, deriv_unfiltered_3])
+
+        # Filtered derivative should be more stable (lower variance)
+        assert variance_filtered < variance_unfiltered, \
+            f"Filtered variance {variance_filtered} should be < unfiltered {variance_unfiltered}"
+
+    def test_derivative_filter_alpha_range(self):
+        """Test derivative filter behavior across alpha range 0.0 to 1.0.
+
+        Alpha = 0.0: maximum filtering (derivative becomes constant)
+        Alpha = 1.0: no filtering (raw derivative)
+        Alpha = 0.5: moderate filtering
+        """
+        # Test alpha = 0.0 (maximum filtering)
+        pid_max_filter = PID(kp=10, ki=1.0, kd=5.0, out_min=0, out_max=100,
+                            derivative_filter_alpha=0.0)
+
+        # First calculation
+        pid_max_filter.calc(input_val=20.0, set_point=22.0, input_time=0.0, last_input_time=None)
+        assert pid_max_filter.derivative == 0.0  # No previous derivative
+
+        # Second calculation with temperature change
+        pid_max_filter.calc(input_val=20.5, set_point=22.0, input_time=60.0, last_input_time=0.0)
+        # With alpha=0.0: filtered = 0.0 * raw + 1.0 * 0.0 = 0.0
+        # Derivative should remain 0 (maximum filtering suppresses all changes)
+        assert pid_max_filter.derivative == 0.0
+
+        # Test alpha = 1.0 (no filtering)
+        pid_no_filter = PID(kp=10, ki=1.0, kd=5.0, out_min=0, out_max=100,
+                           derivative_filter_alpha=1.0)
+
+        pid_no_filter.calc(input_val=20.0, set_point=22.0, input_time=0.0, last_input_time=None)
+        pid_no_filter.calc(input_val=20.5, set_point=22.0, input_time=60.0, last_input_time=0.0)
+
+        # Calculate expected raw derivative
+        # Rate = 0.5°C / 60s = 0.5°C / (60/3600)h = 30°C/h
+        # Derivative = -Kd * rate = -5.0 * 30 = -150%
+        expected_derivative = -150.0
+        assert abs(pid_no_filter.derivative - expected_derivative) < 0.1
+
+        # Test alpha = 0.5 (moderate filtering)
+        pid_moderate = PID(kp=10, ki=1.0, kd=5.0, out_min=0, out_max=100,
+                          derivative_filter_alpha=0.5)
+
+        pid_moderate.calc(input_val=20.0, set_point=22.0, input_time=0.0, last_input_time=None)
+        pid_moderate.calc(input_val=20.5, set_point=22.0, input_time=60.0, last_input_time=0.0)
+
+        # With alpha=0.5: filtered = 0.5 * (-150) + 0.5 * 0.0 = -75
+        assert abs(pid_moderate.derivative - (-75.0)) < 0.1
+
+    def test_derivative_filter_disable(self):
+        """Test that alpha=1.0 completely disables filter (raw derivative passthrough)."""
+        # Alpha = 1.0 should give unfiltered derivative
+        pid = PID(kp=10, ki=1.0, kd=5.0, out_min=0, out_max=100,
+                 derivative_filter_alpha=1.0)
+
+        # First calculation
+        pid.calc(input_val=20.0, set_point=22.0, input_time=0.0, last_input_time=None)
+
+        # Second calculation with 1°C change over 1 hour
+        pid.calc(input_val=21.0, set_point=22.0, input_time=3600.0, last_input_time=0.0)
+
+        # Raw derivative = -Kd * (1°C / 1 hour) = -5.0 * 1.0 = -5.0%
+        # With alpha=1.0, filtered = 1.0 * raw + 0.0 * prev = raw
+        assert abs(pid.derivative - (-5.0)) < 0.01
+
+        # Third calculation with noise spike (0.2°C in 60 seconds)
+        pid.calc(input_val=21.2, set_point=22.0, input_time=3660.0, last_input_time=3600.0)
+
+        # Rate = 0.2°C / (60/3600)h = 12°C/h
+        # Raw derivative = -5.0 * 12 = -60%
+        # With alpha=1.0, should be unfiltered: -60%
+        assert abs(pid.derivative - (-60.0)) < 0.1
+
+    def test_derivative_filter_persistence_through_samples_clear(self):
+        """Test that derivative filter resets when samples are cleared."""
+        pid = PID(kp=10, ki=1.0, kd=5.0, out_min=0, out_max=100,
+                 derivative_filter_alpha=0.15)
+
+        # Build up filtered derivative
+        pid.calc(input_val=20.0, set_point=22.0, input_time=0.0, last_input_time=None)
+        pid.calc(input_val=20.5, set_point=22.0, input_time=60.0, last_input_time=0.0)
+        pid.calc(input_val=21.0, set_point=22.0, input_time=120.0, last_input_time=60.0)
+
+        # Derivative filter should have some value
+        assert pid._derivative_filtered != 0.0
+
+        # Clear samples (e.g., when switching modes OFF -> AUTO)
+        pid.clear_samples()
+
+        # Filtered derivative should be reset to 0
+        assert pid._derivative_filtered == 0.0
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ class PID:
     error: float
 
     def __init__(self, kp, ki, kd, ke=0, out_min=float('-inf'), out_max=float('+inf'),
-                 sampling_period=0, cold_tolerance=0.3, hot_tolerance=0.3):
+                 sampling_period=0, cold_tolerance=0.3, hot_tolerance=0.3, derivative_filter_alpha=0.15):
         """A proportional-integral-derivative controller.
             :param kp: Proportional coefficient.
             :type kp: float
@@ -31,6 +31,9 @@ class PID:
             :type cold_tolerance: float
             :param hot_tolerance: Temperature above setpoint to trigger cooling when PID mode is OFF.
             :type hot_tolerance: float
+            :param derivative_filter_alpha: EMA filter alpha for derivative term (0.0-1.0).
+                                           Lower values = more filtering. 1.0 = no filter.
+            :type derivative_filter_alpha: float
         """
         if kp is None:
             raise ValueError('kp must be specified')
@@ -50,6 +53,8 @@ class PID:
         self._proportional = 0.0
         self._integral = 0.0
         self._derivative = 0.0
+        self._derivative_filtered = 0.0  # EMA-filtered derivative value
+        self._derivative_filter_alpha = derivative_filter_alpha
         self._last_set_point = 0
         self._set_point = 0
         self._input = None
@@ -150,6 +155,7 @@ class PID:
         self._input_time = None
         self._last_input = None
         self._last_input_time = None
+        self._derivative_filtered = 0.0
         
     def calc(self, input_val, set_point, input_time=None, last_input_time=None, ext_temp=None):
         """Adjusts and holds the given setpoint.
@@ -251,7 +257,17 @@ class PID:
             # Convert dt to hours for dimensional correctness
             # Kd has units of %/(°C/hour), so dt must be in hours
             dt_hours = self._dt / 3600.0
-            self._derivative = -(self._Kd * self._input_diff) / dt_hours
+            raw_derivative = -(self._Kd * self._input_diff) / dt_hours
+
+            # Apply EMA filter to reduce sensor noise amplification
+            # Formula: filtered = alpha * raw + (1 - alpha) * prev_filtered
+            # alpha = 1.0 disables filter (no filtering)
+            # alpha = 0.0 gives maximum filtering (derivative becomes constant)
+            self._derivative_filtered = (
+                self._derivative_filter_alpha * raw_derivative +
+                (1.0 - self._derivative_filter_alpha) * self._derivative_filtered
+            )
+            self._derivative = self._derivative_filtered
         else:
             self._derivative = 0.0
 
