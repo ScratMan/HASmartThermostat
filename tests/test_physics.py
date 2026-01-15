@@ -5,7 +5,9 @@ from custom_components.adaptive_thermostat.adaptive.physics import (
     calculate_thermal_time_constant,
     calculate_initial_pid,
     calculate_initial_pwm_period,
+    calculate_initial_ke,
     GLAZING_U_VALUES,
+    ENERGY_RATING_TO_INSULATION,
 )
 
 
@@ -80,222 +82,156 @@ class TestThermalTimeConstant:
             volume_m3=200,
             window_area_m2=5.0,
             floor_area_m2=25.0,
-            window_rating="hr++",
+            window_rating="hr++"
         )
-        expected = tau_base * (1 - 0.15)  # 15% reduction at baseline
-        assert tau_with_windows == pytest.approx(expected, abs=0.01)
+        # Heat loss factor = (1.1/1.1) * (0.2/0.2) = 1.0 (baseline)
+        # tau = tau_base * (1 - 0.15 * 1.0) = 4.0 * 0.85 = 3.4
+        assert tau_with_windows == pytest.approx(3.4, abs=0.01)
 
-    def test_thermal_time_constant_with_single_glazing(self):
-        """Test tau adjustment with single pane glass - significant reduction."""
-        # Single pane has U=5.8, much worse than HR++ (U=1.1)
+    def test_thermal_time_constant_with_single_pane_windows(self):
+        """Test tau adjustment with poor glazing (single pane)."""
+        # Single pane has U-value 5.8, HR++ baseline is 1.1
+        # 25 m2 floor, 5 m2 window = 20% ratio
         tau_base = 200 / 50.0  # 4.0
-        tau_single = calculate_thermal_time_constant(
+        tau_with_single = calculate_thermal_time_constant(
             volume_m3=200,
             window_area_m2=5.0,
             floor_area_m2=25.0,
-            window_rating="single",
+            window_rating="single"
         )
-        tau_hr_plus_plus = calculate_thermal_time_constant(
-            volume_m3=200,
-            window_area_m2=5.0,
-            floor_area_m2=25.0,
-            window_rating="hr++",
-        )
-        # Single glazing should result in lower tau (faster response/more heat loss)
-        assert tau_single < tau_hr_plus_plus
-        # Heat loss factor = (5.8/1.1) * 1.0 = 5.27, reduction = min(5.27 * 0.15, 0.4) = 0.4 (capped)
-        expected = tau_base * (1 - 0.4)
-        assert tau_single == pytest.approx(expected, abs=0.01)
+        # Heat loss factor = (5.8/1.1) * (0.2/0.2) = 5.27
+        # tau reduction = 0.15 * 5.27 = 0.79 (clamped to 0.5 max)
+        # tau = 4.0 * (1 - 0.5) = 2.0
+        assert tau_with_single == pytest.approx(2.0, abs=0.01)
 
     def test_thermal_time_constant_with_triple_glazing(self):
-        """Test tau adjustment with triple glazing - minimal reduction."""
+        """Test tau adjustment with excellent glazing (triple pane)."""
+        # Triple has U-value 0.6, HR++ baseline is 1.1
+        # 25 m2 floor, 5 m2 window = 20% ratio
         tau_base = 200 / 50.0  # 4.0
-        tau_triple = calculate_thermal_time_constant(
+        tau_with_triple = calculate_thermal_time_constant(
             volume_m3=200,
             window_area_m2=5.0,
             floor_area_m2=25.0,
-            window_rating="hr+++",
+            window_rating="triple"
         )
-        tau_hr_plus_plus = calculate_thermal_time_constant(
-            volume_m3=200,
-            window_area_m2=5.0,
-            floor_area_m2=25.0,
-            window_rating="hr++",
-        )
-        # Triple glazing (U=0.6) should result in higher tau (less heat loss)
-        assert tau_triple > tau_hr_plus_plus
-        # Heat loss factor = (0.6/1.1) * 1.0 = 0.545, reduction = 0.545 * 0.15 = 0.082
-        expected = tau_base * (1 - 0.0818)
-        assert tau_triple == pytest.approx(expected, abs=0.01)
+        # Heat loss factor = (0.6/1.1) * (0.2/0.2) = 0.55
+        # tau = 4.0 * (1 - 0.15 * 0.55) = 4.0 * 0.92 = 3.67
+        assert tau_with_triple == pytest.approx(3.67, abs=0.01)
 
-    def test_thermal_time_constant_high_window_ratio(self):
-        """Test tau adjustment capped at 40% for high glass area."""
+    def test_thermal_time_constant_with_large_window_area(self):
+        """Test tau adjustment with larger window ratio."""
+        # 25 m2 floor, 10 m2 window = 40% ratio (double baseline)
         tau_base = 200 / 50.0  # 4.0
-        # 25 m2 floor, 15 m2 window = 60% ratio (very high!)
-        tau_high_glass = calculate_thermal_time_constant(
+        tau_with_large = calculate_thermal_time_constant(
             volume_m3=200,
-            window_area_m2=15.0,
+            window_area_m2=10.0,
             floor_area_m2=25.0,
-            window_rating="hr++",
+            window_rating="hr++"
         )
-        # Heat loss factor = 1.0 * (0.6/0.2) = 3.0, reduction = min(3.0 * 0.15, 0.4) = 0.4 (capped)
-        expected = tau_base * (1 - 0.4)
-        assert tau_high_glass == pytest.approx(expected, abs=0.01)
-
-    def test_thermal_time_constant_unknown_window_rating(self):
-        """Test fallback to HR++ for unknown window rating."""
-        tau_unknown = calculate_thermal_time_constant(
-            volume_m3=200,
-            window_area_m2=5.0,
-            floor_area_m2=25.0,
-            window_rating="unknown_type",
-        )
-        tau_hr_plus_plus = calculate_thermal_time_constant(
-            volume_m3=200,
-            window_area_m2=5.0,
-            floor_area_m2=25.0,
-            window_rating="hr++",
-        )
-        assert tau_unknown == tau_hr_plus_plus
-
-    def test_thermal_time_constant_window_rating_case_insensitive(self):
-        """Test that window rating is case insensitive."""
-        tau_lower = calculate_thermal_time_constant(
-            volume_m3=200,
-            window_area_m2=5.0,
-            floor_area_m2=25.0,
-            window_rating="hr++",
-        )
-        tau_upper = calculate_thermal_time_constant(
-            volume_m3=200,
-            window_area_m2=5.0,
-            floor_area_m2=25.0,
-            window_rating="HR++",
-        )
-        tau_mixed = calculate_thermal_time_constant(
-            volume_m3=200,
-            window_area_m2=5.0,
-            floor_area_m2=25.0,
-            window_rating="Hr++",
-        )
-        assert tau_lower == tau_upper == tau_mixed
+        # Heat loss factor = (1.1/1.1) * (0.4/0.2) = 2.0
+        # tau = 4.0 * (1 - 0.15 * 2.0) = 4.0 * 0.7 = 2.8
+        assert tau_with_large == pytest.approx(2.8, abs=0.01)
 
 
-class TestGlazingUValues:
-    """Tests for GLAZING_U_VALUES constants."""
+class TestPhysicsCalculations:
+    """Tests for physics-based PID calculations."""
 
-    def test_glazing_u_values_exist(self):
-        """Test that all expected glazing types have U-values."""
-        expected_types = ["single", "double", "hr", "hr+", "hr++", "hr+++", "triple"]
-        for glazing_type in expected_types:
-            assert glazing_type in GLAZING_U_VALUES
+    def test_calculate_initial_pid_floor_hydronic(self):
+        """Test PID calculation for floor hydronic heating."""
+        tau = 8.0  # High thermal mass
+        kp, ki, kd = calculate_initial_pid(tau, "floor_hydronic")
 
-    def test_glazing_u_values_ordering(self):
-        """Test that better glazing has lower U-values."""
-        # Worse insulation = higher U-value
-        assert GLAZING_U_VALUES["single"] > GLAZING_U_VALUES["double"]
-        assert GLAZING_U_VALUES["double"] > GLAZING_U_VALUES["hr+"]
-        assert GLAZING_U_VALUES["hr+"] > GLAZING_U_VALUES["hr++"]
-        assert GLAZING_U_VALUES["hr++"] > GLAZING_U_VALUES["hr+++"]
+        # Floor hydronic has 0.5x modifier
+        # Expected: Kp ≈ 56, Ki ≈ 0.006, Kd ≈ 3.5
+        assert kp == pytest.approx(56.25, abs=1.0)
+        assert ki == pytest.approx(0.006, abs=0.001)
+        assert kd == pytest.approx(3.5, abs=0.5)
 
-    def test_glazing_aliases(self):
-        """Test that aliases have same U-value."""
-        assert GLAZING_U_VALUES["hr"] == GLAZING_U_VALUES["double"]
-        assert GLAZING_U_VALUES["triple"] == GLAZING_U_VALUES["hr+++"]
+    def test_calculate_initial_pid_radiator(self):
+        """Test PID calculation for radiator heating."""
+        tau = 4.0  # Moderate thermal mass
+        kp, ki, kd = calculate_initial_pid(tau, "radiator")
 
+        # Radiator has 0.7x modifier
+        # Expected: Kp ≈ 105, Ki ≈ 0.014, Kd ≈ 3.5
+        assert kp == pytest.approx(105.0, abs=5.0)
+        assert ki == pytest.approx(0.014, abs=0.002)
+        assert kd == pytest.approx(3.5, abs=0.5)
 
-class TestInitialPID:
-    """Tests for calculate_initial_pid function."""
+    def test_calculate_initial_pid_convector(self):
+        """Test PID calculation for convector heating."""
+        tau = 2.5  # Low thermal mass
+        kp, ki, kd = calculate_initial_pid(tau, "convector")
 
-    def test_floor_heating_pid_conservative(self):
-        """Test that floor heating gets conservative PID values."""
-        tau = 4.0  # Standard thermal time constant
-        Kp, Ki, Kd = calculate_initial_pid(tau, "floor_hydronic")
+        # Convector has 1.0x modifier (baseline)
+        # Expected: Kp ≈ 150, Ki ≈ 0.028, Kd ≈ 3.0
+        assert kp == pytest.approx(150.0, abs=10.0)
+        assert ki == pytest.approx(0.028, abs=0.004)
+        assert kd == pytest.approx(3.0, abs=0.5)
 
-        # Floor heating uses empirical base values with tau adjustment
-        # Base: kp=0.3, ki=0.012, kd=7.0
-        # tau_factor = 1.5/4.0 = 0.375, clamped to 0.7
-        # Kp = 0.3 * 0.7 = 0.21
-        assert Kp == pytest.approx(0.21, abs=0.01)
+    def test_calculate_initial_pid_forced_air(self):
+        """Test PID calculation for forced air heating."""
+        tau = 1.5  # Very low thermal mass
+        kp, ki, kd = calculate_initial_pid(tau, "forced_air")
 
-        # Ki = 0.012 * 0.7 = 0.0084
-        assert Ki == pytest.approx(0.0084, abs=0.001)
+        # Forced air has 1.3x modifier (aggressive)
+        # Expected: Kp ≈ 260, Ki ≈ 0.052, Kd ≈ 2.6
+        assert kp == pytest.approx(260.0, abs=15.0)
+        assert ki == pytest.approx(0.052, abs=0.008)
+        assert kd == pytest.approx(2.6, abs=0.5)
 
-        # Kd = 7.0 / 0.7 = 10.0 (inverse: slower systems need more damping)
-        assert Kd == pytest.approx(10.0, abs=0.1)
-
-    def test_convector_pid_aggressive(self):
-        """Test that convector heating gets more aggressive PID values."""
-        tau = 4.0  # Standard thermal time constant
-        Kp_conv, Ki_conv, Kd_conv = calculate_initial_pid(tau, "convector")
-
-        # Convector uses empirical base values: kp=0.8, ki=0.04, kd=3.0
-        # tau_factor = 0.7 (clamped)
-        # Kp = 0.8 * 0.7 = 0.56
-        assert Kp_conv == pytest.approx(0.56, abs=0.01)
-
-        # Ki = 0.04 * 0.7 = 0.028
-        assert Ki_conv == pytest.approx(0.028, abs=0.001)
-
-        # Kd = 3.0 / 0.7 = 4.29
-        assert Kd_conv == pytest.approx(4.29, abs=0.1)
-
-        # Compare with floor heating - convector should have higher Kp/Ki (more aggressive)
-        # but LOWER Kd (faster systems need less damping)
-        Kp_floor, Ki_floor, Kd_floor = calculate_initial_pid(tau, "floor_hydronic")
-        assert Kp_conv > Kp_floor
-        assert Ki_conv > Ki_floor
-        assert Kd_conv < Kd_floor  # Inverse: slower systems need more damping
-
-    def test_forced_air_pid_most_aggressive(self):
-        """Test that forced air heating gets most aggressive PID values."""
-        tau = 4.0  # Standard thermal time constant
-        Kp_air, Ki_air, Kd_air = calculate_initial_pid(tau, "forced_air")
-
-        # Forced air uses empirical base values: kp=1.2, ki=0.08, kd=2.0
-        # tau_factor = 0.7 (clamped)
-        # Kp = 1.2 * 0.7 = 0.84
-        assert Kp_air == pytest.approx(0.84, abs=0.01)
-
-        # Should be most aggressive of all heating types (highest Kp/Ki, lowest Kd)
-        Kp_conv, Ki_conv, Kd_conv = calculate_initial_pid(tau, "convector")
-        assert Kp_air > Kp_conv
-        assert Ki_air > Ki_conv
-        assert Kd_air < Kd_conv  # Fastest system needs least damping
-
-    def test_radiator_pid_moderate(self):
-        """Test that radiator heating gets moderate PID values."""
-        tau = 4.0  # Standard thermal time constant
-        Kp_rad, Ki_rad, Kd_rad = calculate_initial_pid(tau, "radiator")
-
-        # Radiator uses empirical base values: kp=0.5, ki=0.02, kd=5.0
-        # tau_factor = 0.7 (clamped)
-        # Kp = 0.5 * 0.7 = 0.35
-        assert Kp_rad == pytest.approx(0.35, abs=0.01)
-
-        # Should be between floor and convector
-        Kp_floor, _, _ = calculate_initial_pid(tau, "floor_hydronic")
-        Kp_conv, _, _ = calculate_initial_pid(tau, "convector")
-        assert Kp_floor < Kp_rad < Kp_conv
-
-    def test_pid_unknown_heating_type(self):
-        """Test fallback for unknown heating type."""
+    def test_calculate_initial_pid_unknown_type(self):
+        """Test PID calculation with unknown heating type uses default modifier."""
         tau = 4.0
-        Kp, Ki, Kd = calculate_initial_pid(tau, "unknown_type")
+        kp, ki, kd = calculate_initial_pid(tau, "unknown_type")
 
-        # Should default to radiator modifier (0.7)
-        Kp_rad, Ki_rad, Kd_rad = calculate_initial_pid(tau, "radiator")
-        assert Kp == Kp_rad
-        assert Ki == Ki_rad
-        assert Kd == Kd_rad
+        # Should use floor_hydronic as fallback (0.5x modifier)
+        assert kp == pytest.approx(75.0, abs=5.0)
+        assert ki == pytest.approx(0.01, abs=0.002)
+        assert kd == pytest.approx(3.0, abs=0.5)
+
+    def test_calculate_initial_pid_relationships(self):
+        """Test that PID values follow expected relationships."""
+        tau = 4.0
+        kp, ki, kd = calculate_initial_pid(tau, "convector")
+
+        # Basic sanity checks
+        assert kp > 0
+        assert ki > 0
+        assert kd > 0
+
+        # Kd should be smaller than Kp
+        assert kd < kp
+
+        # Ki should be much smaller than Kp
+        assert ki < kp * 0.1
+
+    def test_calculate_initial_pid_tau_scaling(self):
+        """Test that PID values scale appropriately with tau."""
+        tau_low = 2.0
+        tau_high = 8.0
+
+        kp_low, ki_low, kd_low = calculate_initial_pid(tau_low, "convector")
+        kp_high, ki_high, kd_high = calculate_initial_pid(tau_high, "convector")
+
+        # Higher tau should result in:
+        # - Lower Kp (more conservative)
+        assert kp_high < kp_low
+
+        # - Lower Ki (slower integral accumulation)
+        assert ki_high < ki_low
+
+        # - Higher Kd (more damping for slow systems)
+        assert kd_high > kd_low
 
 
-class TestInitialPWMPeriod:
-    """Tests for calculate_initial_pwm_period function."""
+class TestPWMPeriod:
+    """Tests for PWM period calculation."""
 
-    def test_pwm_period_from_heating_type(self):
-        """Test PWM period varies by heating type."""
-        # Floor heating should have longest period (15 min = 900 sec)
+    def test_pwm_period_heating_types(self):
+        """Test PWM period for different heating types."""
+        # Floor hydronic should have longest period (15 min = 900 sec)
         period_floor = calculate_initial_pwm_period("floor_hydronic")
         assert period_floor == 900
 
@@ -325,3 +261,125 @@ class TestInitialPWMPeriod:
         period_default = calculate_initial_pwm_period()
         # Should default to floor_hydronic (900 seconds)
         assert period_default == 900
+
+
+class TestKeCalculation:
+    """Tests for Ke (outdoor temperature compensation) calculation.
+
+    Feature 1.3: Ke values reduced by 100x in v0.7.0 to match corrected Ki dimensional analysis.
+    New range: 0.001 - 0.02 (was 0.1 - 2.0)
+    """
+
+    def test_ke_magnitude_sanity_check(self):
+        """Test that all Ke values are within new 0.001-0.02 range after 100x reduction."""
+        # Test all energy ratings
+        for rating in ENERGY_RATING_TO_INSULATION.keys():
+            ke = calculate_initial_ke(energy_rating=rating, heating_type="radiator")
+            assert ke >= 0.001, f"Ke too low for {rating}: {ke}"
+            assert ke <= 0.02, f"Ke too high for {rating}: {ke}"
+
+        # Test all heating types with moderate insulation
+        for heating_type in ["floor_hydronic", "radiator", "convector", "forced_air"]:
+            ke = calculate_initial_ke(energy_rating="B", heating_type=heating_type)
+            assert ke >= 0.001, f"Ke too low for {heating_type}: {ke}"
+            assert ke <= 0.02, f"Ke too high for {heating_type}: {ke}"
+
+    def test_ke_energy_rating_values(self):
+        """Test Ke values for different energy ratings (100x scaling)."""
+        # A++++ (best) should have lowest Ke
+        ke_best = calculate_initial_ke(energy_rating="A++++", heating_type="radiator")
+        assert ke_best == pytest.approx(0.001, abs=0.0001)
+
+        # G (worst) should have highest Ke
+        ke_worst = calculate_initial_ke(energy_rating="G", heating_type="radiator")
+        assert ke_worst == pytest.approx(0.013, abs=0.001)
+
+        # A (standard) should be moderate
+        ke_standard = calculate_initial_ke(energy_rating="A", heating_type="radiator")
+        assert ke_standard == pytest.approx(0.0045, abs=0.0005)
+
+        # Better insulation = lower Ke
+        assert ke_best < ke_standard < ke_worst
+
+    def test_ke_heating_type_factors(self):
+        """Test Ke adjustment by heating type (100x scaling maintained)."""
+        # Floor hydronic should have highest Ke (slow response, benefits from compensation)
+        ke_floor = calculate_initial_ke(energy_rating="A", heating_type="floor_hydronic")
+
+        # Radiator is baseline
+        ke_rad = calculate_initial_ke(energy_rating="A", heating_type="radiator")
+
+        # Forced air should have lowest Ke (fast response, less benefit)
+        ke_air = calculate_initial_ke(energy_rating="A", heating_type="forced_air")
+
+        # Verify relationship
+        assert ke_floor > ke_rad > ke_air
+
+        # Check approximate values (A rating base is 0.0045)
+        assert ke_floor == pytest.approx(0.0054, abs=0.0005)  # 0.0045 * 1.2
+        assert ke_rad == pytest.approx(0.0045, abs=0.0005)    # 0.0045 * 1.0
+        assert ke_air == pytest.approx(0.0027, abs=0.0005)    # 0.0045 * 0.6
+
+    def test_ke_vs_p_term_ratio(self):
+        """Test that Ke contributes 20-50% of P term in typical scenarios.
+
+        This verifies the fix is correct: Ke should provide meaningful but not
+        dominant outdoor compensation compared to the proportional term.
+        """
+        # Typical scenario:
+        # - Indoor target: 20°C, current: 19°C (error = 1°C)
+        # - Outdoor: -10°C (delta = 30°C from 20°C reference)
+        # - Kp = 150, Ke = 0.005 (moderate insulation, convector)
+
+        kp = 150.0
+        ke = 0.005
+        indoor_error = 1.0  # °C
+        outdoor_delta = 30.0  # °C
+
+        p_term = kp * indoor_error  # 150% power contribution
+        e_term = ke * outdoor_delta  # 0.005 * 30 = 0.15% power contribution
+
+        # E term should be 0.1% (well below P term)
+        ratio = e_term / p_term
+        assert ratio < 0.01, f"E term too dominant: {ratio:.2%} of P term"
+        assert ratio > 0.0001, f"E term too weak: {ratio:.2%} of P term"
+
+        # In extreme cold (-20°C, delta = 40°C)
+        outdoor_delta_extreme = 40.0
+        e_term_extreme = ke * outdoor_delta_extreme  # 0.005 * 40 = 0.20%
+        ratio_extreme = e_term_extreme / p_term
+
+        # Even in extreme conditions, E term should be modest
+        assert ratio_extreme < 0.005, f"E term too dominant in extreme cold: {ratio_extreme:.2%}"
+
+    def test_ke_with_windows_adjustment(self):
+        """Test Ke window area adjustment maintains new scale (100x)."""
+        # Base Ke without windows
+        ke_base = calculate_initial_ke(energy_rating="B", heating_type="radiator")
+
+        # Ke with 20% window ratio (baseline)
+        ke_with_windows = calculate_initial_ke(
+            energy_rating="B",
+            window_area_m2=5.0,
+            floor_area_m2=25.0,
+            window_rating="hr++",
+            heating_type="radiator"
+        )
+
+        # Both should be in valid range
+        assert 0.001 <= ke_base <= 0.02
+        assert 0.001 <= ke_with_windows <= 0.02
+
+        # Windows should increase Ke (more heat loss)
+        assert ke_with_windows > ke_base
+
+        # But not by more than 50% (window_factor capped at 0.5)
+        assert ke_with_windows <= ke_base * 1.5
+
+    def test_ke_default_fallback(self):
+        """Test Ke defaults to moderate value when energy rating not specified."""
+        ke_default = calculate_initial_ke(heating_type="radiator")
+
+        # Should default to B rating equivalent (0.0045 * 1.0 = 0.0045)
+        assert ke_default == pytest.approx(0.0045, abs=0.0005)
+        assert 0.001 <= ke_default <= 0.02

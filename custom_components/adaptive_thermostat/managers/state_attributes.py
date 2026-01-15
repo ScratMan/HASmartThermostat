@@ -34,9 +34,11 @@ def build_state_attributes(thermostat: SmartThermostat) -> dict[str, Any]:
         "ke": thermostat._ke,
         "pid_mode": thermostat.pid_mode,
         "pid_i": thermostat.pid_control_i,
-        # Migration marker for v0.7.0 PID integral dimensional fix
-        # Indicates integral is stored in hourly units (not seconds)
+        # Migration markers for v0.7.0 dimensional analysis fixes
+        # pid_integral_migrated: integral stored in hourly units (not seconds)
+        # ke_migrated: Ke scaled by 1/100 (new range: 0.001-0.02)
         "pid_integral_migrated": True,
+        "ke_migrated": True,
     }
 
     # Debug-only attributes
