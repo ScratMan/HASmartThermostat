@@ -15,9 +15,9 @@ class PID:
         """A proportional-integral-derivative controller.
             :param kp: Proportional coefficient.
             :type kp: float
-            :param ki: Integral coefficient.
+            :param ki: Integral coefficient in units of %/(°C·hour).
             :type ki: float
-            :param kd: Derivative coefficient.
+            :param kd: Derivative coefficient in units of %/(°C/hour).
             :type kd: float
             :param ke: Outdoor temperature compensation coefficient.
             :type ke: float
@@ -237,7 +237,10 @@ class PID:
         # is stable
         if self._out_min < self._last_output < self._out_max and \
                 self._last_set_point == self._set_point:
-            self._integral += self._Ki * self._error * self._dt
+            # Convert dt from seconds to hours for dimensional correctness
+            # Ki has units of %/(°C·hour), so dt must be in hours
+            dt_hours = self._dt / 3600.0
+            self._integral += self._Ki * self._error * dt_hours
             # Take external temperature compensation into account for integral clamping
             self._integral = max(min(self._integral, self._out_max - self._external), self._out_min - self._external)
         if self._last_set_point != self._set_point:
@@ -245,7 +248,10 @@ class PID:
 
         self._proportional = self._Kp * self._error
         if self._dt != 0:
-            self._derivative = -(self._Kd * self._input_diff) / self._dt
+            # Convert dt to hours for dimensional correctness
+            # Kd has units of %/(°C/hour), so dt must be in hours
+            dt_hours = self._dt / 3600.0
+            self._derivative = -(self._Kd * self._input_diff) / dt_hours
         else:
             self._derivative = 0.0
 

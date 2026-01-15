@@ -393,5 +393,106 @@ class TestPIDController:
         assert 0 <= output9 <= 100
 
 
+class TestPIDIntegralDimensionalFix:
+    """Test PID integral and derivative dimensional correctness (v0.7.0 fix).
+
+    Tests verify that Ki and Kd parameters use hourly time units, not seconds.
+    Ki should be in %/(°C·hour) and Kd in %/(°C/hour).
+    """
+
+    def test_integral_accumulation_hourly_units(self):
+        """Test that integral accumulates correctly with hourly units.
+
+        With Ki = 1.2 %/(°C·hour) and 1°C error for 1 hour (3600 seconds),
+        the integral should accumulate 1.2%.
+        """
+        # Use floor hydronic typical values from physics.py (after 100x increase)
+        pid = PID(kp=0.3, ki=1.2, kd=2.5, out_min=0, out_max=100)
+
+        # First calculation establishes setpoint (integral will be reset to 0 due to setpoint change from 0->20)
+        # Must pass both input_time and last_input_time for event-driven mode (sampling_period=0)
+        output1, _ = pid.calc(input_val=19.0, set_point=20.0, input_time=0.0, last_input_time=None)
+        assert abs(output1 - 0.3) < 0.01  # Proportional only: 0.3 * 1.0
+        assert pid.integral == 0.0  # Reset due to setpoint change
+
+        # Second calculation with small time step to establish _last_output > 0
+        # Now setpoint is stable (20 -> 20), so integration can occur
+        output2, _ = pid.calc(input_val=19.0, set_point=20.0, input_time=1.0, last_input_time=0.0)
+        # Integral accumulation over 1 second = 1.2 * 1.0 * (1/3600) = 0.000333%
+        assert pid.integral > 0, f"Expected integral > 0, got {pid.integral}"
+        small_integral = pid.integral
+
+        # Third calculation: maintain 1°C error for 1 hour (3600 seconds from time=1)
+        # Expected additional accumulation: Ki * error * dt_hours = 1.2 * 1.0 * 1.0 = 1.2%
+        output3, _ = pid.calc(input_val=19.0, set_point=20.0, input_time=3601.0, last_input_time=1.0)
+
+        # Total integral = small_integral + 1.2 ≈ 1.2%
+        assert abs(pid.integral - 1.2) < 0.01, f"Expected integral ~1.2, got {pid.integral}"
+
+        # Verify proportional term is still correct
+        assert abs(pid.proportional - 0.3) < 0.01  # Kp * error = 0.3 * 1.0
+
+    def test_derivative_calculation_hourly_units(self):
+        """Test that derivative calculates correctly with hourly rate units.
+
+        With Kd = 2.5 %/(°C/hour) and 1°C change over 1 hour,
+        the derivative should contribute -2.5% (negative of derivative of process variable).
+        """
+        pid = PID(kp=0.3, ki=1.2, kd=2.5, out_min=-100, out_max=100)
+
+        # First reading at 20°C
+        pid.calc(input_val=20.0, set_point=22.0, input_time=0.0, last_input_time=None)
+
+        # Second reading 1 hour later at 21°C (heating by 1°C over 1 hour)
+        # Rate of change = 1°C/hour
+        # Derivative term = -Kd * rate = -2.5 * 1.0 = -2.5%
+        output, _ = pid.calc(input_val=21.0, set_point=22.0, input_time=3600.0, last_input_time=0.0)
+
+        # Check derivative term
+        assert abs(pid.derivative - (-2.5)) < 0.01, f"Expected derivative ~-2.5, got {pid.derivative}"
+
+    def test_floor_hydronic_realistic_scenario(self):
+        """Test realistic floor hydronic scenario with 2-hour error accumulation.
+
+        Simulates underfloor heating system starting cold and slowly heating up.
+        Uses lower Kd to keep output in valid range for anti-windup testing.
+        """
+        # Floor hydronic: slow system with high thermal mass (lower Kd for this test)
+        pid = PID(kp=0.3, ki=1.2, kd=0.8, out_min=0, out_max=100)
+
+        # Start 3°C below setpoint (cold floor)
+        pid.calc(input_val=18.0, set_point=21.0, input_time=0.0, last_input_time=None)
+        initial_output = pid.proportional  # Only P term active
+        assert abs(initial_output - 0.9) < 0.01  # 0.3 * 3.0
+
+        # After 30 minutes (1800 seconds), temp rises to 18.5°C slowly
+        # Error = 2.5°C, dt = 0.5 hours, rate of change = 1°C/hour
+        # P = 0.3 * 2.5 = 0.75, I = 1.5, D = -0.8 * 1.0 = -0.8
+        # Total = 0.75 + 1.5 - 0.8 = 1.45% (positive, allows continued integration)
+        # Integral accumulation = 1.2 * 2.5 * 0.5 = 1.5%
+        pid.calc(input_val=18.5, set_point=21.0, input_time=1800.0, last_input_time=0.0)
+        assert abs(pid.integral - 1.5) < 0.01
+        assert pid._output > 0, "Output should be positive to allow continued integration"
+
+        # After 1 hour total, temp at 19.0°C (continuing slow rise)
+        # Error = 2.0°C, additional dt = 0.5 hours
+        # Additional accumulation = 1.2 * 2.0 * 0.5 = 1.2%
+        # Total integral = 1.5 + 1.2 = 2.7%
+        pid.calc(input_val=19.0, set_point=21.0, input_time=3600.0, last_input_time=1800.0)
+        assert abs(pid.integral - 2.7) < 0.01
+        assert pid._output > 0, "Output should remain positive"
+
+        # After 2 hours total, temp at 19.8°C (approaching setpoint)
+        # Error = 1.2°C, additional dt = 1.0 hours
+        # Additional accumulation = 1.2 * 1.2 * 1.0 = 1.44%
+        # Total integral = 2.7 + 1.44 = 4.14%
+        pid.calc(input_val=19.8, set_point=21.0, input_time=7200.0, last_input_time=3600.0)
+        assert abs(pid.integral - 4.14) < 0.02
+
+        # Integral contribution should be meaningful but not overwhelming
+        # After 2 hours with average 2°C error, integral accumulated ~4%
+        # This is reasonable for a slow floor heating system
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

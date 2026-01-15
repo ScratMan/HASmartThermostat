@@ -116,9 +116,27 @@ class StateRestorer:
         if old_state is None or thermostat._pid_controller is None:
             return
 
-        # Restore PID integral value
+        # Restore PID integral value with migration for v0.7.0 dimensional fix
+        # In v0.6.x and earlier, integral was accumulated with dt in seconds
+        # In v0.7.0+, integral uses dt in hours, so we need to multiply by 3600
         if isinstance(old_state.attributes.get('pid_i'), (float, int)):
-            thermostat._i = float(old_state.attributes.get('pid_i'))
+            old_integral = float(old_state.attributes.get('pid_i'))
+            # Check if migration is needed by looking for version marker
+            # If no marker exists, assume old version and migrate
+            needs_migration = old_state.attributes.get('pid_integral_migrated') != True
+
+            if needs_migration and old_integral != 0:
+                # Migrate: old integral was in %·seconds, new integral is in %·hours
+                # So multiply by 3600 to convert seconds to hours
+                thermostat._i = old_integral * 3600.0
+                _LOGGER.info(
+                    "%s: Migrated PID integral from v0.6.x (seconds) to v0.7.0+ (hours): "
+                    "%.4f -> %.4f",
+                    thermostat.entity_id, old_integral, thermostat._i
+                )
+            else:
+                thermostat._i = old_integral
+
             thermostat._pid_controller.integral = thermostat._i
 
         # Restore Kp (supports both 'kp' and 'Kp')

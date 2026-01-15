@@ -34,6 +34,9 @@ def build_state_attributes(thermostat: SmartThermostat) -> dict[str, Any]:
         "ke": thermostat._ke,
         "pid_mode": thermostat.pid_mode,
         "pid_i": thermostat.pid_control_i,
+        # Migration marker for v0.7.0 PID integral dimensional fix
+        # Indicates integral is stored in hourly units (not seconds)
+        "pid_integral_migrated": True,
     }
 
     # Debug-only attributes
