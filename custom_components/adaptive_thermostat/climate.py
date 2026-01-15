@@ -156,6 +156,52 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
+def validate_pwm_compatibility(config):
+    """Validate that PWM mode is not used with climate entities.
+
+    PWM (Pulse Width Modulation) creates nested control loops when used with
+    climate entities, which have their own internal PID controllers. This can
+    cause instability and erratic behavior.
+
+    Args:
+        config: Platform configuration dictionary
+
+    Raises:
+        vol.Invalid: If PWM is configured with a climate entity
+
+    Returns:
+        config: Validated configuration (unchanged if valid)
+    """
+    pwm = config.get(const.CONF_PWM)
+    pwm_seconds = pwm.seconds if pwm else 0
+
+    # Only validate if PWM is actually enabled (> 0 seconds)
+    if pwm_seconds == 0:
+        return config
+
+    # Check heater entity
+    heater_entities = config.get(const.CONF_HEATER, [])
+    for entity_id in heater_entities:
+        if entity_id.startswith("climate."):
+            raise vol.Invalid(
+                f"PWM mode cannot be used with climate entity '{entity_id}'. "
+                f"Climate entities have their own PID controllers, creating nested control loops. "
+                f"Solutions: (1) Set pwm to '00:00:00' for valve mode, or (2) Use a switch/light entity instead."
+            )
+
+    # Check cooler entity
+    cooler_entities = config.get(const.CONF_COOLER, [])
+    for entity_id in cooler_entities:
+        if entity_id.startswith("climate."):
+            raise vol.Invalid(
+                f"PWM mode cannot be used with climate entity '{entity_id}'. "
+                f"Climate entities have their own PID controllers, creating nested control loops. "
+                f"Solutions: (1) Set pwm to '00:00:00' for valve mode, or (2) Use a switch/light entity instead."
+            )
+
+    return config
+
+
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the generic thermostat platform."""
     platform = entity_platform.current_platform.get()
@@ -175,6 +221,13 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
             name
         )
         return
+
+    # Validate PWM compatibility with entity types
+    try:
+        validate_pwm_compatibility(config)
+    except vol.Invalid as ex:
+        _LOGGER.error("%s: Configuration error - %s", name, ex)
+        raise
 
     parameters = {
         'name': name,
