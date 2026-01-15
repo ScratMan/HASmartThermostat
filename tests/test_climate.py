@@ -1396,7 +1396,7 @@ class TestRestorePIDValues:
             state="heat",
             attributes={
                 "kp": 0.8,
-                "ki": 0.02,
+                "ki": 2.0,  # Updated to realistic v0.7.0 value (100x increase)
                 "kd": 8.0,
                 "ke": 0.5
             }
@@ -1405,11 +1405,11 @@ class TestRestorePIDValues:
         thermostat._restore_pid_values(old_state)
 
         assert thermostat._kp == 0.8
-        assert thermostat._ki == 0.02
+        assert thermostat._ki == 2.0
         assert thermostat._kd == 8.0
         assert thermostat._ke == 0.5
         assert thermostat._pid_controller._kp == 0.8
-        assert thermostat._pid_controller._ki == 0.02
+        assert thermostat._pid_controller._ki == 2.0
         assert thermostat._pid_controller._kd == 8.0
         assert thermostat._pid_controller._ke == 0.5
 
@@ -1472,7 +1472,7 @@ class TestRestorePIDValues:
             state="heat",
             attributes={
                 "kp": 0.8,
-                "ki": 0.02,
+                "ki": 2.0,  # Updated to realistic v0.7.0 value (100x increase)
                 "kd": 8.0
             }
         )

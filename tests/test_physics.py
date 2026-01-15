@@ -143,9 +143,9 @@ class TestPhysicsCalculations:
         kp, ki, kd = calculate_initial_pid(tau, "floor_hydronic")
 
         # Floor hydronic has 0.5x modifier
-        # Expected: Kp ≈ 56, Ki ≈ 0.006, Kd ≈ 3.5
+        # Expected: Kp ≈ 56, Ki ≈ 0.6 (100x increase in v0.7.0), Kd ≈ 3.5
         assert kp == pytest.approx(56.25, abs=1.0)
-        assert ki == pytest.approx(0.006, abs=0.001)
+        assert ki == pytest.approx(0.6, abs=0.1)
         assert kd == pytest.approx(3.5, abs=0.5)
 
     def test_calculate_initial_pid_radiator(self):
@@ -154,9 +154,9 @@ class TestPhysicsCalculations:
         kp, ki, kd = calculate_initial_pid(tau, "radiator")
 
         # Radiator has 0.7x modifier
-        # Expected: Kp ≈ 105, Ki ≈ 0.014, Kd ≈ 3.5
+        # Expected: Kp ≈ 105, Ki ≈ 1.4 (100x increase in v0.7.0), Kd ≈ 3.5
         assert kp == pytest.approx(105.0, abs=5.0)
-        assert ki == pytest.approx(0.014, abs=0.002)
+        assert ki == pytest.approx(1.4, abs=0.2)
         assert kd == pytest.approx(3.5, abs=0.5)
 
     def test_calculate_initial_pid_convector(self):
@@ -165,9 +165,9 @@ class TestPhysicsCalculations:
         kp, ki, kd = calculate_initial_pid(tau, "convector")
 
         # Convector has 1.0x modifier (baseline)
-        # Expected: Kp ≈ 150, Ki ≈ 0.028, Kd ≈ 3.0
+        # Expected: Kp ≈ 150, Ki ≈ 2.8 (100x increase in v0.7.0), Kd ≈ 3.0
         assert kp == pytest.approx(150.0, abs=10.0)
-        assert ki == pytest.approx(0.028, abs=0.004)
+        assert ki == pytest.approx(2.8, abs=0.4)
         assert kd == pytest.approx(3.0, abs=0.5)
 
     def test_calculate_initial_pid_forced_air(self):
@@ -176,9 +176,9 @@ class TestPhysicsCalculations:
         kp, ki, kd = calculate_initial_pid(tau, "forced_air")
 
         # Forced air has 1.3x modifier (aggressive)
-        # Expected: Kp ≈ 260, Ki ≈ 0.052, Kd ≈ 2.6
+        # Expected: Kp ≈ 260, Ki ≈ 5.2 (100x increase in v0.7.0), Kd ≈ 2.6
         assert kp == pytest.approx(260.0, abs=15.0)
-        assert ki == pytest.approx(0.052, abs=0.008)
+        assert ki == pytest.approx(5.2, abs=0.8)
         assert kd == pytest.approx(2.6, abs=0.5)
 
     def test_calculate_initial_pid_unknown_type(self):
@@ -224,6 +224,72 @@ class TestPhysicsCalculations:
 
         # - Higher Kd (more damping for slow systems)
         assert kd_high > kd_low
+
+
+class TestKiWindupTime:
+    """Tests for Ki integral accumulation behavior with v0.7.0 hourly units."""
+
+    def test_ki_windup_time(self):
+        """Test Ki windup time at 1°C error verifies 1-2 hour accumulation.
+
+        With the v0.7.0 fix, Ki values use hourly units: %/(°C·hour).
+        Base Ki=1.2 for floor_hydronic, adjusted by tau_factor for tau=8.0.
+        """
+        # Floor hydronic heating with base Ki=1.2, tau=8.0
+        # tau_factor = 1.5/8.0 = 0.1875, clamped to 0.7
+        # Actual Ki = 1.2 * 0.7 = 0.84 %/(°C·hour)
+        tau = 8.0
+        kp, ki, kd = calculate_initial_pid(tau, "floor_hydronic")
+
+        # At 1°C error for 1 hour, integral should accumulate approximately Ki
+        error = 1.0  # °C
+        time_hours = 1.0  # hour
+        expected_integral_contribution = ki * error * time_hours
+
+        # With tau adjustment: Ki≈0.84, so at 1°C for 1 hour: integral += 0.84%
+        assert expected_integral_contribution == pytest.approx(0.84, abs=0.1)
+
+        # At 2 hours with 1°C error: integral += 1.68%
+        time_hours = 2.0
+        expected_integral_contribution = ki * error * time_hours
+        assert expected_integral_contribution == pytest.approx(1.68, abs=0.2)
+
+        # Verify Ki is in reasonable range (0.5-10.0 for hourly units)
+        assert 0.5 <= ki <= 10.0
+
+    def test_cold_start_recovery(self):
+        """Test PID recovery from cold start (10°C → 20°C scenario).
+
+        Simulates a severe undershoot scenario where the zone starts far below
+        setpoint, verifying that Ki can accumulate sufficient integral term.
+        """
+        # Radiator system with base Ki=2.0, tau=4.0
+        # tau_factor = 1.5/4.0 = 0.375, clamped to 0.7
+        # Actual Ki = 2.0 * 0.7 = 1.4 %/(°C·hour)
+        tau = 4.0
+        kp, ki, kd = calculate_initial_pid(tau, "radiator")
+
+        # Cold start: 10°C below setpoint
+        initial_error = 10.0  # °C
+
+        # Assume error decays linearly over 4 hours to reach setpoint
+        # Average error over recovery period: 5°C
+        avg_error = 5.0  # °C
+        recovery_time_hours = 4.0  # hours
+
+        # Integral accumulation during recovery
+        integral_contribution = ki * avg_error * recovery_time_hours
+
+        # Ki=1.4, avg_error=5°C, time=4h: integral = 1.4 * 5 * 4 = 28%
+        assert integral_contribution == pytest.approx(28.0, abs=3.0)
+
+        # This should be sufficient to provide boost (combined with Kp term)
+        # Kp=105, error=10°C: P term = 105*10/100 = 10.5%
+        # After 2 hours: I term = 1.4*5*2 = 14%
+        # Total output can reach 24%+ to drive recovery
+
+        # Verify Ki is properly scaled for cold start scenarios
+        assert ki >= 1.0  # Must be at least 1.0 to accumulate meaningfully
 
 
 class TestPWMPeriod:

@@ -135,11 +135,12 @@ def calculate_initial_pid(
     """
     # Empirical base values per heating type
     # Calibrated from real-world A+++ house with floor hydronic heating
+    # v0.7.0: Ki values increased 100x after fixing dimensional analysis bug (hourly units)
     heating_params = {
-        "floor_hydronic": {"kp": 0.3, "ki": 0.012, "kd": 7.0},   # Very slow, needs strong damping
-        "radiator": {"kp": 0.5, "ki": 0.02, "kd": 5.0},          # Moderate response
-        "convector": {"kp": 0.8, "ki": 0.04, "kd": 3.0},         # Faster response
-        "forced_air": {"kp": 1.2, "ki": 0.08, "kd": 2.0},        # Fast response, low mass
+        "floor_hydronic": {"kp": 0.3, "ki": 1.2, "kd": 7.0},   # Very slow, needs strong damping
+        "radiator": {"kp": 0.5, "ki": 2.0, "kd": 5.0},          # Moderate response
+        "convector": {"kp": 0.8, "ki": 4.0, "kd": 3.0},         # Faster response
+        "forced_air": {"kp": 1.2, "ki": 8.0, "kd": 2.0},        # Fast response, low mass
     }
 
     params = heating_params.get(heating_type, heating_params["radiator"])
