@@ -1,0 +1,620 @@
+[
+  {
+    "id": "1.1",
+    "category": "bugfix",
+    "description": "Fix PID integral dimensional analysis bug (seconds vs hours)",
+    "steps": [
+      "Modify pid_controller/__init__.py line 240 integral calculation",
+      "Change: self._integral += self._Ki * self._error * self._dt",
+      "To: dt_hours = self._dt / 3600.0; self._integral += self._Ki * self._error * dt_hours",
+      "Add comment explaining Ki units: %/(°C·hour)",
+      "Fix derivative calculation at line 248 with same dt_hours conversion",
+      "Update docstrings for Ki and Kd parameters with unit documentation",
+      "Create test_integral_accumulation_hourly_units() in tests/test_pid_controller.py",
+      "Create test_derivative_calculation_hourly_units() verifying correct hourly rate",
+      "Create test_floor_hydronic_realistic_scenario() with 2-hour error accumulation",
+      "Add migration logic in managers/state_restorer.py multiplying restored integral by 3600",
+      "VERIFY: pytest tests/test_pid_controller.py -v passes all integral/derivative tests"
+    ],
+    "passes": false
+  },
+  {
+    "id": "1.2",
+    "category": "feature",
+    "description": "Add equipment type validation to prevent PWM with climate entities",
+    "steps": [
+      "Add CONF_PWM_CLIMATE_VALIDATION constant to const.py",
+      "Create validate_pwm_compatibility() function in climate.py after line 177",
+      "Check if heater/cooler entity_id starts with 'climate.' and pwm_seconds > 0",
+      "Raise vol.Invalid with user-friendly error message explaining nested control loops",
+      "Suggest solutions: (1) Set pwm to 0 for valve mode, (2) Use switch entity",
+      "Add validation call in async_setup_platform() before entity creation",
+      "Create tests/test_pwm_climate_validation.py with 10 test cases",
+      "Test valid configs: PWM with switch, valve mode with climate, no PWM",
+      "Test invalid configs: PWM with climate entity should raise vol.Invalid",
+      "Add documentation in README.md warning about PWM + climate entities",
+      "VERIFY: pytest tests/test_pwm_climate_validation.py passes all validation tests"
+    ],
+    "passes": false
+  },
+  {
+    "id": "1.3",
+    "category": "bugfix",
+    "description": "Reduce Ke (outdoor compensation) values by 100x",
+    "steps": [
+      "Update ENERGY_RATING_TO_INSULATION in adaptive/physics.py lines 12-24",
+      "Change A++++ from 0.10 to 0.001, A+++ from 0.15 to 0.0015, etc.",
+      "All values divided by 100: new range 0.001-0.013 instead of 0.1-1.3",
+      "Update calculate_ke() window adjustment factors (lines 231-243) by 100x",
+      "Update heating_type_factors in calculate_ke() (lines 246-254) by 100x",
+      "Add migration detection in managers/state_restorer.py for old Ke > 0.05",
+      "Auto-convert: new_ke = old_ke / 100.0 with logging",
+      "Update KeManager adjustment step KE_ADJUSTMENT_STEP from 0.1 to 0.001 in const.py",
+      "Update ke_max limit from 2.0 to 0.02 in const.py",
+      "Create test_ke_magnitude_sanity_check() verifying Ke < 0.02",
+      "Create test_ke_vs_p_term_ratio() ensuring Ke contributes 20-50% of P term",
+      "VERIFY: pytest tests/test_physics.py tests/test_ke_manager.py passes"
+    ],
+    "passes": false
+  },
+  {
+    "id": "1.4",
+    "category": "bugfix",
+    "description": "Increase Ki (integral gain) values by 100x",
+    "steps": [
+      "Update heating_params in adaptive/physics.py line 137-142",
+      "Change floor_hydronic ki from 0.012 to 1.2 (100x increase)",
+      "Change radiator ki from 0.02 to 2.0",
+      "Change convector ki from 0.04 to 4.0",
+      "Change forced_air ki from 0.08 to 8.0",
+      "Update PID_LIMITS ki_max in const.py line 110 from 100.0 to 1000.0",
+      "Add migration service or documentation for manual reset_pid_to_physics",
+      "Update test assertions in tests/test_physics.py for new Ki values",
+      "Create test_ki_windup_time() verifying 1-2 hour accumulation at 1°C error",
+      "Create test_cold_start_recovery() simulating 10°C→20°C scenario",
+      "VERIFY: pytest tests/test_physics.py tests/test_integration_cycle_learning.py passes"
+    ],
+    "passes": false
+  },
+  {
+    "id": "1.5",
+    "category": "feature",
+    "description": "Add derivative term filtering to reduce sensor noise amplification",
+    "steps": [
+      "Add CONF_DERIVATIVE_FILTER constant to const.py and climate.py schema",
+      "Add derivative_filter_alpha parameter to PID.__init__() (default 0.15)",
+      "Add _derivative_filtered attribute to store filtered value in pid_controller/__init__.py",
+      "Modify line 248 derivative calculation to apply EMA filter",
+      "Formula: self._derivative_filtered = alpha * raw + (1-alpha) * prev_filtered",
+      "Initialize _derivative_filtered = 0.0 in __init__, reset in clear_samples()",
+      "Add heating-type-specific alpha values: floor_hydronic=0.05, forced_air=0.25",
+      "Create test_derivative_filter_noise_reduction() injecting ±0.1°C noise",
+      "Create test_derivative_filter_alpha_range() testing 0.0 to 1.0 values",
+      "Create test_derivative_filter_disable() verifying alpha=1.0 disables filter",
+      "Update CLAUDE.md with filter explanation and recommended alpha values",
+      "VERIFY: pytest tests/test_pid_controller.py tests derivative filter tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "1.6",
+    "category": "feature",
+    "description": "Implement outdoor temperature lag (exponential moving average)",
+    "steps": [
+      "Add _outdoor_temp_lagged attribute to PID.__init__() in pid_controller/__init__.py",
+      "Add tau_hours parameter to PID.__init__() for lag time constant (default 4.0)",
+      "In calc() method line 229, apply EMA filter before calculating dext",
+      "Formula: alpha = dt / (tau_hours * 3600); lagged = alpha*current + (1-alpha)*prev",
+      "Initialize _outdoor_temp_lagged to first outdoor temp reading (no warmup)",
+      "Add outdoor_temp_lag_tau to RestoreEntity state persistence",
+      "Restore _outdoor_temp_lagged from state in managers/state_restorer.py",
+      "Calculate tau from thermal_time_constant in climate.py: tau_lag = 2 * tau_building",
+      "Add diagnostic attributes: outdoor_temp_instant, outdoor_temp_lagged, tau, alpha",
+      "Create test_outdoor_temp_ema_filter() simulating sunny day scenario",
+      "Create test_outdoor_temp_lag_initialization() verifying first-reading init",
+      "VERIFY: pytest tests/test_pid_controller.py tests outdoor temp lag tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "1.7",
+    "category": "feature",
+    "description": "Add bumpless transfer for OFF→AUTO mode changes",
+    "steps": [
+      "Add _last_output_before_off attribute to PID.__init__()",
+      "Modify mode setter in pid_controller/__init__.py lines 77-84",
+      "When AUTO→OFF: store self._output in _last_output_before_off",
+      "Add prepare_bumpless_transfer() method after line 153",
+      "Calculate required_integral = last_output - P - E (D=0 on first calc)",
+      "Clamp required_integral to valid range accounting for external term",
+      "Add has_transfer_state() property checking if _last_output_before_off exists",
+      "Call prepare_bumpless_transfer() in calc() after line 217 if transfer state exists",
+      "Add edge case handling: skip transfer if setpoint changed or error > 2°C",
+      "Create test_bumpless_transfer_maintains_output() verifying continuity",
+      "Create test_bumpless_transfer_skips_on_setpoint_change()",
+      "VERIFY: pytest tests/test_pid_controller.py bumpless transfer tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "1.8",
+    "category": "bugfix",
+    "description": "Fix excessively high Kd values (band-aid for low Ki)",
+    "steps": [
+      "Update heating_params in adaptive/physics.py line 137-142 (coordinate with 1.4)",
+      "Change floor_hydronic kd from 7.0 to 2.5 (64% reduction)",
+      "Change radiator kd from 5.0 to 2.0 (60% reduction)",
+      "Change convector kd from 3.0 to 1.2 (60% reduction)",
+      "Change forced_air kd from 2.0 to 0.8 (60% reduction)",
+      "Update PID_LIMITS kd_max in const.py from 200.0 to 5.0",
+      "Must be implemented AFTER issue 1.4 (Ki increase) to avoid instability",
+      "Create test_kd_values_proper_range() verifying 0.5 < Kd < 5.0",
+      "Create test_kd_relationship_to_kp() ensuring Kd < Kp/5",
+      "Create integration test comparing overshoot with old vs new Kd",
+      "VERIFY: pytest tests/test_physics.py tests/test_integration_kd_tuning.py passes"
+    ],
+    "passes": false
+  },
+  {
+    "id": "1.9",
+    "category": "bugfix",
+    "description": "Fix weak tau-based PID adjustment (±30% insufficient)",
+    "steps": [
+      "Option A (v0.7.0): Widen tau_factor clamp in adaptive/physics.py line 148-149",
+      "Change from max(0.7, min(1.3, tau_factor)) to max(0.3, min(2.5, tau_factor))",
+      "Use gentler scaling: tau_factor = (1.5/tau)**0.7 instead of 1.5/tau",
+      "Strengthen Ki adjustment: apply tau_factor**1.5 for integral term",
+      "Option B (v0.8.0): Implement proper Ziegler-Nichols FOPDT model",
+      "Accept heater_power_w, envelope_area_m2 as optional parameters",
+      "Calculate process gain K = (heater_power / heat_loss) / 100",
+      "Estimate dead time td based on heating_type (floor=15min, forced_air=3min)",
+      "Calculate Kp=1.2*tau/(K*td), Ki=Kp/(2*td), Kd=Kp*td/8",
+      "Create test_tau_adjustment_extreme_buildings() testing tau 2h to 10h",
+      "VERIFY: pytest tests/test_physics.py tau adjustment tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "1.10",
+    "category": "feature",
+    "description": "Account for heater power in PID gains (process gain scaling)",
+    "steps": [
+      "Add CONF_MAX_POWER_W constant to const.py",
+      "Add max_power_w to climate.py PLATFORM_SCHEMA as optional float",
+      "Add baseline_power_w_m2 to HEATING_TYPE_CHARACTERISTICS in const.py",
+      "Values: floor_hydronic=20, radiator=50, convector=60, forced_air=80",
+      "Create calculate_power_scaling_factor() in adaptive/physics.py",
+      "Formula: scaling = baseline_power / actual_power (inverse relationship)",
+      "Clamp scaling to 0.25x - 4.0x range for safety",
+      "Update calculate_initial_pid() signature to accept area_m2, max_power_w",
+      "Apply power scaling: Kp *= power_factor, Ki *= power_factor",
+      "Update call sites in climate.py and managers/pid_tuning.py",
+      "Create test_power_scaling_undersized_system() verifying 2x higher gains",
+      "VERIFY: pytest tests/test_physics.py power scaling tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "2.1",
+    "category": "feature",
+    "description": "Implement proportional-on-measurement to fix setpoint change behavior",
+    "steps": [
+      "Add CONF_PROPORTIONAL_ON_MEASUREMENT to const.py and climate.py schema",
+      "Add proportional_on_measurement parameter to PID.__init__() (default True)",
+      "Add _proportional_on_setpoint and _proportional_on_measurement attributes",
+      "Modify calc() to split P term: P_sp responds to setpoint, P_m to measurement",
+      "When setpoint changes: only P_sp reacts, I and D continue on measurement",
+      "Keep integral as-is (no reset on setpoint change)",
+      "Update anti-windup logic to account for P-on-M (lines 238-244)",
+      "Add configuration option to enable/disable (backward compatibility)",
+      "Create test_proportional_on_measurement_setpoint_change() testing no integral reset",
+      "Create test_proportional_on_measurement_faster_recovery() comparing P-on-E vs P-on-M",
+      "Update CLAUDE.md explaining P-on-M vs P-on-E trade-offs",
+      "VERIFY: pytest tests/test_pid_controller.py P-on-M tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "2.2",
+    "category": "bugfix",
+    "description": "Verify Ke integral clamping is correct after Ke reduction",
+    "steps": [
+      "No code changes needed - depends on issue 1.3 (Ke reduction)",
+      "Create test_integral_headroom_with_small_ke() in tests/test_pid_controller.py",
+      "Verify that after Ke reduction, integral headroom is >99%",
+      "Test scenario: G-rated house at -10°C outdoor (worst case)",
+      "Calculate: Ke contribution = 0.013 * 30 = 0.39%, headroom = 99.61%",
+      "Create test_extreme_cold_no_underheating() integration test",
+      "Simulate -20°C outdoor with 95% steady-state power requirement",
+      "Verify integral can reach 95% (not clamped at 92.4% like before)",
+      "Document in CLAUDE.md that clamping formula is correct as-is",
+      "Add comment in pid_controller/__init__.py line 242 explaining clamping logic",
+      "VERIFY: pytest tests/test_pid_controller.py integral headroom tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "3.1",
+    "category": "feature",
+    "description": "Add disturbance rejection to adaptive learning",
+    "steps": [
+      "Create adaptive/disturbance_detector.py with DisturbanceDetector class",
+      "Implement detect_solar_gain() checking temp swing + solar correlation",
+      "Implement detect_wind_loss() checking outdoor temp stable + indoor drop + wind",
+      "Implement detect_outdoor_temp_swing() checking outdoor change > 5°C during cycle",
+      "Implement detect_occupancy() checking rapid temp rise without heater",
+      "Add disturbances field to CycleMetrics data model (Optional[List[str]])",
+      "Integrate detector in CycleTrackerManager._finalize_cycle()",
+      "Add is_disturbed property to CycleMetrics checking if disturbances list non-empty",
+      "Filter disturbed cycles in AdaptiveLearner.calculate_pid_adjustment()",
+      "Add configuration: CONF_DISTURBANCE_REJECTION_ENABLED (default True)",
+      "Create test_disturbance_detection_sunny_day() with solar gain scenario",
+      "VERIFY: pytest tests/test_disturbance_rejection.py detection tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "3.2",
+    "category": "refactor",
+    "description": "Fix physics-based PID initialization (hybrid approach)",
+    "steps": [
+      "Phase 1: Replace single reference building with multi-point empirical model",
+      "Add 3-5 reference building profiles in adaptive/physics.py",
+      "Implement better tau scaling: Kp ∝ 1/(tau × √tau), Ki ∝ 1/tau, Kd ∝ tau",
+      "Consider heating power if heater_power_w provided (from issue 1.10)",
+      "Estimate process gain from zone volume and heating power",
+      "Phase 2 (future): Add optional auto_tune service",
+      "Implement relay feedback test method",
+      "Find ultimate gain/period using relay oscillations",
+      "Apply Ziegler-Nichols formulas from test results",
+      "Create test_physics_init_diverse_buildings() testing tau 2h-10h range",
+      "VERIFY: pytest tests/test_physics.py initialization tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "3.3",
+    "category": "feature",
+    "description": "Use learned heating rate for night setback recovery",
+    "steps": [
+      "Add get_thermal_rate_learner() method to climate.py or coordinator",
+      "Modify managers/night_setback.py to accept ThermalRateLearner in __init__",
+      "Replace HEATING_RATE_PER_HOUR constant with dynamic lookup",
+      "Add fallback hierarchy: (1) Learned rate, (2) Heating type estimate, (3) 1.0°C/h",
+      "Heating type estimates: floor=0.5, radiator=1.2, convector=2.0, forced_air=4.0",
+      "Add cold-soak margin: floor=50%, radiator=30%, convector=20%, forced_air=10%",
+      "Update _calculate_preheat_start_time() using learned rate",
+      "Add logging showing which rate source was used (learned vs fallback)",
+      "Create test_night_setback_learned_rate() verifying correct recovery timing",
+      "Create test_night_setback_fallback_hierarchy() testing all fallback levels",
+      "VERIFY: pytest tests/test_night_setback.py learned rate tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "3.4",
+    "category": "feature",
+    "description": "Implement adaptive convergence detection with confidence-based learning",
+    "steps": [
+      "Add confidence tracking constants to const.py: CONVERGENCE_CONFIDENCE_HIGH=1.0",
+      "Add CONFIDENCE_DECAY_RATE_DAILY=0.02, CONFIDENCE_INCREASE_PER_GOOD_CYCLE=0.1",
+      "Add _convergence_confidence attribute to AdaptiveLearner.__init__()",
+      "Add _last_seasonal_check, _outdoor_temp_history, _duty_cycle_history attributes",
+      "Implement update_convergence_confidence() method updating confidence per cycle",
+      "Implement check_performance_degradation() comparing recent vs baseline cycles",
+      "Implement check_seasonal_shift() detecting 10°C outdoor temp regime changes",
+      "Implement apply_confidence_decay() reducing confidence by 2% daily",
+      "Implement get_learning_rate_multiplier() returning 0.5x-2.0x based on confidence",
+      "Modify calculate_pid_adjustment() to scale adjustments by learning rate",
+      "Create test_confidence_increases_with_good_cycles()",
+      "VERIFY: pytest tests/test_learning.py adaptive convergence tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "3.5",
+    "category": "refactor",
+    "description": "Standardize cycle interruption handling",
+    "steps": [
+      "Create InterruptionType enum in adaptive/cycle_analysis.py",
+      "Values: SETPOINT_MAJOR, SETPOINT_MINOR, MODE_CHANGE, CONTACT_SENSOR, etc.",
+      "Create InterruptionClassifier class with static classification methods",
+      "Implement classify_setpoint_change() using 0.5°C threshold + device activity",
+      "Implement classify_mode_change() checking mode compatibility",
+      "Implement classify_contact_sensor() with 5-minute grace period",
+      "Add _handle_interruption() method to CycleTrackerManager",
+      "Centralize all interruption logic in _handle_interruption()",
+      "Add interruption_history to CycleMetrics for debugging",
+      "Create interruption decision matrix table in CLAUDE.md",
+      "Create test_interruption_classification_major_setpoint()",
+      "VERIFY: pytest tests/test_cycle_tracker.py interruption tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "4.1",
+    "category": "feature",
+    "description": "Implement proper outlier rejection (median, MAD, 5-7 cycles)",
+    "steps": [
+      "Change MIN_CYCLES_FOR_LEARNING in const.py from 3 to 6",
+      "Create adaptive/robust_stats.py with robust statistics functions",
+      "Implement calculate_median() function",
+      "Implement calculate_mad() (median absolute deviation) function",
+      "Implement detect_outliers_modified_zscore() using MAD with threshold 3.5",
+      "Implement robust_average() wrapper using median + outlier removal",
+      "Update AdaptiveLearner.calculate_pid_adjustment() to use robust_average()",
+      "Add safety checks: max 30% outliers, min 4 valid cycles after removal",
+      "Add detailed logging of which cycles excluded and why",
+      "Create test_outlier_detection_sunny_day() with 1 outlier in 6 cycles",
+      "Create test_robust_average_ignores_outliers() verifying median calculation",
+      "VERIFY: pytest tests/test_robust_stats.py tests/test_learning.py pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "4.2",
+    "category": "config",
+    "description": "Relax convergence criteria for slow heating systems",
+    "steps": [
+      "Replace CONVERGENCE_THRESHOLDS dict in const.py with nested structure",
+      "Add HEATING_TYPE_CONVERGENCE_THRESHOLDS with per-type thresholds",
+      "floor_hydronic: rise_time_max=90, overshoot_max=0.3, settling_time_max=120",
+      "radiator: rise_time_max=60, overshoot_max=0.25, settling_time_max=90",
+      "convector: rise_time_max=45, overshoot_max=0.2, settling_time_max=60 (baseline)",
+      "forced_air: rise_time_max=30, overshoot_max=0.15, settling_time_max=45",
+      "Create get_convergence_thresholds() helper function",
+      "Update AdaptiveLearner.__init__() to accept heating_type parameter",
+      "Modify _check_convergence() to use heating-type-specific thresholds",
+      "Use DEFAULT_CONVERGENCE_THRESHOLDS for unknown/None heating types",
+      "Create test_convergence_thresholds_floor_hydronic() testing relaxed criteria",
+      "VERIFY: pytest tests/test_learning.py convergence threshold tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "4.3",
+    "category": "config",
+    "description": "Fix aggressive rate limiting (24h → hybrid 3 cycles AND 8h)",
+    "steps": [
+      "Update MIN_ADJUSTMENT_INTERVAL in const.py from 24 to 8 hours",
+      "Add MIN_ADJUSTMENT_CYCLES constant set to 3",
+      "Add _cycles_since_last_adjustment counter to AdaptiveLearner",
+      "Modify calculate_pid_adjustment() to check BOTH conditions",
+      "Require: cycles_since_last >= 3 AND hours_since_last >= 8",
+      "Reset _cycles_since_last_adjustment to 0 after each adjustment",
+      "Increment counter in add_cycle_metrics() method",
+      "Add configuration option for both thresholds (advanced users)",
+      "Add logging showing which gate blocked adjustment (time vs cycles)",
+      "Create test_rate_limiting_hybrid_both_gates() verifying AND logic",
+      "Create test_rate_limiting_faster_convergence() comparing 24h vs 8h",
+      "VERIFY: pytest tests/test_learning.py rate limiting tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "4.4",
+    "category": "bugfix",
+    "description": "Fix settling detection using robust MAD instead of variance",
+    "steps": [
+      "Add _calculate_mad() method to CycleTrackerManager in cycle_tracker.py",
+      "Formula: median(|temps - median(temps)|)",
+      "Replace variance calculation in _check_settling() around line 283-318",
+      "Change threshold from 0.01 (variance) to 0.05°C (MAD)",
+      "Add SETTLING_MAD_THRESHOLD constant to const.py (default 0.05)",
+      "Add configuration option for threshold tuning per zone (future)",
+      "Update settling detection to use MAD < threshold instead of variance",
+      "Add logging showing MAD value and whether settled",
+      "Create test_settling_detection_with_noise() injecting ±0.2°C noise",
+      "Create test_settling_mad_vs_variance() comparing robustness",
+      "Create test_settling_detection_outlier_robust() with single outlier",
+      "VERIFY: pytest tests/test_cycle_tracker.py settling detection tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "4.5",
+    "category": "bugfix",
+    "description": "Extend settling timeout for high thermal mass systems",
+    "steps": [
+      "Add SETTLING_TIMEOUT_MULTIPLIER constant to const.py (default 30)",
+      "Add SETTLING_TIMEOUT_MIN and SETTLING_TIMEOUT_MAX bounds (60, 240 minutes)",
+      "Calculate dynamic timeout in CycleTrackerManager.__init__()",
+      "Formula: timeout = max(60, min(240, tau_hours * 30))",
+      "Accept thermal_time_constant parameter in CycleTrackerManager.__init__()",
+      "Pass tau from climate.py when creating CycleTrackerManager",
+      "Add optional settling_timeout_minutes config override",
+      "Update _check_settling_timeout() to use calculated timeout",
+      "Add logging showing timeout value and reason (calculated vs override)",
+      "Create test_settling_timeout_floor_hydronic() verifying 240 min for tau=8h",
+      "Create test_settling_timeout_forced_air() verifying 60 min for tau=2h",
+      "VERIFY: pytest tests/test_cycle_tracker.py timeout tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "4.6",
+    "category": "bugfix",
+    "description": "Fix oscillation counting to only count temperature oscillations (not PWM cycles)",
+    "steps": [
+      "Add PWM mode awareness to AdaptiveLearner.calculate_pid_adjustment()",
+      "Add pwm_seconds parameter (0 for valve mode, >0 for PWM mode)",
+      "Filter out rules with RULE_PRIORITY_OSCILLATION when pwm_seconds > 0",
+      "Keep all other rules (overshoot, slow response, undershoot, settling)",
+      "Add heater_cycles metric to CycleMetrics (informational only)",
+      "Track actual on/off transitions separately from temperature oscillations",
+      "Modify count_oscillations() docstring clarifying it counts temp crossings",
+      "Add comment explaining PWM cycles are expected behavior",
+      "Create test_oscillation_counting_pwm_mode() verifying filter works",
+      "Create test_oscillation_counting_valve_mode() verifying rules still fire",
+      "Create test_heater_cycles_separate_from_oscillations()",
+      "VERIFY: pytest tests/test_learning.py oscillation counting tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "5.1",
+    "category": "bugfix",
+    "description": "Make undershoot rule more aggressive (20% → 100% Ki increase)",
+    "steps": [
+      "Modify undershoot rule in adaptive/pid_rules.py around line 105",
+      "Change from: ki_factor = 1.0 + min(0.20, avg_undershoot * 0.4)",
+      "To: ki_factor = 1.0 + min(1.0, avg_undershoot * 2.0)",
+      "Allow up to 100% Ki increase (doubling) per learning cycle",
+      "Gradient-based: larger undershoot gets proportionally larger correction",
+      "Verify PID_LIMITS ki_max enforcement prevents runaway",
+      "Add safety check: skip if Ki already at maximum",
+      "Update rule reason message to show percentage increase",
+      "Create test_undershoot_rule_aggressive_increase() testing 50% undershoot",
+      "Create test_undershoot_rule_convergence_speed() comparing 20% vs 100%",
+      "Create test_undershoot_rule_safety_limits() verifying ki_max respected",
+      "VERIFY: pytest tests/test_pid_rules.py undershoot rule tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "5.2",
+    "category": "bugfix",
+    "description": "Fix overshoot rule to increase Kd instead of reducing Kp",
+    "steps": [
+      "Modify high_overshoot rule in adaptive/pid_rules.py lines 70-78",
+      "For moderate overshoot (0.2-1.0°C): Increase Kd by 20% only",
+      "For extreme overshoot (>1.0°C): Increase Kd by 20% AND reduce Kp by 10%",
+      "Keep Ki reduction only for extreme overshoot (>1.0°C)",
+      "Add comment explaining thermal lag is root cause, Kd addresses it",
+      "Update rule reason messages explaining why Kd increased",
+      "Create separate rule enums: MODERATE_OVERSHOOT_KD, HIGH_OVERSHOOT_KP_KD",
+      "Create test_overshoot_moderate_increases_kd() verifying 0.5°C overshoot",
+      "Create test_overshoot_extreme_increases_both() verifying 1.5°C overshoot",
+      "Create integration test comparing old vs new overshoot handling",
+      "VERIFY: pytest tests/test_pid_rules.py overshoot rule tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "5.3",
+    "category": "feature",
+    "description": "Fix slow response rule to diagnose root cause (Ki vs Kp)",
+    "steps": [
+      "Add outdoor_temp_avg field to CycleMetrics in adaptive/cycle_analysis.py",
+      "Update CycleTrackerManager to capture outdoor temp during cycle",
+      "Create calculate_pearson_correlation() helper in adaptive/pid_rules.py",
+      "Add MIN_OUTDOOR_TEMP_RANGE constant (3.0°C) to const.py",
+      "Add SLOW_RESPONSE_CORRELATION_THRESHOLD constant (0.6) to const.py",
+      "Modify slow_response rule to accept recent_outdoor_temps parameter",
+      "If correlation < -0.6: diagnose LOW_KI, increase Ki up to 30%",
+      "If correlation >= -0.6: diagnose LOW_KP, increase Kp by 10%",
+      "Add fallback to old behavior if insufficient outdoor data",
+      "Create test_slow_response_low_ki_diagnosis() with cold weather correlation",
+      "Create test_slow_response_low_kp_diagnosis() with no correlation",
+      "VERIFY: pytest tests/test_pid_rules.py slow response diagnostic tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "6.1",
+    "category": "feature",
+    "description": "Add wind compensation to PID control (Ke_wind parameter)",
+    "steps": [
+      "Add CONF_WIND_SPEED_SENSOR to const.py for domain-level config",
+      "Add wind_speed_sensor to domain configuration schema in __init__.py",
+      "Add Ke_wind parameter to PID.__init__() in pid_controller/__init__.py",
+      "Default Ke_wind = 0.02 per m/s (configurable)",
+      "Modify external term calculation: external = Ke*dext + Ke_wind*wind*dext",
+      "Add _wind_speed attribute tracking current wind speed",
+      "Update calc() to accept optional wind_speed parameter",
+      "Gracefully handle unavailable wind sensor (treat as 0 m/s)",
+      "Create calculate_ke_wind() in adaptive/physics.py based on house rating",
+      "Add wind speed state listener in climate.py",
+      "Create test_wind_compensation_calculation() verifying formula",
+      "VERIFY: pytest tests/test_pid_controller.py wind compensation tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "6.2",
+    "category": "feature",
+    "description": "Add hysteresis to PID rule thresholds to prevent oscillation",
+    "steps": [
+      "Add RULE_HYSTERESIS_BAND_PCT constant to const.py (default 0.20)",
+      "Add RULE_THRESHOLDS dict with activate/release thresholds per rule",
+      "Create RuleStateTracker class in adaptive/pid_rules.py",
+      "Implement _rule_states dict tracking active/inactive for each rule",
+      "Implement update_state() method with hysteresis logic",
+      "Inactive→Active when metric > activation threshold",
+      "Active→Inactive when metric < release threshold (lower)",
+      "Add state_tracker parameter to evaluate_pid_rules() (optional, backward compatible)",
+      "Add _rule_state_tracker to AdaptiveLearner.__init__()",
+      "Pass tracker to evaluate_pid_rules() in calculate_pid_adjustment()",
+      "Create test_hysteresis_prevents_oscillation() with noisy metrics",
+      "VERIFY: pytest tests/test_pid_rules.py hysteresis tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "6.3",
+    "category": "bugfix",
+    "description": "Fix overshoot detection with time-window-based peak tracking",
+    "steps": [
+      "Add _peak_tracking_window_minutes to PhaseAwareOvershootTracker (default 45)",
+      "Add _heater_stop_time attribute to track when heating phase ended",
+      "Add _peak_window_closed flag to stop tracking after window expires",
+      "Implement on_heater_stopped(timestamp) method marking start of window",
+      "Modify on_temperature_update() to check if within peak window",
+      "Only update peak_temp if current_time - heater_stop_time < window_minutes",
+      "After window closes, ignore all subsequent temperature readings",
+      "Add OVERSHOOT_PEAK_WINDOW_MINUTES constant to const.py (default 45)",
+      "Already handles setpoint changes via existing invalidation logic",
+      "Create test_overshoot_peak_within_window_counted()",
+      "Create test_overshoot_peak_outside_window_ignored()",
+      "VERIFY: pytest tests/test_cycle_analysis.py overshoot detection tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "7.1",
+    "category": "feature",
+    "description": "Track contactor/valve wear with maintenance alerts",
+    "steps": [
+      "Add CONF_HEATER_RATED_CYCLES to climate.py schema (optional int)",
+      "Add CONF_COOLER_RATED_CYCLES to climate.py schema (optional int)",
+      "Add _heater_cycle_count and _cooler_cycle_count to climate entity state",
+      "Increment counters in HeaterController on each on→off transition",
+      "Persist cycle counts using RestoreEntity state",
+      "Add DEFAULT_RATED_CYCLES by actuator type: contactor=100000, valve=50000",
+      "Create sensor.py entry for actuator_wear_sensor",
+      "Show percentage: (current_cycles / rated_cycles) * 100",
+      "Add attributes: total_cycles, rated_cycles, estimated_remaining",
+      "Create notify alert at 80% (maintenance_soon), 90% (maintenance_due)",
+      "Create test_actuator_cycle_counting() verifying increment logic",
+      "VERIFY: pytest tests/test_sensors.py actuator wear sensor tests pass"
+    ],
+    "passes": false
+  },
+  {
+    "id": "8.1",
+    "category": "feature",
+    "description": "Implement Ke learning before PID tuning (outdoor temp correlation)",
+    "steps": [
+      "Create KeFirstLearner class in adaptive/ke_learning.py",
+      "Add CONF_KE_LEARNING_FIRST constant to const.py (default: True)",
+      "Implement steady-state detection: heater duty cycle stable ±5% for 60+ min",
+      "Track outdoor temperature during steady-state periods",
+      "Collect temperature drop rate when heater off during steady-state",
+      "Calculate Ke from correlation: dT_indoor/dt vs (T_indoor - T_outdoor)",
+      "Use linear regression on 10-15 steady-state cycles minimum",
+      "Store Ke confidence score based on R² value (require R² > 0.7)",
+      "Block AdaptiveLearner.apply_learning() if Ke not converged",
+      "Integrate with existing KeManager in managers/ke_manager.py",
+      "Add _ke_learning_phase flag to climate entity state",
+      "Create sensor for Ke learning progress (cycles collected, R² score)",
+      "Add service: apply_ke_learning to manually trigger Ke update",
+      "Update adaptive/learning.py to check Ke convergence before PID tuning",
+      "Create test_ke_steady_state_detection() for steady-state identification",
+      "Create test_ke_correlation_calculation() for outdoor temp correlation",
+      "Create test_ke_blocks_pid_learning() to verify PID learning waits",
+      "Add integration test simulating 15 cycles with outdoor temp variation",
+      "VERIFY: pytest tests/test_ke_learning.py passes with all Ke learning tests green"
+    ],
+    "passes": false
+  }
+]
