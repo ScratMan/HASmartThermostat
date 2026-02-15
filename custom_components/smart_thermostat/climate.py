@@ -70,7 +70,7 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(const.CONF_HEATER): cv.entity_ids,
+        vol.Optional(const.CONF_HEATER): cv.entity_ids,
         vol.Optional(const.CONF_COOLER): cv.entity_ids,
         vol.Required(const.CONF_INVERT_HEATER, default=False): cv.boolean,
         vol.Required(const.CONF_SENSOR): cv.entity_id,
@@ -323,14 +323,27 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._output_clamp_low = kwargs.get('output_clamp_low')
         self._output_clamp_high = kwargs.get('output_clamp_high')
         self._difference = self._output_max - self._output_min
-        if self._ac_mode:
-            self._attr_hvac_modes = [HVACMode.COOL, HVACMode.HEAT, HVACMode.OFF]
+        if self._heater_entity_id is not None and self._cooler_entity_id is not None:
+            # If both heater and cooler are defined, or if ac_mode is enabled, we support both heat and cool modes
+            self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.COOL, HVACMode.OFF]
+            self._min_out = -self._output_clamp_high
+            self._max_out = self._output_clamp_high
+        elif self._ac_mode or self._cooler_entity_id is not None:
+            self._attr_hvac_modes = [HVACMode.COOL, HVACMode.OFF]
             self._min_out = -self._output_clamp_high
             self._max_out = -self._output_clamp_low
-        else:
+            self._ac_mode = True
+        elif self._heater_entity_id is not None:
             self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
             self._min_out = self._output_clamp_low
             self._max_out = self._output_clamp_high
+        else:
+            _LOGGER.error("%s: No heater or cooler entity defined, thermostat will not function",
+                          self.entity_id)
+            self._attr_hvac_modes = [HVACMode.OFF]
+            self._min_out = 0
+            self._max_out = 0
+            self._ac_mode = False
         self._kp = kwargs.get('kp')
         self._ki = kwargs.get('ki')
         self._kd = kwargs.get('kd')
@@ -409,11 +422,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     self.hass,
                     self._ext_sensor_entity_id,
                     self._async_ext_sensor_changed))
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass,
-                self._heater_entity_id,
-                self._async_switch_changed))
+        if self._heater_entity_id is not None:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    self._heater_entity_id,
+                    self._async_switch_changed))
         if self._cooler_entity_id is not None:
             self.async_on_remove(
                 async_track_state_change_event(
@@ -942,7 +956,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """Return the entity to be controlled based on HVAC MODE"""
         if self.hvac_mode == HVACMode.COOL and self._cooler_entity_id is not None:
             return self._cooler_entity_id
-        return self._heater_entity_id
+        elif self.hvac_mode == HVACMode.HEAT and self._heater_entity_id is not None:
+            return self._heater_entity_id
+        else:  # Case for OFF
+            entities_list = []
+            if self._heater_entity_id is not None:
+                entities_list.extend(self._heater_entity_id)
+            if self._cooler_entity_id is not None:
+                entities_list.extend(self._cooler_entity_id)
+            return entities_list
 
     async def _async_heater_turn_on(self):
         """Turn heater toggleable device on."""
@@ -982,18 +1004,22 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             _LOGGER.info("%s: Reject request turning OFF %s: Cycle is too short",
                          self.entity_id, ", ".join([entity for entity in self.heater_or_cooler_entity]))
             return
-        for entity in [self._heater_entity_id, self._cooler_entity_id]:
+        entities = []
+        if self._heater_entity_id is not None:
+            entities.extend(self._heater_entity_id)
+        if self._cooler_entity_id is not None:
+            entities.extend(self._cooler_entity_id)
+        for entity in entities:
             if entity is None:
                 continue
-            for heater_or_cooler_entity in self.heater_or_cooler_entity:
-                data = {ATTR_ENTITY_ID: heater_or_cooler_entity}
-                if self._heater_polarity_invert:
-                    service = SERVICE_TURN_ON
-                else:
-                    service = SERVICE_TURN_OFF
-                _LOGGER.debug("%s: Calling %s service on %s", self.entity_id, str(service),
-                              str(heater_or_cooler_entity))
-                await self.hass.services.async_call(HA_DOMAIN, service, data)
+            data = {ATTR_ENTITY_ID: entity}
+            if self._heater_polarity_invert:
+                service = SERVICE_TURN_ON
+            else:
+                service = SERVICE_TURN_OFF
+            _LOGGER.debug("%s: Calling %s service on %s", self.entity_id, str(service),
+                          str(entity))
+            await self.hass.services.async_call(HA_DOMAIN, service, data)
 
     async def _async_set_valve_value(self, value: float):
         _LOGGER.info("%s: Change state of %s to %s", self.entity_id,

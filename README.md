@@ -225,16 +225,20 @@ gains to quickly test the behavior without waiting the integral to stabilize by 
 ## Parameters:
 * **name** (Optional): Name of the thermostat.
 * **unique_id** (Optional): unique entity_id for the smart thermostat.
-* **heater** (Required): entity_id for heater control, should be a single or list of toggle 
+* **heater** (Optional): entity_id for heater control, should be a single or list of toggle 
 device (switch or input_boolean), light or valve (light, number, input_number). If a valve 
 or a light entity is used, pwm parameter should be set to 0. Becomes air conditioning switch 
 when ac_mode is set to true.
 If you have e.g. multiple radiators in one room, you can enter all of them in a list, and the 
 thermostat will apply the output value to each of them.
+If neither heater nor cooler is specified, the thermostat will not operate and remain stuck in OFF mode.
 * **cooler** (Optional): entity_id for cooling control, should be a single or list of toggle 
 device (switch or input_boolean), light or valve (light, number, input_number). If a valve 
-or a light is used, pwm parameter should be set to 0. Becomes air conditioning switch when 
-ac_mode is set to true.
+or a light is used, pwm parameter should be set to 0.
+If you have e.g. multiple coolers in one room, you can enter all of them in a list, and the 
+thermostat will apply the output value to each of them.
+If both heater and cooler are specified, the thermostat will allow switching between heating and cooling mode.
+If neither heater nor cooler is specified, the thermostat will not operate and remain stuck in OFF mode.
 * **invert_heater** (Optional): if set to true, inverts the polarity of heater switch (switch is on 
 while idle and off while active). Must be a boolean (defaults to false).
 * **target_sensor** (Required): entity_id for a temperature sensor, target_sensor.state must be 
