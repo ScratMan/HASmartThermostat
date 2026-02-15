@@ -229,7 +229,8 @@ class PID:
             self._derivative = 0.0
 
         # Compute PID Output
-        output = self._proportional + self._integral + self._derivative + self._external
+        # Don't add external compensation to output as it will be added in main climate logic.
+        output = self._proportional + self._integral + self._derivative #  + self._external
         self._output = max(min(output, self._out_max), self._out_min)
         return self._output, True
 

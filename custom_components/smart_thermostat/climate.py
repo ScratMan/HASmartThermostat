@@ -912,6 +912,18 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._control_output = self._output_safety
             elif calc_pid or self._sampling_period != 0:
                 await self.calc_output()
+
+            # If external temperature is available, calculate the compensation and add to control output without
+            # affecting the PID calculation.
+            if self._ext_temp is not None:
+                self._e = self._ke * (self._target_temp - self._ext_temp)
+
+            # Round value to configured precision to avoid excessive updates for small changes
+            self._control_output = round(self._control_output + self._e, self._output_precision)
+            if not self._output_precision:
+                self._control_output = int(self._control_output)
+            self._control_output = max(min(self._control_output, self._max_out), self._min_out)
+
             await self.set_control_value()
             self.async_write_ha_state()
 
@@ -1119,7 +1131,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._p = round(self._pid_controller.proportional, 1)
             self._i = round(self._pid_controller.integral, 1)
             self._d = round(self._pid_controller.derivative, 1)
-            self._e = round(self._pid_controller.external, 1)
             self._control_output = round(self._control_output, self._output_precision)
             if not self._output_precision:
                 self._control_output = int(self._control_output)
@@ -1127,9 +1138,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._dt = self._pid_controller.dt
         if update:
             _LOGGER.debug("%s: New PID control output: %s (error = %.2f, dt = %.2f, "
-                          "p=%.2f, i=%.2f, d=%.2f, e=%.2f)", self.entity_id,
-                          str(self._control_output), error, self._dt, self._p, self._i, self._d,
-                          self._e)
+                          "p=%.2f, i=%.2f, d=%.2f)", self.entity_id,
+                          str(self._control_output), error, self._dt, self._p, self._i, self._d)
 
     async def set_control_value(self):
         """Set Output value for heater"""
