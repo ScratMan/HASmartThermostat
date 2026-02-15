@@ -925,7 +925,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             # If external temperature is available, calculate the compensation and add to control output without
             # affecting the PID calculation.
             if self._ext_temp is not None:
-                self._e = self._ke * (self._target_temp - self._ext_temp)
+                self._e = round(self._ke * (self._target_temp - self._ext_temp), self._output_precision)
 
             # Round value to configured precision to avoid excessive updates for small changes
             self._control_output = round(self._pid_output + self._e, self._output_precision)
@@ -1137,9 +1137,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             #     self._pid_output, update = self._pid_controller.calc(self._current_temp,
             #                                                              self._target_temp,
             #                                                              ext_temp=self._ext_temp)
-            self._p = round(self._pid_controller.proportional, 1)
-            self._i = round(self._pid_controller.integral, 1)
-            self._d = round(self._pid_controller.derivative, 1)
+            self._p = round(self._pid_controller.proportional, self._output_precision)
+            self._i = round(self._pid_controller.integral, self._output_precision)
+            self._d = round(self._pid_controller.derivative, self._output_precision)
             self._pid_output = round(self._pid_output, self._output_precision)
             if not self._output_precision:
                 self._pid_output = int(self._pid_output)
