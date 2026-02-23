@@ -976,12 +976,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                          self.entity_id, ", ".join([entity for entity in self.heater_or_cooler_entity]))
             return
         for heater_or_cooler_entity in self.heater_or_cooler_entity:
-            data = {ATTR_ENTITY_ID: heater_or_cooler_entity}
-            if self._heater_polarity_invert:
-                service = SERVICE_TURN_OFF
+            if heater_or_cooler_entity.startswith('valve.'):
+                data = {ATTR_ENTITY_ID: heater_or_cooler_entity}
+                await self.hass.services.async_call(
+                    VALVE_DOMAIN, 'open_valve', data)
             else:
-                service = SERVICE_TURN_ON
-            await self.hass.services.async_call(HA_DOMAIN, service, data)
+                data = {ATTR_ENTITY_ID: heater_or_cooler_entity}
+                if self._heater_polarity_invert:
+                    service = SERVICE_TURN_OFF
+                else:
+                    service = SERVICE_TURN_ON
+                await self.hass.services.async_call(HA_DOMAIN, service, data)
 
     async def _async_heater_turn_off(self, force=False):
         """Turn heater toggleable device off."""
@@ -1001,12 +1006,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             if entity is None:
                 continue
             for heater_or_cooler_entity in self.heater_or_cooler_entity:
-                data = {ATTR_ENTITY_ID: heater_or_cooler_entity}
-                if self._heater_polarity_invert:
-                    service = SERVICE_TURN_ON
+                if heater_or_cooler_entity.startswith('valve.'):
+                    data = {ATTR_ENTITY_ID: heater_or_cooler_entity}
+                    await self.hass.services.async_call(
+                        VALVE_DOMAIN, 'close_valve', data)
                 else:
-                    service = SERVICE_TURN_OFF
-                await self.hass.services.async_call(HA_DOMAIN, service, data)
+                    data = {ATTR_ENTITY_ID: heater_or_cooler_entity}
+                    if self._heater_polarity_invert:
+                        service = SERVICE_TURN_ON
+                    else:
+                        service = SERVICE_TURN_OFF
+                    await self.hass.services.async_call(HA_DOMAIN, service, data)
 
     async def _async_set_valve_value(self, value: float):
         _LOGGER.info("%s: Change state of %s to %s", self.entity_id,
