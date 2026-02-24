@@ -81,6 +81,54 @@ set_pid_gain:
           max: 1000000
           step: 0.001
           mode: box
+    kp_cool:
+      name: Kp gain (cooling)
+      description: Proportional gain for cooling mode
+      required: false
+      advanced: true
+      example: 8.0
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.001
+          mode: box
+    ki_cool:
+      name: Ki gain (cooling)
+      description: Integral gain for cooling mode
+      required: false
+      advanced: true
+      example: 0.001
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.001
+          mode: box
+    kd_cool:
+      name: Kd gain (cooling)
+      description: Derivative gain for cooling mode
+      required: false
+      advanced: true
+      example: 500.0
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.001
+          mode: box
+    ke_cool:
+      name: Ke gain (cooling)
+      description: External temperature compensation gain for cooling mode
+      required: false
+      advanced: true
+      example: 0.1
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.001
+          mode: box
 set_preset_temp:
   name: Set preset modes temperature
   description: Sets the temperature for the preset modes.
