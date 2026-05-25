@@ -1,0 +1,159 @@
+{
+  "config": {
+    "error": {
+      "clamp_min_max": "Minimum output clamp must be less than or equal to maximum output clamp.",
+      "min_max_temp": "Minimum temperature must be less than maximum temperature.",
+      "output_min_max": "Minimum output must be less than or equal to maximum output."
+    },
+    "step": {
+      "advanced": {
+        "data": {
+          "debug": "Debug mode",
+          "min_cycle_duration": "Minimum cycle duration",
+          "min_cycle_duration_pid_off": "Minimum cycle duration (PID off)",
+          "min_off_cycle_duration": "Minimum off cycle duration",
+          "min_off_cycle_duration_pid_off": "Minimum off cycle duration (PID off)",
+          "out_clamp_high": "Output clamp high",
+          "out_clamp_low": "Output clamp low",
+          "output_max": "Maximum output",
+          "output_min": "Minimum output",
+          "output_precision": "Output precision",
+          "output_safety": "Safety output level",
+          "sensor_stall": "Sensor stall timeout"
+        },
+        "description": "Fine-tune cycle protection, output limits, and safety behavior.",
+        "title": "Advanced settings"
+      },
+      "pid": {
+        "data": {
+          "autotune": "Autotune rule",
+          "keep_alive": "Keep-alive interval",
+          "kd": "Kd gain",
+          "ke": "Ke gain (outdoor compensation)",
+          "ki": "Ki gain",
+          "kp": "Kp gain",
+          "lookback": "Autotune lookback",
+          "noiseband": "Autotune noise band",
+          "pwm": "PWM period",
+          "sampling_period": "PID sampling period"
+        },
+        "description": "Configure PID controller gains and timing.",
+        "title": "PID controller"
+      },
+      "presets": {
+        "data": {
+          "activity_temp": "Activity preset temperature",
+          "away_temp": "Away preset temperature",
+          "boost_temp": "Boost preset temperature",
+          "comfort_temp": "Comfort preset temperature",
+          "eco_temp": "Eco preset temperature",
+          "home_temp": "Home preset temperature",
+          "sleep_temp": "Sleep preset temperature"
+        },
+        "description": "Optional preset temperatures. Leave blank to disable a preset.",
+        "title": "Preset temperatures"
+      },
+      "temperature": {
+        "data": {
+          "boost_pid_off": "Disable PID in boost preset",
+          "cold_tolerance": "Cold tolerance",
+          "hot_tolerance": "Hot tolerance",
+          "initial_hvac_mode": "Initial HVAC mode",
+          "max_temp": "Maximum target temperature",
+          "min_temp": "Minimum target temperature",
+          "preset_sync_mode": "Preset sync mode",
+          "target_temp": "Initial target temperature"
+        },
+        "description": "Set temperature limits and tolerances.",
+        "title": "Temperature settings"
+      },
+      "user": {
+        "data": {
+          "ac_mode": "Cooling mode",
+          "cooler": "Cooling actuator(s)",
+          "force_off_state": "Force actuator off when thermostat is off",
+          "heater": "Heating actuator(s)",
+          "invert_heater": "Invert actuator polarity",
+          "name": "Name",
+          "outdoor_sensor": "Outdoor temperature sensor",
+          "target_sensor": "Room temperature sensor"
+        },
+        "data_description": {
+          "ac_mode": "Treat the actuator as a heating/cooling device instead of heating only.",
+          "cooler": "Optional cooling actuator used when HVAC mode is cool.",
+          "force_off_state": "Turn the actuator off when the thermostat is off.",
+          "heater": "Switch, valve, light, or number entity used to control heating.",
+          "invert_heater": "Invert ON/OFF polarity of the actuator.",
+          "outdoor_sensor": "Optional outdoor sensor for Ke compensation.",
+          "target_sensor": "Temperature sensor that reflects the room temperature."
+        },
+        "description": "Create a PID thermostat that controls heating or cooling actuators.",
+        "title": "Set up Smart Thermostat"
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "clamp_min_max": "Minimum output clamp must be less than or equal to maximum output clamp.",
+      "min_max_temp": "Minimum temperature must be less than maximum temperature.",
+      "output_min_max": "Minimum output must be less than or equal to maximum output."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "ac_mode": "Cooling mode",
+          "autotune": "Autotune rule",
+          "boost_pid_off": "Disable PID in boost preset",
+          "cold_tolerance": "Cold tolerance",
+          "cooler": "Cooling actuator(s)",
+          "debug": "Debug mode",
+          "force_off_state": "Force actuator off when thermostat is off",
+          "heater": "Heating actuator(s)",
+          "hot_tolerance": "Hot tolerance",
+          "initial_hvac_mode": "Initial HVAC mode",
+          "invert_heater": "Invert actuator polarity",
+          "keep_alive": "Keep-alive interval",
+          "kd": "Kd gain",
+          "ke": "Ke gain (outdoor compensation)",
+          "ki": "Ki gain",
+          "kp": "Kp gain",
+          "lookback": "Autotune lookback",
+          "max_temp": "Maximum target temperature",
+          "min_cycle_duration": "Minimum cycle duration",
+          "min_cycle_duration_pid_off": "Minimum cycle duration (PID off)",
+          "min_off_cycle_duration": "Minimum off cycle duration",
+          "min_off_cycle_duration_pid_off": "Minimum off cycle duration (PID off)",
+          "min_temp": "Minimum target temperature",
+          "noiseband": "Autotune noise band",
+          "out_clamp_high": "Output clamp high",
+          "out_clamp_low": "Output clamp low",
+          "outdoor_sensor": "Outdoor temperature sensor",
+          "output_max": "Maximum output",
+          "output_min": "Minimum output",
+          "output_precision": "Output precision",
+          "output_safety": "Safety output level",
+          "preset_sync_mode": "Preset sync mode",
+          "pwm": "PWM period",
+          "sampling_period": "PID sampling period",
+          "sensor_stall": "Sensor stall timeout",
+          "target_sensor": "Room temperature sensor",
+          "target_temp": "Initial target temperature"
+        },
+        "title": "Smart Thermostat options"
+      },
+      "presets": {
+        "data": {
+          "activity_temp": "Activity preset temperature",
+          "away_temp": "Away preset temperature",
+          "boost_temp": "Boost preset temperature",
+          "comfort_temp": "Comfort preset temperature",
+          "eco_temp": "Eco preset temperature",
+          "home_temp": "Home preset temperature",
+          "sleep_temp": "Sleep preset temperature"
+        },
+        "title": "Preset temperatures"
+      }
+    }
+  },
+  "title": "Smart thermostat"
+}
