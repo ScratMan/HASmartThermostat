@@ -721,7 +721,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
-        await self._async_heater_turn_off(force=True)
         if hvac_mode == HVACMode.HEAT:
             self._min_out = self._output_clamp_low
             self._max_out = self._output_clamp_high
