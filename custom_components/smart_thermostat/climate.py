@@ -36,8 +36,21 @@ from homeassistant.components.number.const import (
 from homeassistant.components.input_number import DOMAIN as INPUT_NUMBER_DOMAIN
 from homeassistant.components.light import (DOMAIN as LIGHT_DOMAIN, SERVICE_TURN_ON as SERVICE_TURN_LIGHT_ON,
                                             ATTR_BRIGHTNESS_PCT)
-from homeassistant.components.valve import (DOMAIN as VALVE_DOMAIN, SERVICE_SET_VALVE_POSITION, ATTR_POSITION)
-from homeassistant.core import DOMAIN as HA_DOMAIN, CoreState, Event, EventStateChangedData, callback
+from homeassistant.components.valve import (
+    DOMAIN as VALVE_DOMAIN,
+    SERVICE_SET_VALVE_POSITION,
+    SERVICE_CLOSE_VALVE,
+    SERVICE_OPEN_VALVE,
+    ATTR_POSITION)
+from homeassistant.components.valve.const import ValveState
+from homeassistant.core import (
+    DOMAIN as HA_DOMAIN,
+    CoreState,
+    Event,
+    EventStateChangedData,
+    callback,
+    split_entity_id,
+)
 from homeassistant.util import slugify
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import (
@@ -535,7 +548,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     @staticmethod
     def _get_number_entity_domain(entity_id):
-        return INPUT_NUMBER_DOMAIN if "input_number" in entity_id else NUMBER_DOMAIN
+        entity_domain = split_entity_id(entity_id)[0]
+        return INPUT_NUMBER_DOMAIN if entity_domain == INPUT_NUMBER_DOMAIN else NUMBER_DOMAIN
 
     @property
     def precision(self):
@@ -939,31 +953,30 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     @property
     def _is_device_available(self) -> bool:
-        states = []
         for heater_or_cooler_entity in self.heater_or_cooler_entity:
-            states.append(self.hass.states.get(heater_or_cooler_entity))
-        if STATE_UNAVAILABLE in states or STATE_UNAVAILABLE in states or None in states:
-            return False
+            state = self.hass.states.get(heater_or_cooler_entity)
+            if state is None or state.state in [STATE_UNAVAILABLE, STATE_UNKNOWN]:
+                return False
         return True
 
     @property
     def _is_device_active(self):
         if self._pwm:
             """If the toggleable device is currently active."""
-            expected = STATE_ON
+            active = False
+            expected = [STATE_ON, ValveState.OPEN, ValveState.OPENING]
             if self._heater_polarity_invert:
-                expected = STATE_OFF
-            expected_states = []
+                expected = [STATE_OFF, ValveState.OPEN, ValveState.OPENING]
             for heater_or_cooler_entity in self.heater_or_cooler_entity:
-                state = self.hass.states.is_state(heater_or_cooler_entity, expected)
-                expected_states.append(state)
-            return any(expected_states)
+                if getattr(self.hass.states.get(heater_or_cooler_entity), 'state', None) in expected:
+                    active = True
+            return active
         else:
             """If the valve device is currently active."""
             is_active = False
             try:  # do not throw an error if the state is not yet available on startup
                 for heater_or_cooler_entity in self.heater_or_cooler_entity:
-                    state = self.hass.states.get(heater_or_cooler_entity).state
+                    state = getattr(self.hass.states.get(heater_or_cooler_entity), 'state', None)
                     try:
                         value = float(state)
                         if value > 0:
@@ -1017,14 +1030,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                          self.entity_id, ", ".join([entity for entity in self.heater_or_cooler_entity]))
             return
         for heater_or_cooler_entity in self.heater_or_cooler_entity:
+            entity_domain = split_entity_id(heater_or_cooler_entity)[0]
             data = {ATTR_ENTITY_ID: heater_or_cooler_entity}
-            if self._heater_polarity_invert:
-                service = SERVICE_TURN_OFF
+            if entity_domain == VALVE_DOMAIN:
+                service =  SERVICE_OPEN_VALVE
             else:
-                service = SERVICE_TURN_ON
-            _LOGGER.debug("%s: Calling %s service on %s", self.entity_id, str(service),
-                          str(heater_or_cooler_entity))
-            await self.hass.services.async_call(HA_DOMAIN, service, data)
+                if self._heater_polarity_invert:
+                    service = SERVICE_TURN_OFF
+                else:
+                    service = SERVICE_TURN_ON
+            _LOGGER.debug(f"{self.entity_id}: Calling {entity_domain}.{service} on {heater_or_cooler_entity}")
+            await self.hass.services.async_call(entity_domain, service, data)
         if change_time:
             self._last_heat_cycle_time = time.time()
 
@@ -1057,14 +1073,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         for entity in entities:
             if entity is None:
                 continue
+            entity_domain = split_entity_id(entity)[0]
             data = {ATTR_ENTITY_ID: entity}
-            if self._heater_polarity_invert:
-                service = SERVICE_TURN_ON
+            if entity_domain == VALVE_DOMAIN:
+                service =  SERVICE_CLOSE_VALVE
             else:
-                service = SERVICE_TURN_OFF
-            _LOGGER.debug("%s: Calling %s service on %s", self.entity_id, str(service),
-                          str(entity))
-            await self.hass.services.async_call(HA_DOMAIN, service, data)
+                if self._heater_polarity_invert:
+                    service = SERVICE_TURN_ON
+                else:
+                    service = SERVICE_TURN_OFF
+            _LOGGER.debug(f"{self.entity_id}: Calling {entity_domain}.{service} on {entity}")
+            await self.hass.services.async_call(entity_domain, service, data)
         if change_time:
             self._last_heat_cycle_time = time.time()
 
@@ -1078,13 +1097,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         _LOGGER.info("%s: Change state of %s to %s", self.entity_id,
                      ", ".join([entity for entity in self.heater_or_cooler_entity]), value)
         for heater_or_cooler_entity in self.heater_or_cooler_entity:
-            if heater_or_cooler_entity[0:6] == 'light.':
+            entity_domain = split_entity_id(heater_or_cooler_entity)[0]
+            if entity_domain == LIGHT_DOMAIN:
                 data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_BRIGHTNESS_PCT: value}
                 await self.hass.services.async_call(
                     LIGHT_DOMAIN,
                     SERVICE_TURN_LIGHT_ON,
                     data)
-            elif heater_or_cooler_entity[0:6] == 'valve.':
+            elif entity_domain == VALVE_DOMAIN:
                 data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_POSITION: value}
                 await self.hass.services.async_call(
                     VALVE_DOMAIN,
