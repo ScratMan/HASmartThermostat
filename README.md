@@ -257,8 +257,9 @@ values instead.
 * **ke** (Optional): Set outdoor temperature compensation gain (e) control value (float, default 0). 
 * **pwm** (Optional): Set period of the pulse width modulation. If too long, the response time of 
 the thermostat will be too slow, leading to lower accuracy of temperature control. Can be float in 
-seconds or time hh:mm:ss (default 15mn). Set to 0 when using heater entity with direct input of 
-0/100% values like valves or lights.
+seconds or time hh:mm:ss (default 15mn). Set it to 0 only when using heater entity with "analog" input
+values (for example 0/100%) like valves or lights. Do not set it to 0 when using binary entity with 
+ON/OFF states.
 * **min_cycle_duration** (Optional): Set a minimum amount of time that the switch specified in the 
 heater option must be in its current state prior to being switched either off or on (useful to 
 protect boilers). Can be float in seconds or time hh:mm:ss (default 0s).
