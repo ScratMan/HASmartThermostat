@@ -217,8 +217,9 @@ class PID:
         if self._out_min < self._last_output < self._out_max and \
                 self._last_set_point == self._set_point:
             self._integral += self._Ki * self._error * self._dt
-            # Take external temperature compensation into account for integral clamping
-            self._integral = max(min(self._integral, self._out_max - self._external), self._out_min - self._external)
+            if self._Ki:
+                # Take external temperature compensation into account for integral clamping if integral is used
+                self._integral = max(min(self._integral, self._out_max - self._external), self._out_min - self._external)
         if ext_temp is not None and self._last_set_point != self._set_point:
             self._integral = 0  # Reset integral if set point has changed as system will need to converge to a new value
 
