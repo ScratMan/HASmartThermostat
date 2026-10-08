@@ -20,7 +20,7 @@ Go to HACS, select Integrations, click the three dots menu and select
 "Custom repositories". Add the path to the Github repository in the first field, select Integration 
 as category and click Add. Once back in integrations panel, click the Install button on the Smart 
 Thermostat PID card to install.\
-Set up the smart thermostat and have fun.
+After installation, add the integration from **Settings → Devices & Services → Add Integration** and search for **Smart thermostat**.
 
 ### Manual installation:
 1. Go to <conf-dir> default /homeassistant/.homeassistant/ (it's where your configuration.yaml is)
@@ -29,8 +29,15 @@ Set up the smart thermostat and have fun.
 4. Set up the smart_thermostat and have fun
 
 ## Configuration:
-The smart thermostat can be added to Home Assistant after installation by adding a climate section 
-to your configuration.yaml file.
+
+### Configure via UI (recommended):
+1. Open **Settings → Devices & Services → Add Integration**
+2. Search for **Smart thermostat**
+3. Follow the setup wizard to select your temperature sensor, heater/cooler actuators, and PID settings
+4. Adjust settings later via **Configure** on the integration card
+
+### Manual YAML configuration:
+The smart thermostat can also be added by adding a climate section to your configuration.yaml file.
 
 ### Configuration examples:
 #### configuration.yaml

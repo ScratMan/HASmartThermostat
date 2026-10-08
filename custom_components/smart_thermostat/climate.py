@@ -6,11 +6,19 @@ import asyncio
 import logging
 import time
 from abc import ABC
+from collections.abc import Mapping
+from datetime import timedelta
+from typing import Any
 
 import voluptuous as vol
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import condition, entity_platform
+from homeassistant.helpers import entity_platform
+from homeassistant.helpers.entity_platform import (
+    AddConfigEntryEntitiesCallback,
+    AddEntitiesCallback,
+)
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -61,11 +69,177 @@ from homeassistant.components.climate import (
     PRESET_ACTIVITY,
 )
 
-from . import DOMAIN, PLATFORMS
+from .const import DOMAIN, PLATFORMS
 from . import const
 from . import pid_controller
 
 _LOGGER = logging.getLogger(__name__)
+
+_DURATION_KEYS = (
+    const.CONF_MIN_CYCLE_DURATION,
+    const.CONF_MIN_OFF_CYCLE_DURATION,
+    const.CONF_MIN_CYCLE_DURATION_PID_OFF,
+    const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF,
+    const.CONF_KEEP_ALIVE,
+    const.CONF_SAMPLING_PERIOD,
+    const.CONF_SENSOR_STALL,
+    const.CONF_PWM,
+    const.CONF_LOOKBACK,
+)
+
+
+def _as_timedelta(value: Any) -> timedelta | None:
+    """Normalize YAML and config-flow duration values."""
+    if value is None:
+        return None
+    if isinstance(value, timedelta):
+        return value
+    if isinstance(value, dict):
+        return timedelta(**{key: item for key, item in value.items() if item is not None})
+    return value
+
+
+def _entity_ids(value: str | list[str] | None) -> list[str] | None:
+    """Normalize single entity IDs and entity lists."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return [value]
+    return list(value)
+
+
+def _normalize_config(config: Mapping[str, Any]) -> dict[str, Any]:
+    """Normalize config entry and YAML configuration values."""
+    normalized = dict(config)
+    for key in _DURATION_KEYS:
+        if key in normalized:
+            normalized[key] = _as_timedelta(normalized[key])
+    if const.CONF_HEATER in normalized:
+        normalized[const.CONF_HEATER] = _entity_ids(normalized[const.CONF_HEATER])
+    if const.CONF_COOLER in normalized:
+        normalized[const.CONF_COOLER] = _entity_ids(normalized[const.CONF_COOLER])
+    return normalized
+
+
+def _build_parameters(hass: HomeAssistant, config: Mapping[str, Any]) -> dict[str, Any]:
+    """Build SmartThermostat constructor parameters from configuration."""
+    normalized = _normalize_config(config)
+    return {
+        "name": normalized.get(CONF_NAME),
+        "unique_id": normalized.get(CONF_UNIQUE_ID),
+        "heater_entity_id": normalized.get(const.CONF_HEATER),
+        "cooler_entity_id": normalized.get(const.CONF_COOLER),
+        "invert_heater": normalized.get(const.CONF_INVERT_HEATER),
+        "sensor_entity_id": normalized.get(const.CONF_SENSOR),
+        "ext_sensor_entity_id": normalized.get(const.CONF_OUTDOOR_SENSOR),
+        "min_temp": normalized.get(const.CONF_MIN_TEMP),
+        "max_temp": normalized.get(const.CONF_MAX_TEMP),
+        "target_temp": normalized.get(const.CONF_TARGET_TEMP),
+        "hot_tolerance": normalized.get(const.CONF_HOT_TOLERANCE),
+        "cold_tolerance": normalized.get(const.CONF_COLD_TOLERANCE),
+        "ac_mode": normalized.get(const.CONF_AC_MODE),
+        "force_off_state": normalized.get(const.CONF_FORCE_OFF_STATE),
+        "min_cycle_duration": normalized.get(const.CONF_MIN_CYCLE_DURATION),
+        "min_off_cycle_duration": normalized.get(const.CONF_MIN_OFF_CYCLE_DURATION),
+        "min_cycle_duration_pid_off": normalized.get(const.CONF_MIN_CYCLE_DURATION_PID_OFF),
+        "min_off_cycle_duration_pid_off": normalized.get(
+            const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF
+        ),
+        "keep_alive": normalized.get(const.CONF_KEEP_ALIVE),
+        "sampling_period": normalized.get(const.CONF_SAMPLING_PERIOD),
+        "sensor_stall": normalized.get(const.CONF_SENSOR_STALL),
+        "output_safety": normalized.get(const.CONF_OUTPUT_SAFETY),
+        "initial_hvac_mode": normalized.get(const.CONF_INITIAL_HVAC_MODE),
+        "preset_sync_mode": normalized.get(const.CONF_PRESET_SYNC_MODE),
+        "away_temp": normalized.get(const.CONF_AWAY_TEMP),
+        "eco_temp": normalized.get(const.CONF_ECO_TEMP),
+        "boost_temp": normalized.get(const.CONF_BOOST_TEMP),
+        "comfort_temp": normalized.get(const.CONF_COMFORT_TEMP),
+        "home_temp": normalized.get(const.CONF_HOME_TEMP),
+        "sleep_temp": normalized.get(const.CONF_SLEEP_TEMP),
+        "activity_temp": normalized.get(const.CONF_ACTIVITY_TEMP),
+        "precision": normalized.get(const.CONF_PRECISION),
+        "target_temp_step": normalized.get(const.CONF_TARGET_TEMP_STEP),
+        "unit": hass.config.units.temperature_unit,
+        "output_precision": normalized.get(const.CONF_OUTPUT_PRECISION),
+        "output_min": normalized.get(const.CONF_OUTPUT_MIN),
+        "output_max": normalized.get(const.CONF_OUTPUT_MAX),
+        "output_clamp_low": normalized.get(const.CONF_OUT_CLAMP_LOW),
+        "output_clamp_high": normalized.get(const.CONF_OUT_CLAMP_HIGH),
+        "kp": normalized.get(const.CONF_KP),
+        "ki": normalized.get(const.CONF_KI),
+        "kd": normalized.get(const.CONF_KD),
+        "ke": normalized.get(const.CONF_KE),
+        "pwm": normalized.get(const.CONF_PWM),
+        "boost_pid_off": normalized.get(const.CONF_BOOST_PID_OFF),
+        "autotune": normalized.get(const.CONF_AUTOTUNE),
+        "noiseband": normalized.get(const.CONF_NOISEBAND),
+        "lookback": normalized.get(const.CONF_LOOKBACK),
+        const.CONF_DEBUG: normalized.get(const.CONF_DEBUG),
+    }
+
+
+def _register_entity_services(platform: entity_platform.EntityPlatform) -> None:
+    """Register smart thermostat entity services."""
+    platform.async_register_entity_service(  # type: ignore[attr-defined]
+        "set_pid_gain",
+        {
+            vol.Optional("kp"): vol.Coerce(float),
+            vol.Optional("ki"): vol.Coerce(float),
+            vol.Optional("kd"): vol.Coerce(float),
+            vol.Optional("ke"): vol.Coerce(float),
+        },
+        "async_set_pid",
+    )
+    platform.async_register_entity_service(  # type: ignore[attr-defined]
+        "set_pid_mode",
+        {
+            vol.Required("mode"): vol.In(["auto", "off"]),
+        },
+        "async_set_pid_mode",
+    )
+    platform.async_register_entity_service(  # type: ignore[attr-defined]
+        "set_preset_temp",
+        {
+            vol.Optional("away_temp"): vol.Coerce(float),
+            vol.Optional("away_temp_disable"): vol.Coerce(bool),
+            vol.Optional("eco_temp"): vol.Coerce(float),
+            vol.Optional("eco_temp_disable"): vol.Coerce(bool),
+            vol.Optional("boost_temp"): vol.Coerce(float),
+            vol.Optional("boost_temp_disable"): vol.Coerce(bool),
+            vol.Optional("comfort_temp"): vol.Coerce(float),
+            vol.Optional("comfort_temp_disable"): vol.Coerce(bool),
+            vol.Optional("home_temp"): vol.Coerce(float),
+            vol.Optional("home_temp_disable"): vol.Coerce(bool),
+            vol.Optional("sleep_temp"): vol.Coerce(float),
+            vol.Optional("sleep_temp_disable"): vol.Coerce(bool),
+            vol.Optional("activity_temp"): vol.Coerce(float),
+            vol.Optional("activity_temp_disable"): vol.Coerce(bool),
+        },
+        "async_set_preset_temp",
+    )
+    platform.async_register_entity_service(  # type: ignore[attr-defined]
+        "clear_integral",
+        {},
+        "clear_integral",
+    )
+
+
+async def _async_setup_config(
+    hass: HomeAssistant,
+    config: Mapping[str, Any],
+    unique_id: str | None,
+    async_add_entities: AddEntitiesCallback | AddConfigEntryEntitiesCallback,
+) -> None:
+    """Set up smart thermostat entities from YAML or config entry."""
+    parameters = _build_parameters(hass, config)
+    if unique_id is not None:
+        parameters["unique_id"] = unique_id
+    async_add_entities([SmartThermostat(**parameters)])
+
+    platform = entity_platform.current_platform.get()
+    if platform is not None:
+        _register_entity_services(platform)
 
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -141,109 +315,33 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the generic thermostat platform."""
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """Set up smart thermostat from a config entry."""
+    await _async_setup_config(
+        hass,
+        config_entry.options,
+        config_entry.entry_id,
+        async_add_entities,
+    )
+
+
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
+    """Set up the smart thermostat platform from YAML."""
     await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
-
-    platform = entity_platform.current_platform.get()
-    assert platform
-
-    parameters = {
-        'name': config.get(CONF_NAME),
-        'unique_id': config.get(CONF_UNIQUE_ID),
-        'heater_entity_id': config.get(const.CONF_HEATER),
-        'cooler_entity_id': config.get(const.CONF_COOLER),
-        'invert_heater': config.get(const.CONF_INVERT_HEATER),
-        'sensor_entity_id': config.get(const.CONF_SENSOR),
-        'ext_sensor_entity_id': config.get(const.CONF_OUTDOOR_SENSOR),
-        'min_temp': config.get(const.CONF_MIN_TEMP),
-        'max_temp': config.get(const.CONF_MAX_TEMP),
-        'target_temp': config.get(const.CONF_TARGET_TEMP),
-        'hot_tolerance': config.get(const.CONF_HOT_TOLERANCE),
-        'cold_tolerance': config.get(const.CONF_COLD_TOLERANCE),
-        'ac_mode': config.get(const.CONF_AC_MODE),
-        'force_off_state': config.get(const.CONF_FORCE_OFF_STATE),
-        'min_cycle_duration': config.get(const.CONF_MIN_CYCLE_DURATION),
-        'min_off_cycle_duration': config.get(const.CONF_MIN_OFF_CYCLE_DURATION),
-        'min_cycle_duration_pid_off': config.get(const.CONF_MIN_CYCLE_DURATION_PID_OFF),
-        'min_off_cycle_duration_pid_off': config.get(const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF),
-        'keep_alive': config.get(const.CONF_KEEP_ALIVE),
-        'sampling_period': config.get(const.CONF_SAMPLING_PERIOD),
-        'sensor_stall': config.get(const.CONF_SENSOR_STALL),
-        'output_safety': config.get(const.CONF_OUTPUT_SAFETY),
-        'initial_hvac_mode': config.get(const.CONF_INITIAL_HVAC_MODE),
-        'preset_sync_mode': config.get(const.CONF_PRESET_SYNC_MODE),
-        'away_temp': config.get(const.CONF_AWAY_TEMP),
-        'eco_temp': config.get(const.CONF_ECO_TEMP),
-        'boost_temp': config.get(const.CONF_BOOST_TEMP),
-        'comfort_temp': config.get(const.CONF_COMFORT_TEMP),
-        'home_temp': config.get(const.CONF_HOME_TEMP),
-        'sleep_temp': config.get(const.CONF_SLEEP_TEMP),
-        'activity_temp': config.get(const.CONF_ACTIVITY_TEMP),
-        'precision': config.get(const.CONF_PRECISION),
-        'target_temp_step': config.get(const.CONF_TARGET_TEMP_STEP),
-        'unit': hass.config.units.temperature_unit,
-        'output_precision': config.get(const.CONF_OUTPUT_PRECISION),
-        'output_min': config.get(const.CONF_OUTPUT_MIN),
-        'output_max': config.get(const.CONF_OUTPUT_MAX),
-        'output_clamp_low': config.get(const.CONF_OUT_CLAMP_LOW),
-        'output_clamp_high': config.get(const.CONF_OUT_CLAMP_HIGH),
-        'kp': config.get(const.CONF_KP),
-        'ki': config.get(const.CONF_KI),
-        'kd': config.get(const.CONF_KD),
-        'ke': config.get(const.CONF_KE),
-        'pwm': config.get(const.CONF_PWM),
-        'boost_pid_off': config.get(const.CONF_BOOST_PID_OFF),
-        'autotune': config.get(const.CONF_AUTOTUNE),
-        'noiseband': config.get(const.CONF_NOISEBAND),
-        'lookback': config.get(const.CONF_LOOKBACK),
-        const.CONF_DEBUG: config.get(const.CONF_DEBUG),
-    }
-
-    smart_thermostat = SmartThermostat(**parameters)
-    async_add_entities([smart_thermostat])
-
-    platform.async_register_entity_service(  # type: ignore
-        "set_pid_gain",
-        {
-            vol.Optional("kp"): vol.Coerce(float),
-            vol.Optional("ki"): vol.Coerce(float),
-            vol.Optional("kd"): vol.Coerce(float),
-            vol.Optional("ke"): vol.Coerce(float),
-        },
-        "async_set_pid",
-    )
-    platform.async_register_entity_service(  # type: ignore
-        "set_pid_mode",
-        {
-            vol.Required("mode"): vol.In(['auto', 'off']),
-        },
-        "async_set_pid_mode",
-    )
-    platform.async_register_entity_service(  # type: ignore
-        "set_preset_temp",
-        {
-            vol.Optional("away_temp"): vol.Coerce(float),
-            vol.Optional("away_temp_disable"): vol.Coerce(bool),
-            vol.Optional("eco_temp"): vol.Coerce(float),
-            vol.Optional("eco_temp_disable"): vol.Coerce(bool),
-            vol.Optional("boost_temp"): vol.Coerce(float),
-            vol.Optional("boost_temp_disable"): vol.Coerce(bool),
-            vol.Optional("comfort_temp"): vol.Coerce(float),
-            vol.Optional("comfort_temp_disable"): vol.Coerce(bool),
-            vol.Optional("home_temp"): vol.Coerce(float),
-            vol.Optional("home_temp_disable"): vol.Coerce(bool),
-            vol.Optional("sleep_temp"): vol.Coerce(float),
-            vol.Optional("sleep_temp_disable"): vol.Coerce(bool),
-            vol.Optional("activity_temp"): vol.Coerce(float),
-            vol.Optional("activity_temp_disable"): vol.Coerce(bool),
-        },
-        "async_set_preset_temp",
-    )
-    platform.async_register_entity_service(  # type: ignore
-        "clear_integral",
-        {},
-        "clear_integral",
+    await _async_setup_config(
+        hass,
+        config,
+        config.get(CONF_UNIQUE_ID),
+        async_add_entities,
     )
 
 
