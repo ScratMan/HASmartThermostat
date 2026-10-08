@@ -34,7 +34,7 @@ to your configuration.yaml file.
 
 ### Configuration examples:
 #### configuration.yaml
-```
+```yaml
 climate:
   - platform: smart_thermostat
     name: Smart Thermostat Single ON/OFF Heater Example
@@ -54,7 +54,7 @@ climate:
     pwm: 00:15:00
 ```
 
-```
+```yaml
 climate:
   - platform: smart_thermostat
     name: Smart Thermostat Multiple Valves Example
@@ -174,7 +174,7 @@ Please consider saving the final gain parameters in YAML configuration file when
 it safe in case of database corruption.\
 Optional parameters : kp, ki and kd, as float.\
 Example:
-```
+```yaml
 service: smart_thermostat.set_pid_gain
 data:
   kp: 11.8
@@ -191,7 +191,7 @@ below the set point.\
 Mode is saved to Home Assistant database and restored after a restart.\
 Required parameter : mode as a string in ['auto', 'off'].\
 Example:
-```
+```yaml
 service: smart_thermostat.set_pid_mode
 data:
   mode: 'off'
@@ -207,7 +207,7 @@ Please note the value will then be saved in the entity's state in database and r
 restarting Home Assistant, ignoring values in YAML. Use the disable options to remove active 
 presets.
 Example:
-```
+```yaml
 service: smart_thermostat.set_preset_temp
 data:
   away_temp: 14.6
@@ -352,30 +352,28 @@ SHOULD BE USED WITH OUTPUT_MIN AND OUTPUT_MAX SETTINGS!
 * **debug** (Optional): Make the climate entity expose the following internal values as extra 
 states attributes, so they can be accessed in HA with sensor templates for debugging purposes (
 helpful to adjust the PID gains), example configuration.yaml:
-  ```
-  sensor:
-  - platform: template
-    sensors:
-      smart_thermostat_output:
-        friendly_name: PID Output
+  ``` yaml
+  template:
+    - sensor:
+      - name: "PID Output"
         unit_of_measurement: "%"
-        value_template: "{{ state_attr('climate.smart_thermostat_example', 'control_output') | float(0) }}"
-        smart_thermostat_p:
-        friendly_name: PID P
+        state: "{{ state_attr('climate.smart_thermostat_example', 'control_output') | float(0) }}"
+
+      - name: "PID P"
         unit_of_measurement: "%"
-        value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_p') | float(0) }}"
-      smart_thermostat_i:
-        friendly_name: PID I
+        state: "{{ state_attr('climate.smart_thermostat_example', 'pid_p') | float(0) }}"        
+
+      - name: "PID I"
         unit_of_measurement: "%"
-        value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_i') | float(0) }}"
-      smart_thermostat_d:
-        friendly_name: PID D
+        state: "{{ state_attr('climate.smart_thermostat_example', 'pid_i') | float(0) }}"
+
+      - name: "PID D"
         unit_of_measurement: "%"
-        value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_d') | float(0) }}"
-      smart_thermostat_e:
-        friendly_name: PID E
+        state: "{{ state_attr('climate.smart_thermostat_example', 'pid_d') | float(0) }}"
+
+      - name: "PID E"
         unit_of_measurement: "%"
-        value_template: "{{ state_attr('climate.smart_thermostat_example', 'pid_e') | float(0) }}"
+        state: "{{ state_attr('climate.smart_thermostat_example', 'pid_e') | float(0) }}"
     ```
   It is strongly recommended to disable the debug mode once the 
   PID Thermostat is working fine, as the added extra states attributes will fill the Home Assistant 
