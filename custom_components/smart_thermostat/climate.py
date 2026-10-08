@@ -43,6 +43,7 @@ from homeassistant.components.valve import (
     SERVICE_OPEN_VALVE,
     ATTR_POSITION)
 from homeassistant.components.valve.const import ValveState
+from homeassistant.components.fan import (DOMAIN as FAN_DOMAIN, SERVICE_TURN_ON as SERVICE_TURN_FAN_ON, ATTR_PERCENTAGE)
 from homeassistant.core import (
     DOMAIN as HA_DOMAIN,
     CoreState,
@@ -1112,6 +1113,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 await self.hass.services.async_call(
                     VALVE_DOMAIN,
                     SERVICE_SET_VALVE_POSITION,
+                    data)
+            elif entity_domain == FAN_DOMAIN:
+                data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_PERCENTAGE: value}
+                await self.hass.services.async_call(
+                    FAN_DOMAIN,
+                    SERVICE_TURN_FAN_ON,
                     data)
             else:
                 data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_VALUE: value}
