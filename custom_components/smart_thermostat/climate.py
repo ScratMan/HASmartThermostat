@@ -17,7 +17,7 @@ from homeassistant.const import (
     ATTR_TEMPERATURE,
     CONF_NAME,
     CONF_UNIQUE_ID,
-    EVENT_HOMEASSISTANT_START,
+    EVENT_HOMEASSISTANT_STARTED,
     PRECISION_HALVES,
     PRECISION_TENTHS,
     PRECISION_WHOLE,
@@ -26,6 +26,7 @@ from homeassistant.const import (
     STATE_ON,
     STATE_OFF,
     STATE_UNKNOWN,
+    STATE_UNAVAILABLE
 )
 from homeassistant.components.number.const import (
     ATTR_VALUE,
@@ -394,23 +395,26 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
 
-        @callback
-        def _async_startup(*_):
-            """Init on startup."""
+        async def _async_startup(*_):
+            """Init on startup once HA is fully loaded."""
             sensor_state = self.hass.states.get(self._sensor_entity_id)
-            if sensor_state and sensor_state.state != STATE_UNKNOWN:
+            if sensor_state and sensor_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
                 self._async_update_temp(sensor_state)
             if self._ext_sensor_entity_id is not None:
                 ext_sensor_state = self.hass.states.get(self._ext_sensor_entity_id)
-                if ext_sensor_state and ext_sensor_state.state != STATE_UNKNOWN:
+                if ext_sensor_state and ext_sensor_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
                     self._async_update_ext_temp(ext_sensor_state)
 
-        if self.hass.state == CoreState.running:
-            _async_startup()
-        else:
-            self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _async_startup)
+            # Only control heating once HA is ready
+            await self._async_control_heating(calc_pid=True)
 
-        # Add listener
+        if self.hass.state == CoreState.running:
+            await _async_startup()
+        else:
+            # EVENT_HOMEASSISTANT_STARTED ensures "hardware" entities and their integrations are ready
+            self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _async_startup)
+
+        # Add listeners
         self.async_on_remove(
             async_track_state_change_event(
                 self.hass,
@@ -514,7 +518,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         # Set default state to off
         if not self._hvac_mode:
             self._hvac_mode = HVACMode.OFF
-        await self._async_control_heating(calc_pid=True)
 
     @property
     def should_poll(self):
