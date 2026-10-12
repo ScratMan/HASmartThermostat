@@ -63,7 +63,9 @@ from homeassistant.helpers.restore_state import RestoreEntity
 
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity, ClimateEntityFeature
 from homeassistant.components.climate import (
+    ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
+    DOMAIN as CLIMATE_DOMAIN,
     HVACMode,
     HVACAction,
     PRESET_AWAY,
@@ -74,6 +76,8 @@ from homeassistant.components.climate import (
     PRESET_HOME,
     PRESET_SLEEP,
     PRESET_ACTIVITY,
+    SERVICE_SET_HVAC_MODE,
+    SERVICE_SET_TEMPERATURE,
 )
 
 from . import DOMAIN, PLATFORMS
@@ -978,17 +982,20 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     active = True
             return active
         else:
-            """If the valve device is currently active."""
+            # Case for non-toggleable devices, check if the value is greater than 0 or if the state is 'on' or 'open'
             is_active = False
             try:  # do not throw an error if the state is not yet available on startup
                 for heater_or_cooler_entity in self.heater_or_cooler_entity:
+                    entity_domain = split_entity_id(heater_or_cooler_entity)[0]
                     state = getattr(self.hass.states.get(heater_or_cooler_entity), 'state', None)
+                    if entity_domain == CLIMATE_DOMAIN:
+                        return state != HVACMode.OFF
                     try:
                         value = float(state)
                         if value > 0:
                             is_active = True
                     except ValueError:
-                        if state in ['on', 'open']:
+                        if state in ['on', 'open', 'opening']:
                             is_active = True
                 return is_active
             except:
@@ -1122,6 +1129,20 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     FAN_DOMAIN,
                     SERVICE_TURN_FAN_ON,
                     data)
+            elif entity_domain == CLIMATE_DOMAIN:
+                state = self.hass.states.get(heater_or_cooler_entity).state
+                if self.hvac_mode != state:
+                    data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_HVAC_MODE: self.hvac_mode}
+                    await self.hass.services.async_call(
+                        CLIMATE_DOMAIN,
+                        SERVICE_SET_HVAC_MODE,
+                        data)
+                if self.hvac_mode != HVACMode.OFF:
+                    data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_TEMPERATURE: value}
+                    await self.hass.services.async_call(
+                        CLIMATE_DOMAIN,
+                        SERVICE_SET_TEMPERATURE,
+                        data)
             else:
                 data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_VALUE: value}
                 await self.hass.services.async_call(
@@ -1207,10 +1228,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                                                                      self._cur_temp_time,
                                                                      self._previous_temp_time,
                                                                      self._ext_temp)
-            # else:
-            #     self._pid_output, update = self._pid_controller.calc(self._current_temp,
-            #                                                              self._target_temp,
-            #                                                              ext_temp=self._ext_temp)
             self._p = round(self._pid_controller.proportional, self._output_precision)
             self._i = round(self._pid_controller.integral, self._output_precision)
             self._d = round(self._pid_controller.derivative, self._output_precision)
