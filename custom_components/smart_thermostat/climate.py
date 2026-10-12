@@ -306,6 +306,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._cur_temp_time = None
         self._previous_temp = None
         self._previous_temp_time = None
+        self._last_pid_calc_time = None
         self._ext_temp = None
         self._temp_lock = asyncio.Lock()
         self._min_temp = kwargs.get('min_temp')
@@ -767,6 +768,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             # Clear the samples to avoid integrating the off period
             self._previous_temp = None
             self._previous_temp_time = None
+            self._last_pid_calc_time = None
             if self._pid_controller is not None:
                 self._pid_controller.clear_samples()
         else:
@@ -1189,8 +1191,18 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._pid_output = self._pid_autotune.output
             self._p = self._i = self._d = error = self._dt = 0
         else:
-            # if self._pid_controller.sampling_period == 0:
-            self._pid_output, update = self._pid_controller.calc(self._current_temp,
+            if self._sampling_period:
+                # Fixed-rate mode: dt is the wall-clock time between two PID computations
+                now = time.time()
+                last = self._last_pid_calc_time
+                self._last_pid_calc_time = now
+                self._pid_output, update = self._pid_controller.calc(self._current_temp,
+                                                                     self._target_temp,
+                                                                     now,
+                                                                     last,
+                                                                     self._ext_temp)
+            else:
+                self._pid_output, update = self._pid_controller.calc(self._current_temp,
                                                                      self._target_temp,
                                                                      self._cur_temp_time,
                                                                      self._previous_temp_time,

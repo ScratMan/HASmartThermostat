@@ -162,23 +162,13 @@ class PID:
         Returns:
             A value between `out_min` and `out_max`.
         """
-        # if self._sampling_period != 0 and self._last_input_time is not None and \
-        #         time() - self._input_time < self._sampling_period:
-        #     return self._output, False  # If last sample is too young, keep last output value
-
         self._last_input = self._input
-        # if self._sampling_period == 0:
         self._last_input_time = last_input_time
-        # else:
-        #     self._last_input_time = self._input_time
         self._last_output = self._output
 
         # Refresh with actual values
         self._input = input_val
-        # if self._sampling_period == 0:
         self._input_time = input_time
-        # else:
-        #     self._input_time = time()
         self._last_set_point = self._set_point
         self._set_point = set_point
 
