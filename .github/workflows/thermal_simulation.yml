@@ -1,0 +1,41 @@
+name: Manual Thermal Simulation
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual simulation run'
+        required: false
+        default: 'Manual PID verification'
+
+jobs:
+  thermal-simulation:
+    name: Run Thermal Simulation & Generate Artifact
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-homeassistant-custom-component pytest-freezer
+
+      - name: Run Thermal Simulation Test
+        run: |
+          pytest -m "slow" -s tests/
+
+      - name: Upload simulation CSV as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: thermal-simulation-results
+          path: /tmp/**/thermal_simulation_results.csv
+          retention-days: 7
+          if-no-files-found: ignore
