@@ -743,6 +743,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
+        old_hvac_mode = self._hvac_mode
+
         if hvac_mode == HVACMode.HEAT:
             self._min_out = self._output_clamp_low
             self._max_out = self._output_clamp_high
@@ -778,6 +780,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         else:
             _LOGGER.error("%s: Unrecognized HVAC mode: %s", self.entity_id, hvac_mode)
             return
+
+        # Clear samples when toggling between active modes (HEAT <-> COOL)
+        if old_hvac_mode != self._hvac_mode and self._pid_controller is not None:
+            self._previous_temp = None
+            self._previous_temp_time = None
+            self._last_pid_calc_time = None
+            self._pid_controller.clear_samples()
+
         if self._pid_controller:
             self._pid_controller.out_max = self._max_out
             self._pid_controller.out_min = self._min_out
