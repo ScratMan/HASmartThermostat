@@ -781,8 +781,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             _LOGGER.error("%s: Unrecognized HVAC mode: %s", self.entity_id, hvac_mode)
             return
 
-        # Clear samples when toggling between active modes (HEAT <-> COOL)
-        if old_hvac_mode != self._hvac_mode and self._pid_controller is not None:
+        # Clear samples when toggling between active modes (HEAT <-> COOL). Not when the mode is
+        # first set at startup (old mode None): that would discard the integral restored from pid_i.
+        if old_hvac_mode is not None and old_hvac_mode != self._hvac_mode and \
+                self._pid_controller is not None:
             self._previous_temp = None
             self._previous_temp_time = None
             self._last_pid_calc_time = None
