@@ -1,0 +1,316 @@
+{
+  "config": {
+    "error": {
+      "output_min_max": "Deve essere valido: output_min <= out_clamp_low < out_clamp_high <= output_max.",
+      "min_max_temp": "La temperatura minima deve essere inferiore alla temperatura massima.",
+      "target_temp": "Il setpoint impostato deve essere compreso tra la temperatura minima e massima."
+    },
+    "step": {
+      "user": {
+        "title": "Configurazione principale",
+        "description": "Configura le entità principali del tuo termostato intelligente.",
+        "data": {
+          "name": "Nome del termostato",
+          "heater": "Attuatore/i di riscaldamento",
+          "target_sensor": "Sensore di temperatura ambiente",
+          "cooler": "Attuatore/i di raffreddamento",
+          "outdoor_sensor": "Sensore di temperatura esterna",
+          "ac_mode": "Modalità raffreddamento / AC"
+        },
+        "data_description": {
+          "name": "Nome visualizzato per l'entità climate in Home Assistant.",
+          "heater": "Interruttore, valvola, luce o entità number che controlla il riscaldamento (Obbligatorio).",
+          "target_sensor": "Sensore che misura la temperatura della stanza (Obbligatorio).",
+          "cooler": "Attuatore opzionale utilizzato in modalità raffreddamento.",
+          "outdoor_sensor": "Sensore esterno opzionale per la compensazione Ke.",
+          "ac_mode": "Passa l'attuatore principale in modalità raffreddamento al posto del riscaldamento."
+        }
+      },
+      "temperature": {
+        "title": "Impostazioni di temperatura",
+        "description": "Imposta limiti e tolleranze di temperatura.",
+        "data": {
+          "min_temp": "Temperatura minima",
+          "max_temp": "Temperatura massima",
+          "target_temp": "Setpoint iniziale"
+        },
+        "data_description": {
+          "min_temp": "Lascia vuoto per utilizzare il valore predefinito di Home Assistant.",
+          "max_temp": "Lascia vuoto per utilizzare il valore predefinito di Home Assistant."
+        },
+        "sections": {
+          "options": {
+            "name": "Opzioni avanzate",
+            "description": "Parametri aggiuntivi per il termostato.",
+            "data": {
+              "hot_tolerance": "Tolleranza alta",
+              "cold_tolerance": "Tolleranza bassa",
+              "initial_hvac_mode": "Modalità HVAC iniziale"
+            },
+            "data_description": {
+              "hot_tolerance": "Isteresi sopra il setpoint.",
+              "cold_tolerance": "Isteresi sotto il setpoint.",
+              "initial_hvac_mode": "Stato iniziale del termostato."
+            }
+          }
+        }
+      },
+      "presets": {
+        "title": "Temperature Preset",
+        "description": "Imposta le temperature dei preset (Lascia vuoto per disabilitare un preset).",
+        "data": {
+          "away_temp": "Temperatura Fuori casa (Away)",
+          "eco_temp": "Temperatura Eco",
+          "boost_temp": "Temperatura Boost",
+          "comfort_temp": "Temperatura Comfort",
+          "home_temp": "Temperatura In casa (Home)",
+          "sleep_temp": "Temperatura Notte (Sleep)",
+          "activity_temp": "Temperatura Attività",
+          "preset_sync_mode": "Sincronizzazione preset",
+          "boost_pid_off": "Disabilita PID in modalità Boost"
+        },
+        "data_description": {
+          "preset_sync_mode": "Attiva automaticamente un preset quando la sua temperatura viene selezionata.",
+          "boost_pid_off": "Forza la modalità PID su OFF quando il preset Boost è attivo."
+        }
+      },
+      "pid": {
+        "title": "Controllo PID",
+        "description": "Configura i guadagni PID e il periodo PWM.",
+        "data": {
+          "kp": "Guadagno Proporzionale (Kp)",
+          "ki": "Guadagno Integrale (Ki)",
+          "kd": "Guadagno Derivativo (Kd)",
+          "ke": "Guadagno Compensazione Esterna (Ke)",
+          "pwm": "Periodo PWM",
+          "keep_alive": "Intervallo Keep-alive",
+          "sampling_period": "Frequenza di campionamento PID"
+        },
+        "data_description": {
+          "ke": "Guadagno applicato alla differenza tra temperatura impostata ed esterna.",
+          "pwm": "Tempo di ciclo completo per la regolazione PWM (obbligatorio, impostare a 0 per attuatori analogici come valvole, termostati...).",
+          "keep_alive": "Invia periodicamente il comando all'attuatore."
+        },
+        "sections": {
+          "autotune_options": {
+            "name": "Opzioni Autotune",
+            "description": "Configura l'autotune del PID (fortemente sconsigliato).",
+            "data": {
+              "autotune": "Regola Autotune",
+              "noiseband": "Banda di rumore Autotune",
+              "lookback": "Periodo analisi Autotune"
+            },
+            "data_description": {
+              "autotune": "Regola Autotune (Ziegler-Nichols, Tyreus-Luyben, Relay, Relay-PI).",
+              "noiseband": "Banda di rumore per l'autotuning.",
+              "lookback": "Periodo di analisi per l'autotuning."
+            }
+          }
+        }
+      },
+      "advanced": {
+        "title": "Impostazioni Avanzate",
+        "description": "Protezione cicli, limiti di uscita e sicurezza.",
+        "data": {
+          "output_precision": "Precisione di uscita",
+          "output_min": "Uscita minima",
+          "output_max": "Uscita massima",
+          "out_clamp_low": "Clamp di uscita basso",
+          "out_clamp_high": "Clamp di uscita alto",
+          "min_cycle_duration": "Durata minima ciclo",
+          "min_off_cycle_duration": "Durata minima arresto"
+        },
+        "data_description": {
+          "output_precision": "Numero di decimali per l'uscita.",
+          "output_min": "Valore minimo assoluto dell'uscita applicato all'attuatore.",
+          "output_max": "Valore massimo assoluto dell'uscita applicato all'attuatore.",
+          "out_clamp_low": "Limite inferiore di uscita.",
+          "out_clamp_high": "Limite superiore di uscita.",
+          "min_cycle_duration": "Durata minima tra due cambi di stato dell'attuatore (ON e OFF se min_off_cycle_duration non è specificato).",
+          "min_off_cycle_duration": "Durata minima nello stato OFF dell'attuatore."
+        },
+        "sections": {
+          "advanced_options": {
+            "name": "Opzioni avanzate",
+            "description": "Parametri avanzati per il termostato.",
+            "data": {
+              "min_cycle_duration_pid_off": "Durata minima ciclo (PID OFF)",
+              "min_off_cycle_duration_pid_off": "Durata minima arresto (PID OFF)",
+              "sensor_stall": "Timeout blocco sensore",
+              "output_safety": "Valore di sicurezza di uscita",
+              "invert_heater": "Inverti polarità attuatore",
+              "force_off_state": "Forza lo spegnimento dell'attuatore quando il termostato è OFF",
+              "debug": "Modalità debug"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off": "Durata minima del ciclo quando il PID è disattivato.",
+              "min_off_cycle_duration_pid_off": "Durata minima dell'arresto quando il PID è disattivato.",
+              "sensor_stall": "Tempo d'attesa prima di passare al valore di sicurezza se il sensore smette di aggiornarsi.",
+              "output_safety": "Percentuale di uscita applicata quando il sensore è bloccato o non disponibile.",
+              "invert_heater": "Attiva se l'attuatore deve essere spento per riscaldare (es. relè invertito).",
+              "force_off_state": "Garantisce che l'attuatore sia spento quando la modalità HVAC è OFF.",
+              "debug": "Attiva la modalità di debug."
+            }
+          }
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "output_min_max": "Deve essere valido: output_min <= out_clamp_low < out_clamp_high <= output_max.",
+      "min_max_temp": "La temperatura minima deve essere inferiore alla temperatura massima.",
+      "target_temp": "Il setpoint impostato deve essere compreso tra la temperatura minima e massima."
+    },
+    "step": {
+      "init": {
+        "title": "Configurazione principale",
+        "description": "Configura le entità principali del tuo termostato intelligente.",
+        "data": {
+          "name": "Nome del termostato",
+          "heater": "Attuatore/i di riscaldamento",
+          "target_sensor": "Sensore di temperatura ambiente",
+          "cooler": "Attuatore/i di raffreddamento",
+          "outdoor_sensor": "Sensore di temperatura esterna",
+          "ac_mode": "Modalità raffreddamento / AC"
+        },
+        "data_description": {
+          "name": "Nome visualizzato per l'entità climate in Home Assistant.",
+          "heater": "Interruttore, valvola, luce o entità number che controlla il riscaldamento (Obbligatorio).",
+          "target_sensor": "Sensore che misura la temperatura della stanza (Obbligatorio).",
+          "cooler": "Attuatore opzionale utilizzato in modalità raffreddamento.",
+          "outdoor_sensor": "Sensore esterno opzionale per la compensazione Ke.",
+          "ac_mode": "Passa l'attuatore principale in modalità raffreddamento al posto del riscaldamento."
+        }
+      },
+      "temperature": {
+        "title": "Impostazioni di temperatura",
+        "description": "Imposta limiti e tolleranze di temperatura.",
+        "data": {
+          "min_temp": "Temperatura minima",
+          "max_temp": "Temperatura massima",
+          "target_temp": "Setpoint iniziale"
+        },
+        "data_description": {
+          "min_temp": "Lascia vuoto per utilizzare il valore predefinito di Home Assistant.",
+          "max_temp": "Lascia vuoto per utilizzare il valore predefinito di Home Assistant."
+        },
+        "sections": {
+          "options": {
+            "name": "Opzioni avanzate",
+            "description": "Parametri aggiuntivi per il termostato.",
+            "data": {
+              "hot_tolerance": "Tolleranza alta",
+              "cold_tolerance": "Tolleranza bassa",
+              "initial_hvac_mode": "Modalità HVAC iniziale"
+            },
+            "data_description": {
+              "hot_tolerance": "Isteresi sopra il setpoint.",
+              "cold_tolerance": "Isteresi sotto il setpoint.",
+              "initial_hvac_mode": "Stato iniziale del termostato."
+            }
+          }
+        }
+      },
+      "presets": {
+        "title": "Temperature Preset",
+        "description": "Imposta le temperature dei preset (Lascia vuoto per disabilitare un preset).",
+        "data": {
+          "away_temp": "Temperatura Fuori casa (Away)",
+          "eco_temp": "Temperatura Eco",
+          "boost_temp": "Temperatura Boost",
+          "comfort_temp": "Temperatura Comfort",
+          "home_temp": "Temperatura In casa (Home)",
+          "sleep_temp": "Temperatura Notte (Sleep)",
+          "activity_temp": "Temperatura Attività",
+          "preset_sync_mode": "Sincronizzazione preset",
+          "boost_pid_off": "Disabilita PID in modalità Boost"
+        },
+        "data_description": {
+          "preset_sync_mode": "Attiva automaticamente un preset quando la sua temperatura viene selezionata.",
+          "boost_pid_off": "Forza la modalità PID su OFF quando il preset Boost è attivo."
+        }
+      },
+      "pid": {
+        "title": "Controllo PID",
+        "description": "Configura i guadagni PID e il periodo PWM.",
+        "data": {
+          "kp": "Guadagno Proporzionale (Kp)",
+          "ki": "Guadagno Integrale (Ki)",
+          "kd": "Guadagno Derivativo (Kd)",
+          "ke": "Guadagno Compensazione Esterna (Ke)",
+          "pwm": "Periodo PWM",
+          "keep_alive": "Intervallo Keep-alive",
+          "sampling_period": "Frequenza di campionamento PID"
+        },
+        "data_description": {
+          "ke": "Guadagno applicato alla differenza tra temperatura impostata ed esterna.",
+          "pwm": "Tempo di ciclo completo per la regolazione PWM (obbligatorio, impostare a 0 per attuatori analogici come valvole, termostati...).",
+          "keep_alive": "Invia periodicamente il comando all'attuatore."
+        },
+        "sections": {
+          "autotune_options": {
+            "name": "Opzioni Autotune",
+            "description": "Configura l'autotune del PID (fortemente sconsigliato).",
+            "data": {
+              "autotune": "Regola Autotune",
+              "noiseband": "Banda di rumore Autotune",
+              "lookback": "Periodo analisi Autotune"
+            },
+            "data_description": {
+              "autotune": "Regola Autotune (Ziegler-Nichols, Tyreus-Luyben, Relay, Relay-PI).",
+              "noiseband": "Banda di rumore per l'autotuning.",
+              "lookback": "Periodo di analisi per l'autotuning."
+            }
+          }
+        }
+      },
+      "advanced": {
+        "title": "Impostazioni Avanzate",
+        "description": "Protezione cicli, limiti di uscita e sicurezza.",
+        "data": {
+          "output_precision": "Precisione di uscita",
+          "output_min": "Uscita minima",
+          "output_max": "Uscita massima",
+          "out_clamp_low": "Clamp di uscita basso",
+          "out_clamp_high": "Clamp di uscita alto",
+          "min_cycle_duration": "Durata minima ciclo",
+          "min_off_cycle_duration": "Durata minima arresto"
+        },
+        "data_description": {
+          "output_precision": "Numero di decimali per l'uscita.",
+          "output_min": "Valore minimo assoluto dell'uscita applicato all'attuatore.",
+          "output_max": "Valore massimo assoluto dell'uscita applicato all'attuatore.",
+          "out_clamp_low": "Limite inferiore di uscita.",
+          "out_clamp_high": "Limite superiore di uscita.",
+          "min_cycle_duration": "Durata minima tra due cambi di stato dell'attuatore (ON e OFF se min_off_cycle_duration non è specificato).",
+          "min_off_cycle_duration": "Durata minima nello stato OFF dell'attuatore."
+        },
+        "sections": {
+          "advanced_options": {
+            "name": "Opzioni avanzate",
+            "description": "Parametri avanzati per il termostato.",
+            "data": {
+              "min_cycle_duration_pid_off": "Durata minima ciclo (PID OFF)",
+              "min_off_cycle_duration_pid_off": "Durata minima arresto (PID OFF)",
+              "sensor_stall": "Timeout blocco sensore",
+              "output_safety": "Valore di sicurezza di uscita",
+              "invert_heater": "Inverti polarità attuatore",
+              "force_off_state": "Forza lo spegnimento dell'attuatore quando il termostato è OFF",
+              "debug": "Modalità debug"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off": "Durata minima del ciclo quando il PID è disattivato.",
+              "min_off_cycle_duration_pid_off": "Durata minima dell'arresto quando il PID è disattivato.",
+              "sensor_stall": "Tempo d'attesa prima di passare al valore di sicurezza se il sensore smette di aggiornarsi.",
+              "output_safety": "Percentuale di uscita applicata quando il sensore è bloccato o non disponibile.",
+              "invert_heater": "Attiva se l'attuatore deve essere spento per riscaldare (es. relè invertito).",
+              "force_off_state": "Garantisce che l'attuatore sia spento quando la modalità HVAC è OFF.",
+              "debug": "Attiva la modalità di debug."
+            }
+          }
+        }
+      }
+    }
+  }
+}

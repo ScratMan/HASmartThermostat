@@ -1,0 +1,127 @@
+{
+  "config": {
+    "error": {
+      "clamp_min_max": "Minimum output clamp must be less than or equal to maximum output clamp.",
+      "min_max_temp": "Minimum temperature must be less than maximum temperature.",
+      "output_min_max": "Minimum output must be less than or equal to maximum output."
+    },
+    "step": {
+      "user": {
+        "title": "Main Configuration",
+        "description": "Configure the core entities for your smart thermostat.",
+        "data": {
+          "name": "Thermostat Name",
+          "heater": "Heating Actuator(s)",
+          "target_sensor": "Room Temperature Sensor",
+          "cooler": "Cooling Actuator(s)",
+          "outdoor_sensor": "Outdoor Temperature Sensor",
+          "invert_heater": "Invert Actuator Polarity",
+          "ac_mode": "Cooling / AC Mode",
+          "force_off_state": "Force Actuator Off When Thermostat is Off"
+        },
+        "data_description": {
+          "name": "Name displayed for the climate entity in Home Assistant.",
+          "heater": "Switch, valve, light, or number entity controlling heat (Required).",
+          "target_sensor": "Temperature sensor measuring the room temperature (Required).",
+          "cooler": "Optional actuator used when cooling mode is active.",
+          "outdoor_sensor": "Optional outdoor sensor used for Ke compensation.",
+          "invert_heater": "Enable if the actuator must be turned off to heat (e.g., inverted relay).",
+          "ac_mode": "Switch the main actuator to cooling mode instead of heating.",
+          "force_off_state": "Ensures the actuator is physically turned off when HVAC mode is OFF."
+        }
+      },
+      "temperature": {
+        "title": "Temperature Settings",
+        "description": "Set temperature limits and tolerances.",
+        "data": {
+          "min_temp": "Minimum Target Temperature",
+          "max_temp": "Maximum Target Temperature",
+          "target_temp": "Initial Target Temperature",
+          "hot_tolerance": "Hot Tolerance",
+          "cold_tolerance": "Cold Tolerance",
+          "initial_hvac_mode": "Initial HVAC Mode",
+          "preset_sync_mode": "Preset Sync Mode",
+          "boost_pid_off": "Disable PID in Boost Preset"
+        },
+        "data_description": {
+          "min_temp": "Leave blank to use Home Assistant default value.",
+          "max_temp": "Leave blank to use Home Assistant default value.",
+          "hot_tolerance": "Hysteresis above setpoint.",
+          "cold_tolerance": "Hysteresis below setpoint.",
+          "boost_pid_off": "Forces PID mode to OFF when Boost preset is enabled."
+        }
+      },
+      "presets": {
+        "title": "Preset Temperatures",
+        "description": "Set temperatures for predefined modes (Leave blank to disable a preset).",
+        "data": {
+          "away_temp": "Away Temperature",
+          "eco_temp": "Eco Temperature",
+          "boost_temp": "Boost Temperature",
+          "comfort_temp": "Comfort Temperature",
+          "home_temp": "Home Temperature",
+          "sleep_temp": "Sleep Temperature",
+          "activity_temp": "Activity Temperature"
+        }
+      },
+      "pid": {
+        "title": "PID Controller",
+        "description": "Configure PID controller gains and timing parameters.",
+        "data": {
+          "kp": "Proportional Gain (Kp)",
+          "ki": "Integral Gain (Ki)",
+          "kd": "Derivative Gain (Kd)",
+          "ke": "Outdoor Compensation Gain (Ke)",
+          "pwm": "PWM Period",
+          "keep_alive": "Keep-alive Interval",
+          "sampling_period": "PID Sampling Period",
+          "autotune": "Autotune Rule",
+          "noiseband": "Autotune Noise Band",
+          "lookback": "Autotune Lookback Period"
+        },
+        "data_description": {
+          "ke": "Gain applied to the difference between target and outdoor temperature.",
+          "pwm": "Full cycle time for pulse-width modulation regulation.",
+          "keep_alive": "Periodically re-sends turn on/off commands to actuators."
+        }
+      },
+      "advanced": {
+        "title": "Advanced Settings",
+        "description": "Fine-tune cycle protection, output limits, and safety behavior.",
+        "data": {
+          "output_precision": "Output Precision",
+          "output_min": "Minimum Output",
+          "output_max": "Maximum Output",
+          "out_clamp_low": "Output Clamp Low",
+          "out_clamp_high": "Output Clamp High",
+          "min_cycle_duration": "Minimum Cycle Duration",
+          "min_off_cycle_duration": "Minimum Off Cycle Duration",
+          "sensor_stall": "Sensor Stall Timeout",
+          "output_safety": "Safety Output Level",
+          "debug": "Debug Mode"
+        },
+        "data_description": {
+          "sensor_stall": "Timeout before falling back to safety level if sensor stops updating.",
+          "output_safety": "Output percentage applied when sensor is stalled or unavailable."
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "clamp_min_max": "Minimum output clamp must be less than or equal to maximum output clamp.",
+      "min_max_temp": "Minimum temperature must be less than maximum temperature.",
+      "output_min_max": "Minimum output must be less than or equal to maximum output."
+    },
+    "step": {
+      "init": {
+        "title": "Smart Thermostat Options",
+        "description": "Modify main configuration and options."
+      },
+      "presets": {
+        "title": "Preset Temperatures",
+        "description": "Modify preset temperatures."
+      }
+    }
+  }
+}

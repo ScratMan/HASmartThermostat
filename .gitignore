@@ -1,2 +1,15 @@
 .idea/
+.cache/
+.storage/
+.cloud/
+blueprints/
+deps/
+tts/
+/*.yaml
+/*.yml
 *.csv
+*.lock
+.HA_VERSION
+*.log
+*.log.*
+home-assistant_v2.*

@@ -1,0 +1,316 @@
+{
+  "config": {
+    "error": {
+      "output_min_max": "Il faut output_min <= out_clamp_low < out_clamp_high <= output_max.",
+      "min_max_temp": "La température minimale doit être inférieure à la température maximale.",
+      "target_temp": "La consigne doit être comprise entre la température minimale et maximale."
+    },
+    "step": {
+      "user": {
+        "title": "Configuration principale",
+        "description": "Configurez les entités principales de votre thermostat intelligent.",
+        "data": {
+          "name": "Nom du thermostat",
+          "heater": "Actionneur(s) de chauffage",
+          "target_sensor": "Capteur de température ambiante",
+          "cooler": "Actionneur(s) de refroidissement",
+          "outdoor_sensor": "Capteur de température extérieure",
+          "ac_mode": "Mode climatisation / refroidissement"
+        },
+        "data_description": {
+          "name": "Nom affiché pour l'entité climate dans Home Assistant.",
+          "heater": "Commutateur, vanne, lumière ou entité number contrôlant le chauffage (Obligatoire).",
+          "target_sensor": "Capteur mesurant la température de la pièce (Obligatoire).",
+          "cooler": "Actionneur optionnel utilisé en mode refroidissement.",
+          "outdoor_sensor": "Capteur extérieur utilisé pour la compensation Ke (Optionnel).",
+          "ac_mode": "Bascule l'actionneur principal en mode climatisation au lieu du chauffage."
+        }
+      },
+      "temperature": {
+        "title": "Paramètres de température",
+        "description": "Définissez les limites et tolérances de température.",
+        "data": {
+          "min_temp": "Température minimale réglable",
+          "max_temp": "Température maximale réglable",
+          "target_temp": "Consigne initiale"
+        },
+        "data_description": {
+          "min_temp": "Laissez vide pour utiliser la valeur par défaut de Home Assistant.",
+          "max_temp": "Laissez vide pour utiliser la valeur par défaut de Home Assistant."
+        },
+        "sections": {
+          "options": {
+            "name": "Options avancées",
+            "description": "Paramètres supplémentaires pour le thermostat.",
+            "data": {
+              "hot_tolerance": "Tolérance haute",
+              "cold_tolerance": "Tolérance basse",
+              "initial_hvac_mode": "Mode HVAC initial"
+            },
+            "data_description": {
+              "hot_tolerance": "Hystérésis au-dessus de la consigne.",
+              "cold_tolerance": "Hystérésis en dessous de la consigne.",
+              "initial_hvac_mode": "Etat initial du thermostat"
+            }
+          }
+        }
+      },
+      "presets": {
+        "title": "Températures des Presets",
+        "description": "Définissez les températures associées aux modes prédéfinis (Laissez vide pour désactiver un preset).",
+        "data": {
+          "away_temp": "Température Absent (Away)",
+          "eco_temp": "Température Eco",
+          "boost_temp": "Température Boost",
+          "comfort_temp": "Température Confort",
+          "home_temp": "Température Maison (Home)",
+          "sleep_temp": "Température Nuit (Sleep)",
+          "activity_temp": "Température Activité",
+          "preset_sync_mode": "Synchronisation des presets",
+          "boost_pid_off": "Désactiver le PID en mode Boost"
+        },
+        "data_description": {
+          "preset_sync_mode": "Active automatique un preset si sa température est sélectionnée.",
+          "boost_pid_off": "Force le mode PID à OFF lorsque le preset Boost est activé."
+        }
+      },
+      "pid": {
+        "title": "Contrôleur PID",
+        "description": "Ajustez les gains du contrôleur PID et la période PWM.",
+        "data": {
+          "kp": "Gain Proportionnel (Kp)",
+          "ki": "Gain Intégral (Ki)",
+          "kd": "Gain Dérivé (Kd)",
+          "ke": "Gain Compensation Extérieure (Ke)",
+          "pwm": "Période PWM",
+          "keep_alive": "Intervalle Keep-alive",
+          "sampling_period": "Période d'échantillonnage PID"
+        },
+        "data_description": {
+          "ke": "Coefficient appliqué à la différence entre la consigne et la température extérieure.",
+          "pwm": "Temps de cycle complet pour la régulation en largeur d'impulsion (obligatoire, mettre 0 pour des actionneurs analogiques type vanne, thermostats...). ",
+          "keep_alive": "Renvoie la commande à l'actionneur à intervalle régulier."
+        },
+        "sections": {
+          "autotune_options": {
+            "name": "Options Autotune",
+            "description": "Configurez l'autotune du PID (fortement déconseillé).",
+            "data": {
+              "autotune": "Règle d'Auto-tune",
+              "noiseband": "Bande de bruit Auto-tune",
+              "lookback": "Période d'analyse Auto-tune"
+            },
+            "data_description": {
+              "autotune": "Règle d'Auto-tune (Ziegler-Nichols, Tyreus-Luyben, Relay, Relay-PI).",
+              "noiseband": "Bande de bruit pour l'Auto-tune.",
+              "lookback": "Période d'analyse pour l'Auto-tune."
+            }
+          }
+        }
+      },
+      "advanced": {
+        "title": "Paramètres Avancés",
+        "description": "Protection de cycle, limites de sortie et sécurité.",
+        "data": {
+          "output_precision": "Précision de la sortie",
+          "output_min": "Sortie minimale",
+          "output_max": "Sortie maximale",
+          "out_clamp_low": "Clamp de sortie bas",
+          "out_clamp_high": "Clamp de sortie haut",
+          "min_cycle_duration": "Durée minimale de cycle",
+          "min_off_cycle_duration": "Durée minimale d'arrêt"
+        },
+        "data_description": {
+          "output_precision": "Nombre de décimales pour la sortie.",
+          "output_min": "Valeur minimale absolue de la sortie appliquée à l'actionneur.",
+          "output_max": "Valeur maximale absolue de la sortie appliquée à l'actionneur.",
+          "out_clamp_low": "Limite basse de sortie.",
+          "out_clamp_high": "Limite haute de sortie.",
+          "min_cycle_duration": "Durée minimale entre deux changements d'état de l'actionneur (ON et OFF si min_off_cycle_duration n'est pas spécifié).",
+          "min_off_cycle_duration": "Durée minimale à l'état OFF de l'actionneur."
+        },
+        "sections": {
+          "advanced_options": {
+            "name": "Options avancées",
+            "description": "Paramètres avancés pour le thermostat.",
+            "data": {
+              "min_cycle_duration_pid_off": "Durée minimale de cycle (PID OFF)",
+              "min_off_cycle_duration_pid_off": "Durée minimale d'arrêt (PID OFF)",
+              "sensor_stall": "Délai de blocage du capteur",
+              "output_safety": "Valeur de sécurité de sortie",
+              "invert_heater": "Inverser la polarité de l'actionneur",
+              "force_off_state": "Forcer l'extinction de l'actionneur quand le thermostat est à OFF",
+              "debug": "Mode débogage"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off": "Durée minimale d'un cycle lorsque le PID est désactivé.",
+              "min_off_cycle_duration_pid_off": "Durée minimale d'arrêt lorsque le PID est désactivé.",
+              "sensor_stall": "Délai avant de basculer en valeur de sécurité si le capteur ne répond plus.",
+              "output_safety": "Pourcentage de sortie appliqué si le capteur est bloqué/hors-ligne.",
+              "invert_heater": "Activez si l'actionneur doit être éteint pour chauffer (ex: relais inversé).",
+              "force_off_state": "S'assure que l'actionneur est physiquement éteint lorsque le mode HVAC est OFF.",
+              "debug": "Active le mode débogage."
+            }
+          }
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "output_min_max": "Il faut output_min <= out_clamp_low < out_clamp_high <= output_max.",
+      "min_max_temp": "La température minimale doit être inférieure à la température maximale.",
+      "target_temp": "La consigne doit être comprise entre la température minimale et maximale."
+    },
+    "step": {
+      "init": {
+        "title": "Configuration principale",
+        "description": "Configurez les entités principales de votre thermostat intelligent.",
+        "data": {
+          "name": "Nom du thermostat",
+          "heater": "Actionneur(s) de chauffage",
+          "target_sensor": "Capteur de température ambiante",
+          "cooler": "Actionneur(s) de refroidissement",
+          "outdoor_sensor": "Capteur de température extérieure",
+          "ac_mode": "Mode climatisation / refroidissement"
+        },
+        "data_description": {
+          "name": "Nom affiché pour l'entité climate dans Home Assistant.",
+          "heater": "Commutateur, vanne, lumière ou entité number contrôlant le chauffage (Obligatoire).",
+          "target_sensor": "Capteur mesurant la température de la pièce (Obligatoire).",
+          "cooler": "Actionneur optionnel utilisé en mode refroidissement.",
+          "outdoor_sensor": "Capteur extérieur utilisé pour la compensation Ke (Optionnel).",
+          "ac_mode": "Bascule l'actionneur principal en mode climatisation au lieu du chauffage."
+        }
+      },
+      "temperature": {
+        "title": "Paramètres de température",
+        "description": "Définissez les limites et tolérances de température.",
+        "data": {
+          "min_temp": "Température minimale réglable",
+          "max_temp": "Température maximale réglable",
+          "target_temp": "Consigne initiale"
+        },
+        "data_description": {
+          "min_temp": "Laissez vide pour utiliser la valeur par défaut de Home Assistant.",
+          "max_temp": "Laissez vide pour utiliser la valeur par défaut de Home Assistant."
+        },
+        "sections": {
+          "options": {
+            "name": "Options avancées",
+            "description": "Paramètres supplémentaires pour le thermostat.",
+            "data": {
+              "hot_tolerance": "Tolérance haute",
+              "cold_tolerance": "Tolérance basse",
+              "initial_hvac_mode": "Mode HVAC initial"
+            },
+            "data_description": {
+              "hot_tolerance": "Hystérésis au-dessus de la consigne.",
+              "cold_tolerance": "Hystérésis en dessous de la consigne.",
+              "initial_hvac_mode": "Etat initial du thermostat"
+            }
+          }
+        }
+      },
+      "presets": {
+        "title": "Températures des Presets",
+        "description": "Définissez les températures associées aux modes prédéfinis (Laissez vide pour désactiver un preset).",
+        "data": {
+          "away_temp": "Température Absent (Away)",
+          "eco_temp": "Température Eco",
+          "boost_temp": "Température Boost",
+          "comfort_temp": "Température Confort",
+          "home_temp": "Température Maison (Home)",
+          "sleep_temp": "Température Nuit (Sleep)",
+          "activity_temp": "Température Activité",
+          "preset_sync_mode": "Synchronisation des presets",
+          "boost_pid_off": "Désactiver le PID en mode Boost"
+        },
+        "data_description": {
+          "preset_sync_mode": "Active automatique un preset si sa température est sélectionnée.",
+          "boost_pid_off": "Force le mode PID à OFF lorsque le preset Boost est activé."
+        }
+      },
+      "pid": {
+        "title": "Contrôleur PID",
+        "description": "Ajustez les gains du contrôleur PID et la période PWM.",
+        "data": {
+          "kp": "Gain Proportionnel (Kp)",
+          "ki": "Gain Intégral (Ki)",
+          "kd": "Gain Dérivé (Kd)",
+          "ke": "Gain Compensation Extérieure (Ke)",
+          "pwm": "Période PWM",
+          "keep_alive": "Intervalle Keep-alive",
+          "sampling_period": "Période d'échantillonnage PID"
+        },
+        "data_description": {
+          "ke": "Coefficient appliqué à la différence entre la consigne et la température extérieure.",
+          "pwm": "Temps de cycle complet pour la régulation en largeur d'impulsion (obligatoire, mettre 0 pour des actionneurs analogiques type vanne, thermostats...). ",
+          "keep_alive": "Renvoie la commande à l'actionneur à intervalle régulier."
+        },
+        "sections": {
+          "autotune_options": {
+            "name": "Options Autotune",
+            "description": "Configurez l'autotune du PID (fortement déconseillé).",
+            "data": {
+              "autotune": "Règle d'Auto-tune",
+              "noiseband": "Bande de bruit Auto-tune",
+              "lookback": "Période d'analyse Auto-tune"
+            },
+            "data_description": {
+              "autotune": "Règle d'Auto-tune (Ziegler-Nichols, Tyreus-Luyben, Relay, Relay-PI).",
+              "noiseband": "Bande de bruit pour l'Auto-tune.",
+              "lookback": "Période d'analyse pour l'Auto-tune."
+            }
+          }
+        }
+      },
+      "advanced": {
+        "title": "Paramètres Avancés",
+        "description": "Protection de cycle, limites de sortie et sécurité.",
+        "data": {
+          "output_precision": "Précision de la sortie",
+          "output_min": "Sortie minimale",
+          "output_max": "Sortie maximale",
+          "out_clamp_low": "Clamp de sortie bas",
+          "out_clamp_high": "Clamp de sortie haut",
+          "min_cycle_duration": "Durée minimale de cycle",
+          "min_off_cycle_duration": "Durée minimale d'arrêt"
+        },
+        "data_description": {
+          "output_precision": "Nombre de décimales pour la sortie.",
+          "output_min": "Valeur minimale absolue de la sortie appliquée à l'actionneur.",
+          "output_max": "Valeur maximale absolue de la sortie appliquée à l'actionneur.",
+          "out_clamp_low": "Limite basse de sortie.",
+          "out_clamp_high": "Limite haute de sortie.",
+          "min_cycle_duration": "Durée minimale entre deux changements d'état de l'actionneur (ON et OFF si min_off_cycle_duration n'est pas spécifié).",
+          "min_off_cycle_duration": "Durée minimale à l'état OFF de l'actionneur."
+        },
+        "sections": {
+          "advanced_options": {
+            "name": "Options avancées",
+            "description": "Paramètres avancés pour le thermostat.",
+            "data": {
+              "min_cycle_duration_pid_off": "Durée minimale de cycle (PID OFF)",
+              "min_off_cycle_duration_pid_off": "Durée minimale d'arrêt (PID OFF)",
+              "sensor_stall": "Délai de blocage du capteur",
+              "output_safety": "Valeur de sécurité de sortie",
+              "invert_heater": "Inverser la polarité de l'actionneur",
+              "force_off_state": "Forcer l'extinction de l'actionneur quand le thermostat est à OFF",
+              "debug": "Mode débogage"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off": "Durée minimale d'un cycle lorsque le PID est désactivé.",
+              "min_off_cycle_duration_pid_off": "Durée minimale d'arrêt lorsque le PID est désactivé.",
+              "sensor_stall": "Délai avant de basculer en valeur de sécurité si le capteur ne répond plus.",
+              "output_safety": "Pourcentage de sortie appliqué si le capteur est bloqué/hors-ligne.",
+              "invert_heater": "Activez si l'actionneur doit être éteint pour chauffer (ex: relais inversé).",
+              "force_off_state": "S'assure que l'actionneur est physiquement éteint lorsque le mode HVAC est OFF.",
+              "debug": "Active le mode débogage."
+            }
+          }
+        }
+      }
+    }
+  }
+}

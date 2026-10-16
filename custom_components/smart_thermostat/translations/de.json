@@ -1,0 +1,316 @@
+{
+  "config": {
+    "error": {
+      "output_min_max": "Es muss gelten: output_min <= out_clamp_low < out_clamp_high <= output_max.",
+      "min_max_temp": "Die Mindesttemperatur muss kleiner als die Höchsttemperatur sein.",
+      "target_temp": "Der Sollwert muss zwischen der Mindest- und Höchsttemperatur liegen."
+    },
+    "step": {
+      "user": {
+        "title": "Hauptkonfiguration",
+        "description": "Konfigurieren Sie die Hauptkomponenten Ihres smarten Thermostats.",
+        "data": {
+          "name": "Thermostatname",
+          "heater": "Heizungs-Aktor(en)",
+          "target_sensor": "Raumtemperatursensor",
+          "cooler": "Kühlungs-Aktor(en)",
+          "outdoor_sensor": "Außentemperatursensor",
+          "ac_mode": "Kühl- / Klimamodus"
+        },
+        "data_description": {
+          "name": "Anzeigename der Climate-Entität in Home Assistant.",
+          "heater": "Schalter, Ventil, Licht oder Number-Entität zur Heizungssteuerung (Erforderlich).",
+          "target_sensor": "Temperatursensor zur Messung der Raumtemperatur (Erforderlich).",
+          "cooler": "Optionaler Aktor für den Kühlbetrieb.",
+          "outdoor_sensor": "Optionaler Außensensor für Ke-Kompensation.",
+          "ac_mode": "Schaltet den Hauptaktor auf Kühlmodus um."
+        }
+      },
+      "temperature": {
+        "title": "Temperatureinstellungen",
+        "description": "Grenzwerte und Toleranzen festlegen.",
+        "data": {
+          "min_temp": "Mindesttemperatur",
+          "max_temp": "Höchsttemperatur",
+          "target_temp": "Start-Sollwert"
+        },
+        "data_description": {
+          "min_temp": "Lassen Sie dieses Feld leer, um den Standardwert von Home Assistant zu verwenden.",
+          "max_temp": "Lassen Sie dieses Feld leer, um den Standardwert von Home Assistant zu verwenden."
+        },
+        "sections": {
+          "options": {
+            "name": "Erweiterte Optionen",
+            "description": "Zusätzliche Einstellungen für das Thermostat.",
+            "data": {
+              "hot_tolerance": "Toleranz oben",
+              "cold_tolerance": "Toleranz unten",
+              "initial_hvac_mode": "Initialer HVAC-Modus"
+            },
+            "data_description": {
+              "hot_tolerance": "Hysterese oberhalb des Sollwerts.",
+              "cold_tolerance": "Hysterese unterhalb des Sollwerts.",
+              "initial_hvac_mode": "Initialer Status des Thermostats."
+            }
+          }
+        }
+      },
+      "presets": {
+        "title": "Voreingestellte Temperaturen",
+        "description": "Sollwert-Temperaturen für Presets festlegen (Leer lassen zum Deaktivieren).",
+        "data": {
+          "away_temp": "Abwesend-Temperatur (Away)",
+          "eco_temp": "Eco-Temperatur",
+          "boost_temp": "Boost-Temperatur",
+          "comfort_temp": "Komfort-Temperatur",
+          "home_temp": "Zuhause-Temperatur (Home)",
+          "sleep_temp": "Schlaf-Temperatur (Sleep)",
+          "activity_temp": "Aktivitäts-Temperatur",
+          "preset_sync_mode": "Preset-Synchronisation",
+          "boost_pid_off": "PID im Boost-Preset deaktivieren"
+        },
+        "data_description": {
+          "preset_sync_mode": "Aktiviert automatisch ein Preset, wenn dessen Temperatur ausgewählt wird.",
+          "boost_pid_off": "Erzwingt den PID-Modus auf AUS, wenn das Boost-Preset aktiv ist."
+        }
+      },
+      "pid": {
+        "title": "PID-Regler",
+        "description": "PID-Reglergewinne und PWM-Perioden konfigurieren.",
+        "data": {
+          "kp": "Proportionalverstärkung (Kp)",
+          "ki": "Integralverstärkung (Ki)",
+          "kd": "Differentialverstärkung (Kd)",
+          "ke": "Außenkompensationsgewinn (Ke)",
+          "pwm": "PWM-Periode",
+          "keep_alive": "Keep-Alive-Intervall",
+          "sampling_period": "PID-Abtastrate"
+        },
+        "data_description": {
+          "ke": "Verstärkung angewendet auf die Differenz zwischen Soll- und Außentemperatur.",
+          "pwm": "Volle Zykluszeit für die Pulsweitenmodulationsregelung (erforderlich, auf 0 setzen für analoge Aktoren wie Ventile, Thermostate...).",
+          "keep_alive": "Sendet regelmäßig Steuerbefehle an den Aktor."
+        },
+        "sections": {
+          "autotune_options": {
+            "name": "Autotune-Optionen",
+            "description": "PID-Autotune konfigurieren (dringend abgeraten).",
+            "data": {
+              "autotune": "Autotune-Regel",
+              "noiseband": "Autotune-Rauschband",
+              "lookback": "Autotune-Rückschauzeit"
+            },
+            "data_description": {
+              "autotune": "Autotune-Regel (Ziegler-Nichols, Tyreus-Luyben, Relay, Relay-PI).",
+              "noiseband": "Rauschband für Autotuning.",
+              "lookback": "Analysezeitraum für Autotuning."
+            }
+          }
+        }
+      },
+      "advanced": {
+        "title": "Erweiterte Einstellungen",
+        "description": "Zyklusschutz, Ausgangsgrenzen und Sicherheitsverhalten.",
+        "data": {
+          "output_precision": "Ausgangspräzision",
+          "output_min": "Minimaler Ausgang",
+          "output_max": "Maximaler Ausgang",
+          "out_clamp_low": "Ausgangsklemme niedrig",
+          "out_clamp_high": "Ausgangsklemme hoch",
+          "min_cycle_duration": "Mindestzyklusdauer",
+          "min_off_cycle_duration": "Mindestausschaltzeit"
+        },
+        "data_description": {
+          "output_precision": "Anzahl der Nachkommastellen für den Ausgang.",
+          "output_min": "Absoluter Mindestwert des Ausgangs für den Aktor.",
+          "output_max": "Absoluter Maximalwert des Ausgangs für den Aktor.",
+          "out_clamp_low": "Untere Ausgangsgrenze.",
+          "out_clamp_high": "Obere Ausgangsgrenze.",
+          "min_cycle_duration": "Mindestdauer zwischen zwei Statusänderungen des Aktors (ON und OFF, wenn min_off_cycle_duration nicht angegeben ist).",
+          "min_off_cycle_duration": "Mindestdauer im AUS-Zustand des Aktors."
+        },
+        "sections": {
+          "advanced_options": {
+            "name": "Erweiterte Optionen",
+            "description": "Erweiterte Parameter für das Thermostat.",
+            "data": {
+              "min_cycle_duration_pid_off": "Mindestzyklusdauer (PID AUS)",
+              "min_off_cycle_duration_pid_off": "Mindestausschaltzeit (PID AUS)",
+              "sensor_stall": "Sensor-Timeout",
+              "output_safety": "Sicherheitsausgangswert",
+              "invert_heater": "Aktorpolarität umkehren",
+              "force_off_state": "Aktor erzwingen auszuschalten, wenn Thermostat AUS ist",
+              "debug": "Debug-Modus"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off": "Mindestdauer eines Zyklus bei deaktiviertem PID.",
+              "min_off_cycle_duration_pid_off": "Mindestdauer der Ausschaltzeit bei deaktiviertem PID.",
+              "sensor_stall": "Zeitüberschreitung, bevor auf den Sicherheitswert zurückgegriffen wird, wenn der Sensor keine Updates mehr liefert.",
+              "output_safety": "Ausgangsprozentsatz, der angewendet wird, wenn der Sensor blockiert oder nicht verfügbar ist.",
+              "invert_heater": "Aktivieren, wenn der Aktor ausgeschaltet werden muss, um zu heizen (z. B. inverses Relais).",
+              "force_off_state": "Stellt sicher, dass der Aktor physisch ausgeschaltet wird, wenn der HVAC-Modus AUS ist.",
+              "debug": "Debug-Modus aktivieren."
+            }
+          }
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "output_min_max": "Es muss gelten: output_min <= out_clamp_low < out_clamp_high <= output_max.",
+      "min_max_temp": "Die Mindesttemperatur muss kleiner als die Höchsttemperatur sein.",
+      "target_temp": "Der Sollwert muss zwischen der Mindest- und Höchsttemperatur liegen."
+    },
+    "step": {
+      "init": {
+        "title": "Hauptkonfiguration",
+        "description": "Konfigurieren Sie die Hauptkomponenten Ihres smarten Thermostats.",
+        "data": {
+          "name": "Thermostatname",
+          "heater": "Heizungs-Aktor(en)",
+          "target_sensor": "Raumtemperatursensor",
+          "cooler": "Kühlungs-Aktor(en)",
+          "outdoor_sensor": "Außentemperatursensor",
+          "ac_mode": "Kühl- / Klimamodus"
+        },
+        "data_description": {
+          "name": "Anzeigename der Climate-Entität in Home Assistant.",
+          "heater": "Schalter, Ventil, Licht oder Number-Entität zur Heizungssteuerung (Erforderlich).",
+          "target_sensor": "Temperatursensor zur Messung der Raumtemperatur (Erforderlich).",
+          "cooler": "Optionaler Aktor für den Kühlbetrieb.",
+          "outdoor_sensor": "Optionaler Außensensor für Ke-Kompensation.",
+          "ac_mode": "Schaltet den Hauptaktor auf Kühlmodus um."
+        }
+      },
+      "temperature": {
+        "title": "Temperatureinstellungen",
+        "description": "Grenzwerte und Toleranzen festlegen.",
+        "data": {
+          "min_temp": "Mindesttemperatur",
+          "max_temp": "Höchsttemperatur",
+          "target_temp": "Start-Sollwert"
+        },
+        "data_description": {
+          "min_temp": "Lassen Sie dieses Feld leer, um den Standardwert von Home Assistant zu verwenden.",
+          "max_temp": "Lassen Sie dieses Feld leer, um den Standardwert von Home Assistant zu verwenden."
+        },
+        "sections": {
+          "options": {
+            "name": "Erweiterte Optionen",
+            "description": "Zusätzliche Einstellungen für das Thermostat.",
+            "data": {
+              "hot_tolerance": "Toleranz oben",
+              "cold_tolerance": "Toleranz unten",
+              "initial_hvac_mode": "Initialer HVAC-Modus"
+            },
+            "data_description": {
+              "hot_tolerance": "Hysteresse oberhalb des Sollwerts.",
+              "cold_tolerance": "Hysterese unterhalb des Sollwerts.",
+              "initial_hvac_mode": "Initialer Status des Thermostats."
+            }
+          }
+        }
+      },
+      "presets": {
+        "title": "Voreingestellte Temperaturen",
+        "description": "Sollwert-Temperaturen für Presets festlegen (Leer lassen zum Deaktivieren).",
+        "data": {
+          "away_temp": "Abwesend-Temperatur (Away)",
+          "eco_temp": "Eco-Temperatur",
+          "boost_temp": "Boost-Temperatur",
+          "comfort_temp": "Komfort-Temperatur",
+          "home_temp": "Zuhause-Temperatur (Home)",
+          "sleep_temp": "Schlaf-Temperatur (Sleep)",
+          "activity_temp": "Aktivitäts-Temperatur",
+          "preset_sync_mode": "Preset-Synchronisation",
+          "boost_pid_off": "PID im Boost-Preset deaktivieren"
+        },
+        "data_description": {
+          "preset_sync_mode": "Aktiviert automatisch ein Preset, wenn dessen Temperatur ausgewählt wird.",
+          "boost_pid_off": "Erzwingt den PID-Modus auf AUS, wenn das Boost-Preset aktiv ist."
+        }
+      },
+      "pid": {
+        "title": "PID-Regler",
+        "description": "PID-Reglergewinne und PWM-Perioden konfigurieren.",
+        "data": {
+          "kp": "Proportionalverstärkung (Kp)",
+          "ki": "Integralverstärkung (Ki)",
+          "kd": "Differentialverstärkung (Kd)",
+          "ke": "Außenkompensationsgewinn (Ke)",
+          "pwm": "PWM-Periode",
+          "keep_alive": "Keep-Alive-Intervall",
+          "sampling_period": "PID-Abtastrate"
+        },
+        "data_description": {
+          "ke": "Verstärkung angewendet auf die Differenz zwischen Soll- und Außentemperatur.",
+          "pwm": "Volle Zykluszeit für die Pulsweitenmodulationsregelung (erforderlich, auf 0 setzen für analoge Aktoren wie Ventile, Thermostate...).",
+          "keep_alive": "Sendet regelmäßig Steuerbefehle an den Aktor."
+        },
+        "sections": {
+          "autotune_options": {
+            "name": "Autotune-Optionen",
+            "description": "PID-Autotune konfigurieren (dringend abgeraten).",
+            "data": {
+              "autotune": "Autotune-Regel",
+              "noiseband": "Autotune-Rauschband",
+              "lookback": "Autotune-Rückschauzeit"
+            },
+            "data_description": {
+              "autotune": "Autotune-Regel (Ziegler-Nichols, Tyreus-Luyben, Relay, Relay-PI).",
+              "noiseband": "Rauschband für Autotuning.",
+              "lookback": "Analysezeitraum für Autotuning."
+            }
+          }
+        }
+      },
+      "advanced": {
+        "title": "Erweiterte Einstellungen",
+        "description": "Zyklusschutz, Ausgangsgrenzen und Sicherheitsverhalten.",
+        "data": {
+          "output_precision": "Ausgangspräzision",
+          "output_min": "Minimaler Ausgang",
+          "output_max": "Maximaler Ausgang",
+          "out_clamp_low": "Ausgangsklemme niedrig",
+          "out_clamp_high": "Ausgangsklemme hoch",
+          "min_cycle_duration": "Mindestzyklusdauer",
+          "min_off_cycle_duration": "Mindestausschaltzeit"
+        },
+        "data_description": {
+          "output_precision": "Anzahl der Nachkommastellen für den Ausgang.",
+          "output_min": "Absoluter Mindestwert des Ausgangs für den Aktor.",
+          "output_max": "Absoluter Maximalwert des Ausgangs für den Aktor.",
+          "out_clamp_low": "Untere Ausgangsgrenze.",
+          "out_clamp_high": "Obere Ausgangsgrenze.",
+          "min_cycle_duration": "Mindestdauer zwischen zwei Statusänderungen des Aktors (ON und OFF, wenn min_off_cycle_duration nicht angegeben ist).",
+          "min_off_cycle_duration": "Mindestdauer im AUS-Zustand des Aktors."
+        },
+        "sections": {
+          "advanced_options": {
+            "name": "Erweiterte Optionen",
+            "description": "Erweiterte Parameter für das Thermostat.",
+            "data": {
+              "min_cycle_duration_pid_off": "Mindestzyklusdauer (PID AUS)",
+              "min_off_cycle_duration_pid_off": "Mindestausschaltzeit (PID AUS)",
+              "sensor_stall": "Sensor-Timeout",
+              "output_safety": "Sicherheitsausgangswert",
+              "invert_heater": "Aktorpolarität umkehren",
+              "force_off_state": "Aktor erzwingen auszuschalten, wenn Thermostat AUS ist",
+              "debug": "Debug-Modus"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off": "Mindestdauer eines Zyklus bei deaktiviertem PID.",
+              "min_off_cycle_duration_pid_off": "Mindestdauer der Ausschaltzeit bei deaktiviertem PID.",
+              "sensor_stall": "Zeitüberschreitung, bevor auf den Sicherheitswert zurückgegriffen wird, wenn der Sensor keine Updates mehr liefert.",
+              "output_safety": "Ausgangsprozentsatz, der angewendet wird, wenn der Sensor blockiert oder nicht verfügbar ist.",
+              "invert_heater": "Aktivieren, wenn der Aktor ausgeschaltet werden muss, um zu heizen (z. B. inverses Relais).",
+              "force_off_state": "Stellt sicher, dass der Aktor physisch ausgeschaltet wird, wenn der HVAC-Modus AUS ist.",
+              "debug": "Debug-Modus aktivieren."
+            }
+          }
+        }
+      }
+    }
+  }
+}
