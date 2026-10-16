@@ -1,4 +1,5 @@
 """Tests for the Smart Thermostat climate platform."""
+
 from datetime import timedelta
 import csv
 import math
@@ -130,7 +131,7 @@ async def test_turn_on_turn_off_services(hass):
 async def test_proportional_valve_position(hass):
     """Test controlling a 0-100% proportional valve via set_valve_position."""
     await async_setup_component(hass, "valve", {})
-    last_position = None
+    last_position: int | None = None
 
     async def _handle_set_position(call):
         nonlocal last_position
@@ -173,10 +174,10 @@ async def test_proportional_valve_position(hass):
 
     assert last_position == 50
     assert (
-        hass.states.get("climate.proportional_valve_thermostat").attributes[
-            "control_output"
-        ]
-        == 50
+            hass.states.get("climate.proportional_valve_thermostat").attributes[
+                "control_output"
+            ]
+            == 50
     )
 
 
@@ -375,9 +376,9 @@ class DummyTRV(ClimateEntity):
         self._attr_target_temperature = 17.0
         self._attr_temperature_unit = "°C"
         self._attr_supported_features = (
-            ClimateEntityFeature.TARGET_TEMPERATURE
-            | ClimateEntityFeature.TURN_OFF
-            | ClimateEntityFeature.TURN_ON
+                ClimateEntityFeature.TARGET_TEMPERATURE
+                | ClimateEntityFeature.TURN_OFF
+                | ClimateEntityFeature.TURN_ON
         )
 
     @property
@@ -477,7 +478,7 @@ async def test_thermal_simulation_climate_closed_loop(hass, freezer, tmp_path):
         )
 
         # Master setpoint updated on slave TRV entity
-        slave_target_temp = slave_trv.target_temperature
+        slave_target_temp = slave_trv.target_temperature or 0.0
 
         # Local TRV sensor reading with dynamic offset
         trv_sensor_temp = room_temp + trv_offset

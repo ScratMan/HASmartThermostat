@@ -37,7 +37,7 @@ DEFAULT_PRESET_SYNC_MODE = "none"
 
 CONF_HEATER = "heater"
 CONF_COOLER = "cooler"
-CONF_INVERT_HEATER = 'invert_heater'
+CONF_INVERT_HEATER = "invert_heater"
 CONF_SENSOR = "target_sensor"
 CONF_OUTDOOR_SENSOR = "outdoor_sensor"
 CONF_MIN_TEMP = "min_temp"
@@ -49,12 +49,12 @@ CONF_AC_MODE = "ac_mode"
 CONF_FORCE_OFF_STATE = "force_off_state"
 CONF_MIN_CYCLE_DURATION = "min_cycle_duration"
 CONF_MIN_OFF_CYCLE_DURATION = "min_off_cycle_duration"
-CONF_MIN_CYCLE_DURATION_PID_OFF = 'min_cycle_duration_pid_off'
-CONF_MIN_OFF_CYCLE_DURATION_PID_OFF = 'min_off_cycle_duration_pid_off'
+CONF_MIN_CYCLE_DURATION_PID_OFF = "min_cycle_duration_pid_off"
+CONF_MIN_OFF_CYCLE_DURATION_PID_OFF = "min_off_cycle_duration_pid_off"
 CONF_KEEP_ALIVE = "keep_alive"
 CONF_SAMPLING_PERIOD = "sampling_period"
-CONF_SENSOR_STALL = 'sensor_stall'
-CONF_OUTPUT_SAFETY = 'output_safety'
+CONF_SENSOR_STALL = "sensor_stall"
+CONF_OUTPUT_SAFETY = "output_safety"
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
 CONF_PRESET_SYNC_MODE = "preset_sync_mode"
 CONF_AWAY_TEMP = "away_temp"
@@ -76,8 +76,19 @@ CONF_KI = "ki"
 CONF_KD = "kd"
 CONF_KE = "ke"
 CONF_PWM = "pwm"
-CONF_BOOST_PID_OFF = 'boost_pid_off'
+CONF_BOOST_PID_OFF = "boost_pid_off"
 CONF_AUTOTUNE = "autotune"
 CONF_NOISEBAND = "noiseband"
 CONF_LOOKBACK = "lookback"
-CONF_DEBUG = 'debug'
+CONF_DEBUG = "debug"
+
+AUTOTUNE_OPTIONS = [
+    "none",
+    "ziegler-nichols",
+    "tyreus-luyben",
+    "ciancone-marlin",
+    "pessen-integral",
+    "some-overshoot",
+    "no-overshoot",
+    "brewing",
+]
