@@ -468,9 +468,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE
         self._support_flags |= ClimateEntityFeature.TURN_OFF
         self._support_flags |= ClimateEntityFeature.TURN_ON
-        self._enable_turn_on_off_backwards_compatibility = (
-            False  # Remove after deprecation period
-        )
         self._attr_preset_mode = "none"
         self._away_temp = kwargs.get("away_temp")
         self._eco_temp = kwargs.get("eco_temp")
@@ -706,23 +703,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             ):
                 self._kp = float(old_state.attributes.get("kp", 100))
                 self._pid_controller.set_pid_param(kp=self._kp)
-            elif (
-                    old_state.attributes.get("Kp") is not None
-                    and self._pid_controller is not None
-            ):
-                self._kp = float(old_state.attributes.get("Kp", 100))
-                self._pid_controller.set_pid_param(kp=self._kp)
             if (
                     old_state.attributes.get("ki") is not None
                     and self._pid_controller is not None
             ):
                 self._ki = float(old_state.attributes.get("ki", 0))
-                self._pid_controller.set_pid_param(ki=self._ki)
-            elif (
-                    old_state.attributes.get("Ki") is not None
-                    and self._pid_controller is not None
-            ):
-                self._ki = float(old_state.attributes.get("Ki", 0))
                 self._pid_controller.set_pid_param(ki=self._ki)
             if (
                     old_state.attributes.get("kd") is not None
@@ -730,23 +715,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             ):
                 self._kd = float(old_state.attributes.get("kd", 0))
                 self._pid_controller.set_pid_param(kd=self._kd)
-            elif (
-                    old_state.attributes.get("Kd") is not None
-                    and self._pid_controller is not None
-            ):
-                self._kd = float(old_state.attributes.get("Kd", 0))
-                self._pid_controller.set_pid_param(kd=self._kd)
             if (
                     old_state.attributes.get("ke") is not None
                     and self._pid_controller is not None
             ):
                 self._ke = float(old_state.attributes.get("ke", 0))
-                self._pid_controller.set_pid_param(ke=self._ke)
-            elif (
-                    old_state.attributes.get("Ke") is not None
-                    and self._pid_controller is not None
-            ):
-                self._ke = float(old_state.attributes.get("Ke", 0))
                 self._pid_controller.set_pid_param(ke=self._ke)
             if (
                     old_state.attributes.get("pid_mode") is not None
