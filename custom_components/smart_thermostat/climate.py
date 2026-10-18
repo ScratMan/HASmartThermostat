@@ -446,9 +446,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._last_pid_calc_time = None
         self._ext_temp = None
         self._temp_lock = asyncio.Lock()
-        self._min_temp = kwargs.get("min_temp")
-        self._max_temp = kwargs.get("max_temp")
-        self._target_temp = kwargs.get("target_temp", 20)
+        self._min_temp = self.set_none_params_default(kwargs, "min_temp", const.DEFAULT_MIN_TEMP)
+        self._max_temp = self.set_none_params_default(kwargs, "max_temp", const.DEFAULT_MAX_TEMP)
+        self._target_temp = self.set_none_params_default(kwargs, "target_temp", const.DEFAULT_TARGET_TEMP)
         self._unit = kwargs.get("unit")
         self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE
         self._support_flags |= ClimateEntityFeature.TURN_OFF
@@ -476,34 +476,33 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         ]:
             self._support_flags |= ClimateEntityFeature.PRESET_MODE
 
-        self._output_precision = int(kwargs.get("output_precision", 1))
-        self._output_min = kwargs.get("output_min", 0)
-        self._output_max = kwargs.get("output_max", 100)
-        self._output_clamp_low = kwargs.get("output_clamp_low", 0)
-        self._output_clamp_high = kwargs.get("output_clamp_high", 100)
+        self._output_precision = int(self.set_none_params_default(kwargs, "output_precision",
+                                                                  const.DEFAULT_OUTPUT_PRECISION))
+        self._output_min = self.set_none_params_default(kwargs, "output_min", const.DEFAULT_OUTPUT_MIN)
+        self._output_max = self.set_none_params_default(kwargs, "output_max", const.DEFAULT_OUTPUT_MAX)
+        self._output_clamp_low = self.set_none_params_default(kwargs, "output_clamp_low", self._output_min)
+        self._output_clamp_high = self.set_none_params_default(kwargs, "output_clamp_high",
+                                                               self._output_max)
         self._difference = self._output_max - self._output_min
+        self._pid_out_min = self._pid_clamp_low = self._output_min
+        self._pid_out_max = self._pid_clamp_high = self._output_max
+
         if self._heater_entity_id is not None and self._cooler_entity_id is not None:
             # If both heater and cooler are defined, or if ac_mode is enabled, we support both heat and cool modes
             self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.COOL, HVACMode.OFF]
-            self._min_out = -self._output_clamp_high
-            self._max_out = self._output_clamp_high
         elif self._ac_mode or self._cooler_entity_id is not None:
             self._attr_hvac_modes = [HVACMode.COOL, HVACMode.OFF]
-            self._min_out = -self._output_clamp_high
-            self._max_out = -self._output_clamp_low
             self._ac_mode = True
         elif self._heater_entity_id is not None:
             self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
-            self._min_out = self._output_clamp_low
-            self._max_out = self._output_clamp_high
         else:
             _LOGGER.error(
                 "%s: No heater or cooler entity defined, thermostat will not function",
                 self.entity_id,
             )
             self._attr_hvac_modes = [HVACMode.OFF]
-            self._min_out = 0
-            self._max_out = 0
+            self._pid_out_min = 0
+            self._pid_out_max = 0
             self._ac_mode = False
         self._kp = kwargs.get("kp", 100)
         self._ki = kwargs.get("ki", 0)
@@ -540,8 +539,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._ki,
             self._kd,
             self._ke,
-            self._min_out,
-            self._max_out,
+            self._pid_out_min,
+            self._pid_out_max,
             self._sampling_period.seconds,
             self._cold_tolerance,
             self._hot_tolerance,
@@ -551,8 +550,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._pid_autotune = pid_controller.PIDAutotune(
                 self._difference,
                 self._lookback,
-                self._min_out,
-                self._max_out,
+                self._pid_out_min,
+                self._pid_out_max,
                 self._noiseband,
                 time.time,
             )
@@ -571,6 +570,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._kd,
             )
             self._pid_controller.mode = "AUTO"
+
+    @staticmethod
+    def set_none_params_default(input_dict: dict, parameter_name: str, default_value: Any) -> Any:
+        """Set a parameter to a default value if it is None."""
+        if input_dict.get(parameter_name) is None:
+            return default_value
+        return input_dict.get(parameter_name)
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -901,6 +907,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         return self._control_output
 
     @property
+    def output_clamp_low(self):
+        """Return the low clamp value for PID output."""
+        # If a unique_id is used, check entity's value
+        return self._output_clamp_low
+
+    @property
+    def output_clamp_high(self):
+        """Return the high clamp value for PID output."""
+        return self._output_clamp_high
+
+    @property
     def extra_state_attributes(self):
         """attributes to include in entity"""
         device_state_attributes = {
@@ -948,20 +965,27 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         old_hvac_mode = self._hvac_mode
 
         if hvac_mode == HVACMode.HEAT:
-            self._min_out = self._output_clamp_low
-            self._max_out = self._output_clamp_high
+            self._pid_out_min = self._output_min
+            self._pid_out_max = self._output_max
+            self._pid_clamp_low = self.output_clamp_low
+            self._pid_clamp_high = self.output_clamp_high
             self._hvac_mode = HVACMode.HEAT
         elif hvac_mode == HVACMode.COOL:
-            self._min_out = -self._output_clamp_high
-            self._max_out = -self._output_clamp_low
+            self._pid_out_min = -self._output_max
+            self._pid_out_max = self._output_min
+            self._pid_clamp_low = -self.output_clamp_high
+            self._pid_clamp_high = -self.output_clamp_low
             self._hvac_mode = HVACMode.COOL
         elif hvac_mode == HVACMode.HEAT_COOL:
-            self._min_out = -self._output_clamp_high
-            self._max_out = self._output_clamp_high
+            self._pid_out_min = -self._output_max
+            self._pid_out_max = self._output_max
+            self._pid_clamp_low = -self.output_clamp_high
+            self._pid_clamp_high = self.output_clamp_high
             self._hvac_mode = HVACMode.HEAT_COOL
         elif hvac_mode == HVACMode.OFF:
             self._hvac_mode = HVACMode.OFF
             self._control_output = self._output_min
+            self._pid_out_min = self._pid_out_max = self._pid_clamp_low = self._pid_clamp_high = 0
             if self._pwm:
                 _LOGGER.debug(
                     "%s: Turn OFF heater from async_set_hvac_mode(%s)",
@@ -1000,8 +1024,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._pid_controller.clear_samples()
 
         if self._pid_controller:
-            self._pid_controller.out_max = self._max_out
-            self._pid_controller.out_min = self._min_out
+            # Apply the new output limits to the PID controller after changing the mode
+            self._pid_controller.out_max = self._pid_out_max
+            self._pid_controller.out_min = self._pid_out_min
         if self._hvac_mode != HVACMode.OFF:
             await self._async_control_heating(calc_pid=True)
         # Ensure we update the current operation after changing the mode
@@ -1214,7 +1239,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             if not self._output_precision:
                 self._control_output = int(self._control_output)
             self._control_output = max(
-                min(self._control_output, self._max_out), self._min_out
+                min(self._control_output, self._pid_clamp_high), self._pid_clamp_low
             )
 
             await self.set_control_value()
@@ -1526,8 +1551,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         self._ki,
                         self._kd,
                         self._ke,
-                        self._min_out,
-                        self._max_out,
+                        self._pid_out_min,
+                        self._pid_out_max,
                         self._sampling_period.seconds,
                         self._cold_tolerance,
                         self._hot_tolerance,
