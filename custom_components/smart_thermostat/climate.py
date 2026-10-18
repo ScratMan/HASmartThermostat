@@ -419,7 +419,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._ac_mode = kwargs.get("ac_mode", False)
         self._force_off_state = kwargs.get("force_off_state", True)
         self._keep_alive = kwargs.get("keep_alive", timedelta(seconds=60))
-        self._target_temperature_step = kwargs.get("target_temperature_step")
         self._sampling_period = kwargs.get("sampling_period", timedelta(seconds=0))
         self._sensor_stall = kwargs.get("sensor_stall", timedelta(hours=6)).seconds
         self._output_safety = kwargs.get("output_safety")
@@ -435,23 +434,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             "min_cycle_duration",
             timedelta(seconds=0)
         )
-        self._min_off_cycle_duration_pid_on = kwargs.get(
-            "min_off_cycle_duration",
-            self._min_on_cycle_duration_pid_on
-        )
-        self._min_on_cycle_duration_pid_off = kwargs.get(
-            "min_cycle_duration_pid_off",
-            self._min_on_cycle_duration_pid_on)
-        self._min_off_cycle_duration_pid_off = kwargs.get(
-            "min_off_cycle_duration_pid_off",
-            self._min_on_cycle_duration_pid_off
-        )
-        if self._min_off_cycle_duration_pid_on is None:
-            self._min_off_cycle_duration_pid_on = self._min_on_cycle_duration_pid_on
-        if self._min_on_cycle_duration_pid_off is None:
-            self._min_on_cycle_duration_pid_off = self._min_on_cycle_duration_pid_on
-        if self._min_off_cycle_duration_pid_off is None:
-            self._min_off_cycle_duration_pid_off = self._min_on_cycle_duration_pid_off
+        self._min_off_cycle_duration_pid_on = kwargs.get("min_off_cycle_duration")
+        self._min_on_cycle_duration_pid_off = kwargs.get("min_cycle_duration_pid_off")
+        self._min_off_cycle_duration_pid_off = kwargs.get("min_off_cycle_duration_pid_off")
         self._active = False
         self._trigger_source = None
         self._current_temp = None
@@ -864,15 +849,19 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     @property
     def _min_on_cycle_duration(self):
-        if self.pid_mode == "off" and self._min_on_cycle_duration_pid_off:
+        if self.pid_mode == "off" and self._min_on_cycle_duration_pid_off is not None:
             return self._min_on_cycle_duration_pid_off
         return self._min_on_cycle_duration_pid_on
 
     @property
     def _min_off_cycle_duration(self):
-        if self.pid_mode == "off" and self._min_off_cycle_duration_pid_off:
+        if self.pid_mode == "off" and self._min_off_cycle_duration_pid_off is not None:
             return self._min_off_cycle_duration_pid_off
-        return self._min_off_cycle_duration_pid_on
+        if self.pid_mode == "off" and self._min_on_cycle_duration_pid_off is not None:
+            return self._min_on_cycle_duration_pid_off
+        elif self._min_off_cycle_duration_pid_on is not None:
+            return self._min_off_cycle_duration_pid_on
+        return self._min_on_cycle_duration
 
     @property
     def pid_parm(self):
