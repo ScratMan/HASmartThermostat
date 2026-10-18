@@ -1034,7 +1034,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
         self._async_update_clamp_from_state(entity_id, new_state.state)
 
-        # Planifier la réapplication des limites PID et le contrôle du chauffage
+        # Schedule reapplying the PID limits and controlling the heating
         self.hass.async_create_task(self._async_apply_clamp_change())
 
     async def _async_apply_clamp_change(self) -> None:
