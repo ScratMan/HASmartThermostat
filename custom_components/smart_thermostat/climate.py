@@ -699,8 +699,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             ):
                 self._i = float(old_state.attributes.get("pid_i", 0))
                 self._pid_controller.integral = self._i
-            if not self._hvac_mode and old_state.state:
+            if old_state.state in [HVACMode.HEAT, HVACMode.COOL, HVACMode.OFF]:
                 await self.async_set_hvac_mode(old_state.state)
+            else:
+                await self.async_set_hvac_mode(
+                    self._hvac_mode if self._hvac_mode in [HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL,
+                                                           HVACMode.OFF] else HVACMode.OFF
+                )
             if (
                     old_state.attributes.get("kp") is not None
                     and self._pid_controller is not None
@@ -744,9 +749,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._target_temp,
             )
 
-        # Set default state to off
-        if not self._hvac_mode:
-            self._hvac_mode = HVACMode.OFF
+            await self.async_set_hvac_mode(
+                self._hvac_mode if self._hvac_mode in [HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL,
+                                                       HVACMode.OFF] else HVACMode.OFF
+            )
+            await self._async_control_heating()
 
     @property
     def should_poll(self):
