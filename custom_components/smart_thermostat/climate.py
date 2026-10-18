@@ -346,12 +346,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(
             const.CONF_OUTPUT_MAX, default=const.DEFAULT_OUTPUT_MAX
         ): vol.Coerce(float),
-        vol.Optional(
-            const.CONF_OUT_CLAMP_LOW, default=const.DEFAULT_OUT_CLAMP_LOW
-        ): vol.Coerce(float),
-        vol.Optional(
-            const.CONF_OUT_CLAMP_HIGH, default=const.DEFAULT_OUT_CLAMP_HIGH
-        ): vol.Coerce(float),
+        vol.Optional(const.CONF_OUT_CLAMP_LOW): vol.Maybe(vol.Any(vol.Coerce(float), cv.entity_id)),
+        vol.Optional(const.CONF_OUT_CLAMP_HIGH): vol.Maybe(vol.Any(vol.Coerce(float), cv.entity_id)),
         vol.Optional(const.CONF_KP, default=const.DEFAULT_KP): vol.Coerce(float),
         vol.Optional(const.CONF_KI, default=const.DEFAULT_KI): vol.Coerce(float),
         vol.Optional(const.CONF_KD, default=const.DEFAULT_KD): vol.Coerce(float),
@@ -484,8 +480,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._output_clamp_high = self.set_none_params_default(kwargs, "output_clamp_high",
                                                                self._output_max)
         self._difference = self._output_max - self._output_min
-        self._pid_out_min = self._pid_clamp_low = self._output_min
-        self._pid_out_max = self._pid_clamp_high = self._output_max
+        self._pid_out_min = self._pid_clamp_low = self.__clamp_low_value__ = self._output_min
+        self._pid_out_max = self._pid_clamp_high = self.__clamp_high_value__ = self._output_max
 
         if self._heater_entity_id is not None and self._cooler_entity_id is not None:
             # If both heater and cooler are defined, or if ac_mode is enabled, we support both heat and cool modes
@@ -645,7 +641,24 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     self.hass, self.calc_pid, self._sampling_period
                 )
             )
+        clamp_entities = [
+            e for e in (self._output_clamp_low, self._output_clamp_high)
+            if isinstance(e, str) and cv.entity_id(e)
+        ]
 
+        if clamp_entities:
+            for entity_id in clamp_entities:
+                state = self.hass.states.get(entity_id)
+                if state is not None:
+                    self._async_update_clamp_from_state(entity_id, state.state)
+
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    clamp_entities,
+                    self._async_output_clamp_changed,
+                )
+            )
         # Check If we have an old state
         old_state = await self.async_get_last_state()
         if old_state is not None:
@@ -910,11 +923,16 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     def output_clamp_low(self):
         """Return the low clamp value for PID output."""
         # If a unique_id is used, check entity's value
+        if isinstance(self._output_clamp_low, str):
+            return self.__clamp_low_value__
         return self._output_clamp_low
 
     @property
     def output_clamp_high(self):
         """Return the high clamp value for PID output."""
+        # If a unique_id is used, check entity's value
+        if isinstance(self._output_clamp_high, str):
+            return self.__clamp_high_value__
         return self._output_clamp_high
 
     @property
@@ -959,6 +977,65 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 }
             )
         return device_state_attributes
+
+    @callback
+    def _async_update_clamp_from_state(self, entity_id: str, state_value: str) -> None:
+        """Update clamp internal values from entity state."""
+        if state_value in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            _LOGGER.warning(
+                "%s: Output clamp entity %s is unavailable or unknown",
+                self.entity_id,
+                entity_id,
+            )
+            return
+
+        try:
+            new_value = float(state_value)
+        except ValueError:
+            _LOGGER.error(
+                "%s: Invalid output clamp value from entity %s: %s",
+                self.entity_id,
+                entity_id,
+                state_value,
+            )
+            return
+
+        if entity_id == self._output_clamp_low:
+            self.__clamp_low_value__ = min(max(new_value, self._output_min), 0.9 * self.output_clamp_high)
+            _LOGGER.debug(
+                "%s: Output clamp low set to %s from entity %s",
+                self.entity_id,
+                self.__clamp_low_value__,
+                entity_id,
+            )
+        elif entity_id == self._output_clamp_high:
+            self.__clamp_high_value__ = min(max(new_value, 1.1 * self.output_clamp_low), self._output_max)
+            _LOGGER.debug(
+                "%s: Output clamp high set to %s from entity %s",
+                self.entity_id,
+                self.__clamp_high_value__,
+                entity_id,
+            )
+
+    @callback
+    def _async_output_clamp_changed(self, event: Event[EventStateChangedData]) -> None:
+        """Handle output clamp entity state changes."""
+        entity_id = event.data.get("entity_id")
+        new_state = event.data.get("new_state")
+        if new_state is None:
+            return
+
+        self._async_update_clamp_from_state(entity_id, new_state.state)
+
+        # Planifier la réapplication des limites PID et le contrôle du chauffage
+        self.hass.async_create_task(self._async_apply_clamp_change())
+
+    async def _async_apply_clamp_change(self) -> None:
+        """Reapply PID limits and update heating control when clamp values change."""
+        await self.async_set_hvac_mode(
+            self._hvac_mode if self._hvac_mode in [HVACMode.HEAT_COOL, HVACMode.HEAT, HVACMode.COOL] else HVACMode.OFF
+        )
+        await self._async_control_heating()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode | str) -> None:
         """Set new target hvac mode."""

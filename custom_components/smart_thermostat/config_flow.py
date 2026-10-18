@@ -66,6 +66,11 @@ TEMPERATURE_SENSOR_SELECTOR = selector.EntitySelector(
         device_class=SensorDeviceClass.TEMPERATURE,
     )
 )
+CLAMP_SELECTOR = selector.TextSelector(
+    selector.TextSelectorConfig(
+        type=selector.TextSelectorType.TEXT,
+    )
+)
 
 BASIC_SCHEMA = vol.Schema(
     {
@@ -170,12 +175,8 @@ ADVANCED_SCHEMA = vol.Schema(
         ),
         vol.Optional(const.CONF_OUTPUT_MIN, default=const.DEFAULT_OUTPUT_MIN): NUMBER_SELECTOR,
         vol.Optional(const.CONF_OUTPUT_MAX, default=const.DEFAULT_OUTPUT_MAX): NUMBER_SELECTOR,
-        vol.Optional(
-            const.CONF_OUT_CLAMP_LOW, default=const.DEFAULT_OUT_CLAMP_LOW
-        ): NUMBER_SELECTOR,
-        vol.Optional(
-            const.CONF_OUT_CLAMP_HIGH, default=const.DEFAULT_OUT_CLAMP_HIGH
-        ): NUMBER_SELECTOR,
+        vol.Optional(const.CONF_OUT_CLAMP_LOW): CLAMP_SELECTOR,
+        vol.Optional(const.CONF_OUT_CLAMP_HIGH): CLAMP_SELECTOR,
         vol.Optional(
             const.CONF_MIN_CYCLE_DURATION, default=const.DEFAULT_MIN_CYCLE_DURATION_DURATION
         ): DURATION_SELECTOR,
@@ -228,11 +229,24 @@ async def _validate_config(
     output_min = user_input.get(const.CONF_OUTPUT_MIN, const.DEFAULT_OUTPUT_MIN)
     output_max = user_input.get(const.CONF_OUTPUT_MAX, const.DEFAULT_OUTPUT_MAX)
 
-    clamp_low = user_input.get(const.CONF_OUT_CLAMP_LOW, const.DEFAULT_OUT_CLAMP_LOW)
-    clamp_high = user_input.get(const.CONF_OUT_CLAMP_HIGH, const.DEFAULT_OUT_CLAMP_HIGH)
+    clamp_low = user_input.get(const.CONF_OUT_CLAMP_LOW, output_min)
+    clamp_high = user_input.get(const.CONF_OUT_CLAMP_HIGH, output_max)
 
-    if not (output_min <= clamp_low < clamp_high <= output_max):
+    if not (output_min < output_max):
         raise SchemaFlowError("output_min_max")
+    if isinstance(clamp_low, (int, float)) and isinstance(clamp_high, (int, float)):
+        if not (output_min <= clamp_low < clamp_high <= output_max):
+            raise SchemaFlowError("output_min_max")
+
+    for clamp_key in (const.CONF_OUT_CLAMP_LOW, const.CONF_OUT_CLAMP_HIGH):
+        val = user_input.get(clamp_key)
+        if val is not None and isinstance(val, str):
+            try:
+                # Convert to float if it's a number
+                user_input[clamp_key] = float(val)
+            except ValueError:
+                # It's an entity ID, so we don't need to validate it here. It will be validated when the entity is resolved.
+                pass
 
     return user_input
 
