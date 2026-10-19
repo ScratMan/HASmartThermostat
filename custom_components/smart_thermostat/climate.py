@@ -1596,6 +1596,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     async def calc_pid(self, time_func: object = None):
         """calculate control output and handle autotune"""
+        if self._hvac_mode == HVACMode.OFF or self._current_temp is None or self._target_temp is None:
+            return
         update = False
         if self._previous_temp_time is None:
             self._previous_temp_time = time.time()
