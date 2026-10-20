@@ -1,0 +1,127 @@
+{
+  "config": {
+    "error": {
+      "clamp_min_max": "最小输出限制值必须小于或等于最大输出限制值。",
+      "min_max_temp": "最低温度必须低于最高温度。",
+      "output_min_max": "最小输出值必须小于或等于最大输出值。"
+    },
+    "step": {
+      "user": {
+        "title": "主要配置",
+        "description": "为您的智能恒温器配置核心功能。",
+        "data": {
+          "name": "恒温器名称",
+          "heater": "加热执行器",
+          "target_sensor": "室温传感器",
+          "cooler": "用于冷却的执行器/装置",
+          "outdoor_sensor": "室外温度传感器",
+          "invert_heater": "反转执行器的极性",
+          "ac_mode": "制冷/空调模式",
+          "force_off_state": "当恒温器关闭时，强制关闭执行器"
+        },
+        "data_description": {
+          "name": "在 Home Assistant 中，该控制器实体的显示名称。",
+          "heater": "用于控制加热功能的开关、阀门、照明设备或相关装置。（必填项）",
+          "target_sensor": "用于测量室内温度的温度传感器（必填项）。",
+          "cooler": "在冷却模式开启时使用的可选配件。",
+          "outdoor_sensor": "可选的室外传感器，用于 Ke 值的补偿。",
+          "invert_heater": "如果必须先关闭执行器才能进行加热操作，请启用此选项（例如，使用反向继电器的情况）。",
+          "ac_mode": "将主执行器切换为冷却模式，而非加热模式。",
+          "force_off_state": "确保在暖通空调模式关闭时，执行器也确实处于关闭状态。"
+        }
+      },
+      "temperature": {
+        "title": "温度设置",
+        "description": "设置温度限制和允许的偏差范围。",
+        "data": {
+          "min_temp": "最低目标温度",
+          "max_temp": "最高目标温度",
+          "target_temp": "初始目标温度",
+          "hot_tolerance": "耐热性",
+          "cold_tolerance": "耐寒性",
+          "initial_hvac_mode": "初始暖通空调模式",
+          "preset_sync_mode": "预设同步模式",
+          "boost_pid_off": "在 Boost 预设模式下禁用 PID 控制"
+        },
+        "data_description": {
+          "min_temp": "留空则使用 Home Assistant 的默认值。",
+          "max_temp": "留空则使用 Home Assistant 的默认值。",
+          "hot_tolerance": "高于设定值的滞后现象。",
+          "cold_tolerance": "低于设定值的滞后现象。",
+          "boost_pid_off": "当‘Boost’预设功能被启用时，强制将 PID 模式切换为关闭状态。"
+        }
+      },
+      "presets": {
+        "title": "预设温度",
+        "description": "为预定义的模式设置温度值（如留空，则该预设模式将被禁用）。",
+        "data": {
+          "away_temp": "离开温度",
+          "eco_temp": "节能温度",
+          "boost_temp": "速热温度",
+          "comfort_temp": "舒适温度",
+          "home_temp": "在家温度",
+          "sleep_temp": "睡眠温度",
+          "activity_temp": "活动温度"
+        }
+      },
+      "pid": {
+        "title": "PID 控制器",
+        "description": "配置 PID 控制器增益与时序参数。",
+        "data": {
+          "kp": "比例增益（Kp）",
+          "ki": "积分增益（Ki）",
+          "kd": "微分增益（Kd）",
+          "ke": "室外补偿增益（Ke）",
+          "pwm": "PWM 周期",
+          "keep_alive": "保活间隔",
+          "sampling_period": "PID 采样周期",
+          "autotune": "自动调谐规则",
+          "noiseband": "自动调谐噪音带宽",
+          "lookback": "自动调谐回看窗口"
+        },
+        "data_description": {
+          "ke": "用于目标温度与室外温度差值的增益。",
+          "pwm": "脉宽调制调节的完整周期时长。",
+          "keep_alive": "周期性向执行器重发开启 / 关闭指令。"
+        }
+      },
+      "advanced": {
+        "title": "高级设置",
+        "description": "精细调节循环保护、输出限值及安全机制。",
+        "data": {
+          "output_precision": "输出精度",
+          "output_min": "最小输出值",
+          "output_max": "最大输出值",
+          "out_clamp_low": "输出下限钳位值",
+          "out_clamp_high": "输出上限钳位值",
+          "min_cycle_duration": "最小循环时长",
+          "min_off_cycle_duration": "最小停机循环时长",
+          "sensor_stall": "传感器无响应超时",
+          "output_safety": "安全输出等级",
+          "debug": "调试模式"
+        },
+        "data_description": {
+          "sensor_stall": "传感器停止更新后，切换至安全输出的超时时间。",
+          "output_safety": "传感器卡死或不可用时采用的输出百分比。"
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "clamp_min_max": "输出下限钳位值必须小于或等于输出上限钳位值。",
+      "min_max_temp": "最低温度必须小于最高温度。",
+      "output_min_max": "最小输出值必须小于或等于最大输出值。"
+    },
+    "step": {
+      "init": {
+        "title": "智能恒温器设置项",
+        "description": "修改主配置与选项。"
+      },
+      "presets": {
+        "title": "预设温度",
+        "description": "修改预设温度。"
+      }
+    }
+  }
+}
