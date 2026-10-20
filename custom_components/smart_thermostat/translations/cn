@@ -1,0 +1,127 @@
+{
+  "config": {
+    "error": {
+      "clamp_min_max": "最小输出限制值必须小于或等于最大输出限制值。",
+      "min_max_temp": "最低温度必须低于最高温度。",
+      "output_min_max": "最小输出值必须小于或等于最大输出值。"
+    },
+    "step": {
+      "user": {
+        "title": "主要配置",
+        "description": "为您的智能恒温器配置核心功能。",
+        "data": {
+          "name": "恒温器名称",
+          "heater": "加热执行器",
+          "target_sensor": "室温传感器",
+          "cooler": "用于冷却的执行器/装置",
+          "outdoor_sensor": "室外温度传感器",
+          "invert_heater": "反转执行器的极性",
+          "ac_mode": "制冷/空调模式",
+          "force_off_state": "当恒温器关闭时，强制关闭执行器"
+        },
+        "data_description": {
+          "name": "在 Home Assistant 中，该控制器实体的显示名称。",
+          "heater": "用于控制加热功能的开关、阀门、照明设备或相关装置。（必填项）",
+          "target_sensor": "用于测量室内温度的温度传感器（必填项）。",
+          "cooler": "在冷却模式开启时使用的可选配件。",
+          "outdoor_sensor": "可选的室外传感器，用于 Ke 值的补偿。",
+          "invert_heater": "如果必须先关闭执行器才能进行加热操作，请启用此选项（例如，使用反向继电器的情况）。",
+          "ac_mode": "将主执行器切换为冷却模式，而非加热模式。",
+          "force_off_state": "确保在暖通空调模式关闭时，执行器也确实处于关闭状态。"
+        }
+      },
+      "temperature": {
+        "title": "温度设置",
+        "description": "设置温度限制和允许的偏差范围。",
+        "data": {
+          "min_temp": "最低目标温度",
+          "max_temp": "最高目标温度",
+          "target_temp": "初始目标温度",
+          "hot_tolerance": "耐热性",
+          "cold_tolerance": "耐寒性",
+          "initial_hvac_mode": "初始暖通空调模式",
+          "preset_sync_mode": "预设同步模式",
+          "boost_pid_off": "在 Boost 预设模式下禁用 PID 控制"
+        },
+        "data_description": {
+          "min_temp": "留空则使用 Home Assistant 的默认值。",
+          "max_temp": "留空则使用 Home Assistant 的默认值。",
+          "hot_tolerance": "高于设定值的滞后现象。",
+          "cold_tolerance": "低于设定值的滞后现象。",
+          "boost_pid_off": "当‘Boost’预设功能被启用时，强制将 PID 模式切换为关闭状态。"
+        }
+      },
+      "presets": {
+        "title": "Preset Temperatures",
+        "description": "Set temperatures for predefined modes (Leave blank to disable a preset).",
+        "data": {
+          "away_temp": "Away Temperature",
+          "eco_temp": "Eco Temperature",
+          "boost_temp": "Boost Temperature",
+          "comfort_temp": "Comfort Temperature",
+          "home_temp": "Home Temperature",
+          "sleep_temp": "Sleep Temperature",
+          "activity_temp": "Activity Temperature"
+        }
+      },
+      "pid": {
+        "title": "PID Controller",
+        "description": "Configure PID controller gains and timing parameters.",
+        "data": {
+          "kp": "Proportional Gain (Kp)",
+          "ki": "Integral Gain (Ki)",
+          "kd": "Derivative Gain (Kd)",
+          "ke": "Outdoor Compensation Gain (Ke)",
+          "pwm": "PWM Period",
+          "keep_alive": "Keep-alive Interval",
+          "sampling_period": "PID Sampling Period",
+          "autotune": "Autotune Rule",
+          "noiseband": "Autotune Noise Band",
+          "lookback": "Autotune Lookback Period"
+        },
+        "data_description": {
+          "ke": "Gain applied to the difference between target and outdoor temperature.",
+          "pwm": "Full cycle time for pulse-width modulation regulation.",
+          "keep_alive": "Periodically re-sends turn on/off commands to actuators."
+        }
+      },
+      "advanced": {
+        "title": "Advanced Settings",
+        "description": "Fine-tune cycle protection, output limits, and safety behavior.",
+        "data": {
+          "output_precision": "Output Precision",
+          "output_min": "Minimum Output",
+          "output_max": "Maximum Output",
+          "out_clamp_low": "Output Clamp Low",
+          "out_clamp_high": "Output Clamp High",
+          "min_cycle_duration": "Minimum Cycle Duration",
+          "min_off_cycle_duration": "Minimum Off Cycle Duration",
+          "sensor_stall": "Sensor Stall Timeout",
+          "output_safety": "Safety Output Level",
+          "debug": "Debug Mode"
+        },
+        "data_description": {
+          "sensor_stall": "Timeout before falling back to safety level if sensor stops updating.",
+          "output_safety": "Output percentage applied when sensor is stalled or unavailable."
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "clamp_min_max": "Minimum output clamp must be less than or equal to maximum output clamp.",
+      "min_max_temp": "Minimum temperature must be less than maximum temperature.",
+      "output_min_max": "Minimum output must be less than or equal to maximum output."
+    },
+    "step": {
+      "init": {
+        "title": "Smart Thermostat Options",
+        "description": "Modify main configuration and options."
+      },
+      "presets": {
+        "title": "Preset Temperatures",
+        "description": "Modify preset temperatures."
+      }
+    }
+  }
+}
