@@ -52,75 +52,75 @@
         }
       },
       "presets": {
-        "title": "Preset Temperatures",
-        "description": "Set temperatures for predefined modes (Leave blank to disable a preset).",
+        "title": "预设温度",
+        "description": "为预定义的模式设置温度值（如留空，则该预设模式将被禁用）。",
         "data": {
-          "away_temp": "Away Temperature",
-          "eco_temp": "Eco Temperature",
-          "boost_temp": "Boost Temperature",
-          "comfort_temp": "Comfort Temperature",
-          "home_temp": "Home Temperature",
-          "sleep_temp": "Sleep Temperature",
-          "activity_temp": "Activity Temperature"
+          "away_temp": "离开温度",
+          "eco_temp": "节能温度",
+          "boost_temp": "速热温度",
+          "comfort_temp": "舒适温度",
+          "home_temp": "在家温度",
+          "sleep_temp": "睡眠温度",
+          "activity_temp": "活动温度"
         }
       },
       "pid": {
-        "title": "PID Controller",
-        "description": "Configure PID controller gains and timing parameters.",
+        "title": "PID 控制器",
+        "description": "配置 PID 控制器增益与时序参数。",
         "data": {
-          "kp": "Proportional Gain (Kp)",
-          "ki": "Integral Gain (Ki)",
-          "kd": "Derivative Gain (Kd)",
-          "ke": "Outdoor Compensation Gain (Ke)",
-          "pwm": "PWM Period",
-          "keep_alive": "Keep-alive Interval",
-          "sampling_period": "PID Sampling Period",
-          "autotune": "Autotune Rule",
-          "noiseband": "Autotune Noise Band",
-          "lookback": "Autotune Lookback Period"
+          "kp": "比例增益（Kp）",
+          "ki": "积分增益（Ki）",
+          "kd": "微分增益（Kd）",
+          "ke": "室外补偿增益（Ke）",
+          "pwm": "PWM 周期",
+          "keep_alive": "保活间隔",
+          "sampling_period": "PID 采样周期",
+          "autotune": "自动调谐规则",
+          "noiseband": "自动调谐噪音带宽",
+          "lookback": "自动调谐回看窗口"
         },
         "data_description": {
-          "ke": "Gain applied to the difference between target and outdoor temperature.",
-          "pwm": "Full cycle time for pulse-width modulation regulation.",
-          "keep_alive": "Periodically re-sends turn on/off commands to actuators."
+          "ke": "用于目标温度与室外温度差值的增益。",
+          "pwm": "脉宽调制调节的完整周期时长。",
+          "keep_alive": "周期性向执行器重发开启 / 关闭指令。"
         }
       },
       "advanced": {
-        "title": "Advanced Settings",
-        "description": "Fine-tune cycle protection, output limits, and safety behavior.",
+        "title": "高级设置",
+        "description": "精细调节循环保护、输出限值及安全机制。",
         "data": {
-          "output_precision": "Output Precision",
-          "output_min": "Minimum Output",
-          "output_max": "Maximum Output",
-          "out_clamp_low": "Output Clamp Low",
-          "out_clamp_high": "Output Clamp High",
-          "min_cycle_duration": "Minimum Cycle Duration",
-          "min_off_cycle_duration": "Minimum Off Cycle Duration",
-          "sensor_stall": "Sensor Stall Timeout",
-          "output_safety": "Safety Output Level",
-          "debug": "Debug Mode"
+          "output_precision": "输出精度",
+          "output_min": "最小输出值",
+          "output_max": "最大输出值",
+          "out_clamp_low": "输出下限钳位值",
+          "out_clamp_high": "输出上限钳位值",
+          "min_cycle_duration": "最小循环时长",
+          "min_off_cycle_duration": "最小停机循环时长",
+          "sensor_stall": "传感器无响应超时",
+          "output_safety": "安全输出等级",
+          "debug": "调试模式"
         },
         "data_description": {
-          "sensor_stall": "Timeout before falling back to safety level if sensor stops updating.",
-          "output_safety": "Output percentage applied when sensor is stalled or unavailable."
+          "sensor_stall": "传感器停止更新后，切换至安全输出的超时时间。",
+          "output_safety": "传感器卡死或不可用时采用的输出百分比。"
         }
       }
     }
   },
   "options": {
     "error": {
-      "clamp_min_max": "Minimum output clamp must be less than or equal to maximum output clamp.",
-      "min_max_temp": "Minimum temperature must be less than maximum temperature.",
-      "output_min_max": "Minimum output must be less than or equal to maximum output."
+      "clamp_min_max": "输出下限钳位值必须小于或等于输出上限钳位值。",
+      "min_max_temp": "最低温度必须小于最高温度。",
+      "output_min_max": "最小输出值必须小于或等于最大输出值。"
     },
     "step": {
       "init": {
-        "title": "Smart Thermostat Options",
-        "description": "Modify main configuration and options."
+        "title": "智能恒温器设置项",
+        "description": "修改主配置与选项。"
       },
       "presets": {
-        "title": "Preset Temperatures",
-        "description": "Modify preset temperatures."
+        "title": "预设温度",
+        "description": "修改预设温度。"
       }
     }
   }
