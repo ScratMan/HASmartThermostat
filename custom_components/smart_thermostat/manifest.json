@@ -2,13 +2,13 @@
   "domain": "smart_thermostat",
   "name": "Smart thermostat",
   "codeowners": [
-    "@ScratMan"
+    "@deralexmalex"
   ],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/ScratMan/HASmartThermostat",
+  "documentation": "https://github.com/deralexmalex/HASmartThermostatClaude",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/ScratMan/HASmartThermostat/issues",
+  "issue_tracker": "https://github.com/deralexmalex/HASmartThermostatClaude/issues",
   "requirements": [],
   "version": "2026.10.2"
 }
