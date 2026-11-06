@@ -17,7 +17,7 @@ from homeassistant.components.climate import (
 )
 from homeassistant.core import State
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import mock_restore_cache
+from pytest_homeassistant.common import mock_restore_cache
 
 from custom_components.smart_thermostat.const import DOMAIN
 
