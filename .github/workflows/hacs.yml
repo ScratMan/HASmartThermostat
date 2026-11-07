@@ -9,6 +9,8 @@ on:
 jobs:
   hacs:
     name: HACS Action
+    # Forks do not inherit the upstream repository's issue and topic settings.
+    if: github.event.repository.fork == false
     runs-on: "ubuntu-latest"
     steps:
       - uses: "actions/checkout@v4"
