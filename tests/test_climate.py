@@ -17,7 +17,7 @@ from homeassistant.components.climate import (
 )
 from homeassistant.core import State
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import mock_restore_cache
+from pytest_homeassistant.common import mock_restore_cache
 
 from custom_components.smart_thermostat.climate import SmartThermostat
 from custom_components.smart_thermostat.const import DOMAIN
@@ -39,12 +39,6 @@ def target_temperature_of(entity):
     if HAS_NATIVE_TEMPERATURE:
         return entity.native_target_temperature
     return entity.target_temperature
-
-
-@pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(enable_custom_integrations):
-    """Enable custom integrations for testing in Home Assistant."""
-    yield
 
 
 @pytest.fixture(autouse=True)
