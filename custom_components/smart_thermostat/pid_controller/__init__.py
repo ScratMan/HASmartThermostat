@@ -22,6 +22,8 @@ class PID:
         sampling_period=0,
         cold_tolerance=0.3,
         hot_tolerance=0.3,
+        clamp_low=None,
+        clamp_high=None,
     ):
         """A proportional-integral-derivative controller.
         :param kp: Proportional coefficient.
@@ -32,10 +34,16 @@ class PID:
         :type kd: float
         :param ke: Outdoor temperature compensation coefficient.
         :type ke: float
-        :param out_min: Lower output limit for integral anti-windup clamping.
+        :param out_min: Lower bound of the nominal output range. Also the default
+            lower clamp when `clamp_low` is not given.
         :type out_min: float
-        :param out_max: Upper output limit for integral anti-windup clamping.
+        :param out_max: Upper bound of the nominal output range. Also the default
+            upper clamp when `clamp_high` is not given.
         :type out_max: float
+        :param clamp_low: Lower limit applied to the output sent to the actuator.
+        :type clamp_low: float
+        :param clamp_high: Upper limit applied to the output sent to the actuator.
+        :type clamp_high: float
         :param sampling_period: Time period between two PID calculations in seconds.
         :type sampling_period: float
         :param cold_tolerance: Temperature threshold tolerance below setpoint when OFF.
@@ -58,6 +66,12 @@ class PID:
         self._Ke = ke
         self._out_min = out_min
         self._out_max = out_max
+        # The output actually delivered to the actuator can be limited independently of
+        # the nominal range. Unset limits follow the nominal range.
+        self._clamp_low = clamp_low
+        self._clamp_high = clamp_high
+        if clamp_low is not None and clamp_high is not None and clamp_low > clamp_high:
+            raise ValueError("clamp_low must be less than or equal to clamp_high")
         self._proportional = 0.0
         self._integral = 0.0
         self._derivative = 0.0
@@ -71,7 +85,6 @@ class PID:
         self._input_diff = 0
         self._dext = 0
         self._dt = 0
-        self._last_output = 0
         self._output = 0
         self._external = 0
         self._mode = "AUTO"
@@ -103,6 +116,22 @@ class PID:
     @out_min.setter
     def out_min(self, out_min):
         self._out_min = out_min
+
+    @property
+    def clamp_low(self):
+        return self._out_min if self._clamp_low is None else self._clamp_low
+
+    @clamp_low.setter
+    def clamp_low(self, clamp_low):
+        self._clamp_low = clamp_low
+
+    @property
+    def clamp_high(self):
+        return self._out_max if self._clamp_high is None else self._clamp_high
+
+    @clamp_high.setter
+    def clamp_high(self, clamp_high):
+        self._clamp_high = clamp_high
 
     @property
     def sampling_period(self):
@@ -171,14 +200,13 @@ class PID:
             ext_temp (float): The outdoor temperature value.
 
         Returns:
-            A tuple of (output, changed_flag). Output is the raw sum (clamping handled downstream).
+            A tuple of (output, changed_flag). The output includes the outdoor
+            compensation and is clamped to the actuator limits.
         """
         self._last_input = self._input
         self._last_input_time = (
             last_input_time if last_input_time is not None else self._input_time
         )
-        self._last_output = self._output
-
         # Refresh with actual values
         self._input = input_val
         self._input_time = input_time
@@ -188,11 +216,11 @@ class PID:
         if self.mode == "OFF":
             # If PID is off, simply switch between min and max output
             if input_val <= set_point - self._cold_tolerance:
-                self._output = self._out_max
+                self._output = self.clamp_high
                 _LOGGER.debug("PID is off and input lower than set point: heater ON")
                 return self._output, True
             elif input_val >= set_point + self._hot_tolerance:
-                self._output = self._out_min
+                self._output = self.clamp_low
                 _LOGGER.debug("PID is off and input higher than set point: heater OFF")
                 return self._output, True
             else:
@@ -219,29 +247,6 @@ class PID:
         # Feedforward compensation value for external temperature
         self._external = self._Ke * self._dext
 
-        # Anti-windup clamping: evaluate saturation on total output (including external compensation)
-        total_last_output = self._last_output + self._external
-        saturated_high = total_last_output >= self._out_max
-        saturated_low = total_last_output <= self._out_min
-
-        # Neutral point for the integral is -self._external (so that I + E = 0 when P = D = 0)
-        neutral_i = -self._external
-        winding_up_high = (
-            saturated_high and self._error > 0 and self._integral >= neutral_i
-        )
-        winding_up_low = (
-            saturated_low and self._error < 0 and self._integral <= neutral_i
-        )
-
-        if not (winding_up_high or winding_up_low) and self._dt > 0:
-            self._integral += self._Ki * self._error * self._dt
-
-        if self._Ki:
-            # Clamp integral term taking external compensation into account
-            i_min = self._out_min - self._external
-            i_max = self._out_max - self._external
-            self._integral = max(min(self._integral, i_max), i_min)
-
         # Proportional term
         self._proportional = self._Kp * self._error
 
@@ -251,9 +256,47 @@ class PID:
         else:
             self._derivative = 0.0
 
-        # Compute raw PID Output (downstream climate component handles final output clamping)
-        self._output = self._proportional + self._integral + self._derivative
+        # Anti-windup: only integrate while the output actually delivered to the
+        # actuator is not saturated in the direction of the error. Comparing the total
+        # output (compensation included) against the actuator limits keeps the integral
+        # free to move as long as the actuator has headroom.
+        output = self._raw_output()
+        pushing_deeper = (output >= self.clamp_high and self._error > 0) or (
+            output <= self.clamp_low and self._error < 0
+        )
+        if self._dt > 0 and not pushing_deeper:
+            self._integral += self._Ki * self._error * self._dt
+            if self._Ki:
+                # Keep the integral within the range the actuator can deliver: a long
+                # sampling gap must not push it far beyond saturation in one step.
+                base = self._external + self._proportional + self._derivative
+                self._integral = min(
+                    max(self._integral, self.clamp_low - base),
+                    self.clamp_high - base,
+                )
+            output = self._raw_output()
+
+        self._output = min(max(output, self.clamp_low), self.clamp_high)
         return self._output, True
+
+    def update_external(self, set_point, ext_temp):
+        """Refresh the outdoor compensation and the output without integrating.
+
+        The compensation is part of the output delivered to the actuator, so a change
+        of the outdoor temperature must update the output without adding integral
+        action. Returns the clamped output.
+        """
+        self._dext = set_point - ext_temp if ext_temp is not None else 0
+        self._external = self._Ke * self._dext
+        if self._mode == "OFF":
+            # In OFF mode the output is a plain relay driven by the tolerances.
+            return self._output
+        self._output = min(max(self._raw_output(), self.clamp_low), self.clamp_high)
+        return self._output
+
+    def _raw_output(self):
+        """Return the output before the actuator limits are applied."""
+        return self._proportional + self._integral + self._derivative + self._external
 
 
 # Based on a fork of Arduino PID AutoTune Library

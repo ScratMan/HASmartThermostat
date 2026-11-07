@@ -178,6 +178,8 @@ Output is then limited to 0% to 100% range to control the PWM.
 The Ke gain depends on the insulation of the building, on recent buildings with good insulation, a
 gain of 0.6 is recommended. This compensation will act like the integral of the PID, but with
 faster response time, so the integral will be more stable.
+The compensation applies while the PID is running. When the PID mode is off (hysteresis mode, for
+example with `boost_pid_off`), the output is a plain ON/OFF relay and the compensation is not used.
 
 ### Cascading PID
 

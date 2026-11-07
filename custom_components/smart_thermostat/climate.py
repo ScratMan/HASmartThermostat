@@ -569,6 +569,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._sampling_period.seconds,
             self._cold_tolerance,
             self._hot_tolerance,
+            clamp_low=self._pid_clamp_low,
+            clamp_high=self._pid_clamp_high,
         )
         if self._autotune != "none":
             self._pid_controller.mode = "OFF"
@@ -1163,6 +1165,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             # Apply the new output limits to the PID controller after changing the mode
             self._pid_controller.out_max = self._pid_out_max
             self._pid_controller.out_min = self._pid_out_min
+            self._pid_controller.clamp_high = self._pid_clamp_high
+            self._pid_controller.clamp_low = self._pid_clamp_low
         if self._hvac_mode != HVACMode.OFF:
             await self._async_control_heating(calc_pid=True)
         # Ensure we update the current operation after changing the mode
@@ -1384,17 +1388,29 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             elif calc_pid and self._sampling_period.seconds == 0:
                 await self.calc_pid()
 
-            # If external temperature is available, calculate the compensation and add to control output without
-            # affecting the PID calculation.
-            if self._ext_temp is not None:
-                self._e = round(
-                    self._ke * (self._target_temp - self._ext_temp),
-                    self._output_precision,
+            if self._autotune == "none" and self._pid_controller is not None:
+                # The PID applies the outdoor compensation to its own output. Refresh it here
+                # so a change of outdoor temperature updates the output without integrating.
+                self._pid_output = self._pid_controller.update_external(
+                    self._target_temp, self._ext_temp
                 )
+                self._e = round(
+                    self._pid_controller.external, self._output_precision
+                )
+                self._control_output = self._pid_output
+            else:
+                # If external temperature is available, calculate the compensation and add
+                # it to the control output without affecting the autotune calculation.
+                if self._ext_temp is not None:
+                    self._e = round(
+                        self._ke * (self._target_temp - self._ext_temp),
+                        self._output_precision,
+                    )
+                self._control_output = self._pid_output + self._e
 
             # Round value to configured precision to avoid excessive updates for small changes
             self._control_output = round(
-                self._pid_output + self._e, self._output_precision
+                self._control_output, self._output_precision
             )
             if not self._output_precision:
                 self._control_output = int(self._control_output)
@@ -1733,6 +1749,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         self._sampling_period.seconds,
                         self._cold_tolerance,
                         self._hot_tolerance,
+                        clamp_low=self._pid_clamp_low,
+                        clamp_high=self._pid_clamp_high,
                     )
                     self._autotune = "none"
             self._pid_output = self._pid_autotune.output
