@@ -433,9 +433,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._temp_precision = kwargs.get("precision")
         self._target_temperature_step = kwargs.get("target_temp_step")
         self._debug = kwargs.get(const.CONF_DEBUG)
-        self._last_heat_cycle_time = 0
-        self._min_on_cycle_duration_pid_on = kwargs.get(
-            "min_cycle_duration", timedelta(seconds=0)
+        # None means no device state change was recorded yet: PWM starts a fresh cycle
+        # and the first transition always goes through.
+        self._last_heat_cycle_time = None
+        self._last_device_state = None
+        self._min_on_cycle_duration_pid_on = (
+            kwargs.get("min_cycle_duration") or timedelta(seconds=0)
         )
         self._min_off_cycle_duration_pid_on = kwargs.get("min_off_cycle_duration")
         self._min_on_cycle_duration_pid_off = kwargs.get("min_cycle_duration_pid_off")
@@ -629,10 +632,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             # Only control heating once HA is ready
             await self._async_control_heating(calc_pid=True)
 
-        if self.hass.state == CoreState.running:
-            await _async_startup()
-        else:
-            # EVENT_HOMEASSISTANT_STARTED ensures "hardware" entities and their integrations are ready
+        # When HA is already running, the first control pass is deferred to the end of
+        # this method so it uses the restored mode and set point. On a cold start the
+        # EVENT_HOMEASSISTANT_STARTED callback does the same once hardware entities are ready.
+        hass_running = self.hass.state == CoreState.running
+        if not hass_running:
             self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _async_startup)
 
         # Add listeners
@@ -735,9 +739,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._i = float(old_state.attributes.get("pid_i", 0))
                 self._pid_controller.integral = self._i
             if old_state.state in [HVACMode.HEAT, HVACMode.COOL, HVACMode.OFF]:
-                await self.async_set_hvac_mode(old_state.state)
+                self._apply_hvac_mode_state(old_state.state)
             else:
-                await self.async_set_hvac_mode(
+                self._apply_hvac_mode_state(
                     self._hvac_mode
                     if self._hvac_mode
                     in [HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL, HVACMode.OFF]
@@ -786,13 +790,21 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._target_temp,
             )
 
-            await self.async_set_hvac_mode(
+            self._apply_hvac_mode_state(
                 self._hvac_mode
                 if self._hvac_mode
                 in [HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL, HVACMode.OFF]
                 else HVACMode.OFF
             )
-            await self._async_control_heating()
+
+        # Restore does not go through async_set_hvac_mode, so record the active mode here.
+        if self._hvac_mode != HVACMode.OFF:
+            self._last_active_hvac = self._hvac_mode
+
+        # Start controlling once the previous state is restored, so the first control pass
+        # uses the restored mode and set point and only drives the device once.
+        if hass_running:
+            await _async_startup()
 
     @property
     def should_poll(self):
@@ -1095,8 +1107,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         )
         await self._async_control_heating()
 
-    async def async_set_hvac_mode(self, hvac_mode: HVACMode | str) -> None:
-        """Set new target hvac mode."""
+    def _apply_hvac_mode_state(self, hvac_mode: HVACMode | str) -> bool:
+        """Apply the HVAC mode and the output limits it defines, without driving the device."""
         if hvac_mode == HVACMode.HEAT:
             self._pid_out_min = self._output_min
             self._pid_out_max = self._output_max
@@ -1121,6 +1133,22 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._pid_out_min = self._pid_out_max = self._pid_clamp_low = (
                 self._pid_clamp_high
             ) = 0
+        else:
+            _LOGGER.error("%s: Unrecognized HVAC mode: %s", self.entity_id, hvac_mode)
+            return False
+
+        if self._pid_controller:
+            # Apply the new output limits to the PID controller after changing the mode
+            self._pid_controller.out_max = self._pid_out_max
+            self._pid_controller.out_min = self._pid_out_min
+        return True
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode | str) -> None:
+        """Set new target hvac mode."""
+        if not self._apply_hvac_mode_state(hvac_mode):
+            return
+
+        if hvac_mode == HVACMode.OFF:
             if self._pwm:
                 _LOGGER.debug(
                     "%s: Turn OFF heater from async_set_hvac_mode(%s)",
@@ -1142,9 +1170,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._last_pid_calc_time = None
             if self._pid_controller is not None:
                 self._pid_controller.clear_samples(clear_integral=False)
-        else:
-            _LOGGER.error("%s: Unrecognized HVAC mode: %s", self.entity_id, hvac_mode)
-            return
 
         # Clear samples when toggling between active modes (HEAT <-> COOL). Not when the mode is
         # first set at startup (old mode None): that would discard the integral restored from pid_i.
@@ -1161,10 +1186,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._pid_controller.clear_samples(clear_integral=True)
             self._last_active_hvac = self._hvac_mode
 
-        if self._pid_controller:
-            # Apply the new output limits to the PID controller after changing the mode
-            self._pid_controller.out_max = self._pid_out_max
-            self._pid_controller.out_min = self._pid_out_min
         if self._hvac_mode != HVACMode.OFF:
             await self._async_control_heating(calc_pid=True)
         # Ensure we update the current operation after changing the mode
@@ -1308,6 +1329,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         _LOGGER.debug(
             f"{self.entity_id}: Switch {event_type} event received, writing state to DB."
         )
+        if event.data.get("entity_id") in self.heater_or_cooler_entity:
+            active = self._is_device_active
+            if (
+                    self._last_device_state is not None
+                    and active != self._last_device_state
+            ):
+                # The device was switched by another actor: restart the cycle timer from now.
+                self._mark_device_state(active)
         self.async_write_ha_state()
 
     @callback
@@ -1474,119 +1503,106 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 entities_list.extend(self._cooler_entity_id)
             return entities_list
 
-    async def _async_heater_turn_on(self):
-        """Turn heater toggleable device on."""
+    def _device_entities(self, active: bool) -> list:
+        """Return the entities to drive for the requested state."""
+        if active:
+            entities = self.heater_or_cooler_entity
+        else:
+            # Switching off drives every configured device, whatever the active mode.
+            entities = []
+            if self._heater_entity_id is not None:
+                entities.extend(self._heater_entity_id)
+            if self._cooler_entity_id is not None:
+                entities.extend(self._cooler_entity_id)
+        return [entity for entity in entities if entity is not None]
+
+    def _device_service(self, entity_id: str, active: bool) -> str:
+        """Return the service turning the given entity ON or OFF."""
+        if split_entity_id(entity_id)[0] == VALVE_DOMAIN:
+            return SERVICE_OPEN_VALVE if active else SERVICE_CLOSE_VALVE
+        if self._heater_polarity_invert:
+            return SERVICE_TURN_OFF if active else SERVICE_TURN_ON
+        return SERVICE_TURN_ON if active else SERVICE_TURN_OFF
+
+    def _min_cycle_allows(self, active: bool) -> bool:
+        """Return True when the device stayed long enough in its current state."""
+        if self._last_heat_cycle_time is None:
+            return True
+        duration = (
+            self._min_off_cycle_duration if active else self._min_on_cycle_duration
+        )
+        return (
+                time.monotonic() - self._last_heat_cycle_time
+                >= duration.total_seconds()
+        )
+
+    def _mark_device_state(self, active: bool) -> None:
+        """Remember the last known state of the device and when it changed."""
+        self._last_device_state = active
+        self._last_heat_cycle_time = time.monotonic()
+
+    async def _async_set_device_state(self, active: bool, force: bool = False) -> None:
+        """Request an ON or OFF state for the heater/cooler device.
+
+        Re-sending the state the device was last commanded to (keep_alive refresh) is
+        never treated as a transition, so a refresh can neither flip the device nor
+        bypass a minimum cycle duration.
+        """
+        entities = self._device_entities(active)
+        state = "ON" if active else "OFF"
+
         if not self._is_device_available:
-            entities_list = ", ".join(
-                [entity for entity in self.heater_or_cooler_entity]
-            )
             _LOGGER.info(
-                f"{self.entity_id}: Device is not ready, 'Turn ON' rejected for {entities_list}"
+                f"{self.entity_id}: Device is not ready, 'Turn {state}' rejected for"
+                f" {', '.join(entities)}"
             )
             return
 
-        change_time = False
-        if self._is_device_active:
-            # It's a state refresh call from keep_alive, just force switch ON.
-            _LOGGER.info(
-                "%s: Refresh state ON %s",
-                self.entity_id,
-                ", ".join([entity for entity in self.heater_or_cooler_entity]),
-            )
-        elif (
-            time.time() - self._last_heat_cycle_time
-            >= self._min_off_cycle_duration.seconds
+        refresh = self._last_device_state == active
+        if not refresh and self._last_device_state is None:
+            # Nothing was requested yet: re-sending the state the device already has is
+            # a refresh, so it does not start a minimum cycle.
+            refresh = self._is_device_active == active
+        # The first request only establishes the baseline: no history is known yet to
+        # measure a minimum cycle against.
+        if (
+                not refresh
+                and not force
+                and self._last_device_state is not None
+                and not self._min_cycle_allows(active)
         ):
             _LOGGER.info(
-                "%s: Turning ON %s",
+                "%s: Reject request turning %s %s: Cycle is too short",
                 self.entity_id,
-                ", ".join([entity for entity in self.heater_or_cooler_entity]),
-            )
-            change_time = True
-        else:
-            _LOGGER.info(
-                "%s: Reject request turning ON %s: Cycle is too short",
-                self.entity_id,
-                ", ".join([entity for entity in self.heater_or_cooler_entity]),
+                state,
+                ", ".join(entities),
             )
             return
-        for heater_or_cooler_entity in self.heater_or_cooler_entity:
-            entity_domain = split_entity_id(heater_or_cooler_entity)[0]
-            data = {ATTR_ENTITY_ID: heater_or_cooler_entity}
-            if entity_domain == VALVE_DOMAIN:
-                service = SERVICE_OPEN_VALVE
-            else:
-                if self._heater_polarity_invert:
-                    service = SERVICE_TURN_OFF
-                else:
-                    service = SERVICE_TURN_ON
+
+        if refresh:
+            _LOGGER.info("%s: Refresh state %s %s", self.entity_id, state, ", ".join(entities))
+        else:
+            _LOGGER.info("%s: Turning %s %s", self.entity_id, state, ", ".join(entities))
+
+        for entity in entities:
+            service = self._device_service(entity, active)
             _LOGGER.debug(
-                f"{self.entity_id}: Calling {entity_domain}.{service} on {heater_or_cooler_entity}"
+                f"{self.entity_id}: Calling {split_entity_id(entity)[0]}.{service} on {entity}"
             )
-            await self.hass.services.async_call(entity_domain, service, data)
-        if change_time:
-            self._last_heat_cycle_time = time.time()
+            await self.hass.services.async_call(
+                split_entity_id(entity)[0], service, {ATTR_ENTITY_ID: entity}
+            )
+
+        if not refresh:
+            self._mark_device_state(active)
+
+    async def _async_heater_turn_on(self):
+        """Turn heater toggleable device on."""
+        await self._async_set_device_state(True)
 
     async def _async_heater_turn_off(self, force=False):
         """Turn heater toggleable device off."""
-        if not self._is_device_available:
-            entities_list = ", ".join(
-                [entity for entity in self.heater_or_cooler_entity]
-            )
-            _LOGGER.info(
-                f"{self.entity_id}: Device is not ready, 'Turn OFF' rejected for {entities_list}"
-            )
-            return
-
-        change_time = False
-        if not self._is_device_active:
-            # It's a state refresh call from keep_alive, just force switch OFF.
-            _LOGGER.info(
-                "%s: Refresh state OFF %s",
-                self.entity_id,
-                ", ".join([entity for entity in self.heater_or_cooler_entity]),
-            )
-        elif (
-            time.time() - self._last_heat_cycle_time
-            >= self._min_on_cycle_duration.seconds
-            or force
-        ):
-            _LOGGER.info(
-                "%s: Turning OFF %s",
-                self.entity_id,
-                ", ".join([entity for entity in self.heater_or_cooler_entity]),
-            )
-            change_time = True
-        else:
-            _LOGGER.info(
-                "%s: Reject request turning OFF %s: Cycle is too short",
-                self.entity_id,
-                ", ".join([entity for entity in self.heater_or_cooler_entity]),
-            )
-            return
-        entities = []
-        if self._heater_entity_id is not None:
-            entities.extend(self._heater_entity_id)
-        if self._cooler_entity_id is not None:
-            entities.extend(self._cooler_entity_id)
-        for entity in entities:
-            if entity is None:
-                continue
-            entity_domain = split_entity_id(entity)[0]
-            data = {ATTR_ENTITY_ID: entity}
-            if entity_domain == VALVE_DOMAIN:
-                service = SERVICE_CLOSE_VALVE
-            else:
-                if self._heater_polarity_invert:
-                    service = SERVICE_TURN_ON
-                else:
-                    service = SERVICE_TURN_OFF
-            _LOGGER.debug(
-                f"{self.entity_id}: Calling {entity_domain}.{service} on {entity}"
-            )
-            await self.hass.services.async_call(entity_domain, service, data)
-        if change_time:
-            self._last_heat_cycle_time = time.time()
+        await self._async_set_device_state(False, force=force)
 
     async def _async_set_valve_value(self, value: float):
         if not self._is_device_available:
@@ -1804,19 +1820,23 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     async def pwm_switch(self):
         """turn off and on the heater proportionally to control_value."""
-        time_passed = time.time() - self._last_heat_cycle_time
+        time_passed = (
+            float("inf")
+            if self._last_heat_cycle_time is None
+            else time.monotonic() - self._last_heat_cycle_time
+        )
         # Compute time_on based on PWM duration and PID output
         time_on = self._pwm * abs(self._control_output) / self._difference
         time_off = self._pwm - time_on
         # Check time_on and time_off are not too short
-        if 0 < time_on < self._min_on_cycle_duration.seconds:
+        if 0 < time_on < self._min_on_cycle_duration.total_seconds():
             # time_on is too short, increase time_off and time_on
-            time_off *= self._min_on_cycle_duration.seconds / time_on
-            time_on = self._min_on_cycle_duration.seconds
-        if 0 < time_off < self._min_off_cycle_duration.seconds:
+            time_off *= self._min_on_cycle_duration.total_seconds() / time_on
+            time_on = self._min_on_cycle_duration.total_seconds()
+        if 0 < time_off < self._min_off_cycle_duration.total_seconds():
             # time_off is too short, increase time_on and time_off
-            time_on *= self._min_off_cycle_duration.seconds / time_off
-            time_off = self._min_off_cycle_duration.seconds
+            time_on *= self._min_off_cycle_duration.total_seconds() / time_off
+            time_off = self._min_off_cycle_duration.total_seconds()
         if self._is_device_active:
             if time_on <= time_passed or self._force_off:
                 _LOGGER.info(
