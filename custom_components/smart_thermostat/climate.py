@@ -1131,6 +1131,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
             return
+
+        if self._current_temp is not None and self._target_temp is not None:
+            # Force computing PID on previous setpoint to avoid integral windup when changing setpoint
+            await self._async_control_heating(calc_pid=True)
+
         if self._current_temp is not None and temperature > self._current_temp:
             self._force_on = True
         elif self._current_temp is not None and temperature < self._current_temp:
@@ -1582,18 +1587,23 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """
         if preset_mode not in self.preset_modes:
             return
+        if preset_mode == PRESET_NONE and self.preset_mode == PRESET_NONE:
+            return
+
+        if self._current_temp is not None and self._target_temp is not None:
+            # Force computing PID on previous setpoint to avoid integral windup when changing setpoint
+            await self._async_control_heating(calc_pid=True)
+
         if preset_mode != PRESET_NONE and self.preset_mode == PRESET_NONE:
-            # self._is_away = True
             self._saved_target_temp = self._target_temp
             self._target_temp = self.presets[preset_mode]
         elif preset_mode == PRESET_NONE and self.preset_mode != PRESET_NONE:
-            # self._is_away = False
             self._target_temp = self._saved_target_temp
-        elif preset_mode == PRESET_NONE and self.preset_mode == PRESET_NONE:
-            return
         else:
             self._target_temp = self.presets[preset_mode]
+
         self._attr_preset_mode = preset_mode
+
         if self._boost_pid_off and self._attr_preset_mode == PRESET_BOOST:
             # Force PID OFF if requested and boost mode is active
             await self.async_set_pid_mode(mode="off")
@@ -1606,7 +1616,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     async def calc_pid(self, time_func: object = None):
         """calculate control output and handle autotune"""
-        if self._hvac_mode == HVACMode.OFF or self._current_temp is None or self._target_temp is None:
+        if (
+            self._hvac_mode == HVACMode.OFF
+            or self._current_temp is None
+            or self._target_temp is None
+        ):
             return
         update = False
         if self._previous_temp_time is None:
