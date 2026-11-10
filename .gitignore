@@ -1,15 +1,19 @@
+# artifacts
+__pycache__/
+.pytest_cache/
+*.egg-info
+*/build/*
+*/dist/*
 .idea/
-.cache/
-.storage/
-.cloud/
-blueprints/
-deps/
-tts/
-/*.yaml
-/*.yml
-*.csv
-*.lock
-.HA_VERSION
-*.log
-*.log.*
-home-assistant_v2.*
+.devcontainer-lock.json
+
+# misc
+.coverage
+coverage.xml
+.vscode/*
+!.vscode/launch.json
+
+# Home Assistant configuration
+config/*
+!config/
+!config/configuration.yaml

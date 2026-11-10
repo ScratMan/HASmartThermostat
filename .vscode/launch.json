@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Home Assistant (Debug)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "homeassistant",
+      "args": [
+        "-c",
+        "config",
+        "--debug"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/custom_components:${PYTHONPATH}"
+      },
+      "console": "integratedTerminal"
+    }
+  ]
+}

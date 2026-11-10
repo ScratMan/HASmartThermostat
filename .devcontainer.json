@@ -1,0 +1,49 @@
+{
+  "name": "ScratMan/HASmartThermostat",
+  "image": "mcr.microsoft.com/vscode/devcontainers/python:3.14",
+  "postCreateCommand": "scripts/setup",
+  "appPort": [
+    "8123:8123"
+  ],
+  "portsAttributes": {
+    "8123": {
+      "label": "Home Assistant",
+      "onAutoForward": "notify"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "github.vscode-pull-request-github",
+        "ryanluker.vscode-coverage-gutters"
+      ],
+      "settings": {
+        "files.eol": "\n",
+        "editor.tabSize": 4,
+        "python.analysis.autoSearchPaths": false,
+        "python.testing.pytestArgs": [
+          "tests",
+          "--asyncio-mode=auto"
+        ],
+        "editor.formatOnPaste": false,
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.fixAll.ruff": "explicit"
+          }
+        },
+        "files.trimTrailingWhitespace": true
+      }
+    }
+  },
+  "remoteUser": "vscode",
+  "features": {
+    "ghcr.io/devcontainers/features/rust:1": {}
+  }
+}
