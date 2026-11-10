@@ -95,6 +95,10 @@ from .const import DOMAIN, PLATFORMS
 
 _LOGGER = logging.getLogger(__name__)
 
+# Home Assistant 2026.11 replaced the temperature_unit, current_temperature and
+# target_temperature properties with their native_* equivalents.
+_HAS_NATIVE_TEMPERATURE_PROPERTIES = hasattr(ClimateEntity, "native_temperature_unit")
+
 _DURATION_KEYS = (
     const.CONF_MIN_CYCLE_DURATION,
     const.CONF_MIN_OFF_CYCLE_DURATION,
@@ -792,14 +796,25 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         return self._target_temperature_step
 
     @property
-    def temperature_unit(self):
+    def native_temperature_unit(self):
         """Return the unit of measurement."""
         return self._unit
 
     @property
-    def current_temperature(self):
+    def native_current_temperature(self):
         """Return the sensor temperature."""
         return self._current_temp
+
+    @property
+    def native_target_temperature(self):
+        """Return the temperature we try to reach."""
+        return self._target_temp
+
+    if not _HAS_NATIVE_TEMPERATURE_PROPERTIES:
+        # Point the legacy attributes to the native ones on older Home Assistant.
+        temperature_unit = native_temperature_unit
+        current_temperature = native_current_temperature
+        target_temperature = native_target_temperature
 
     @property
     def hvac_mode(self):
@@ -818,11 +833,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         if self._hvac_mode == HVACMode.COOL:
             return HVACAction.COOLING
         return HVACAction.HEATING
-
-    @property
-    def target_temperature(self):
-        """Return the temperature we try to reach."""
-        return self._target_temp
 
     @property
     def preset_mode(self):
