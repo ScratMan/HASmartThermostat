@@ -1168,25 +1168,45 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         # Ensure we update the current operation after changing the mode
         self.async_write_ha_state()
 
+    async def _async_close_previous_period(self) -> None:
+        """Close the previous time period before a setpoint change to avoid integral kick."""
+        if self._current_temp is None or self._target_temp is None:
+            return
+
+        # 1. We advance the clock to the present moment to settle the entirety of the previous setpoint.
+        if not self._sampling_period:
+            now = time.time()
+            self._previous_temp_time = self._cur_temp_time
+            self._cur_temp_time = now
+
+        # 2. We force the PID calculation on the previous setpoint
+        await self._async_control_heating(calc_pid=True)
+
+        # 3. We equalize the timestamps so that the immediate calculation with the new setpoint gives dt = 0
+        if not self._sampling_period:
+            self._previous_temp_time = self._cur_temp_time
+
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
         temperature = kwargs.get(ATTR_TEMPERATURE)
         if temperature is None:
             return
 
-        if self._current_temp is not None and self._target_temp is not None:
-            # Force computing PID on previous setpoint to avoid integral windup when changing setpoint
-            await self._async_control_heating(calc_pid=True)
+        # Close out the previous period before modifying the _force_on/_force_off flags or the setpoint.
+        if temperature != self._target_temp:
+            await self._async_close_previous_period()
 
         if self._current_temp is not None and temperature > self._current_temp:
             self._force_on = True
         elif self._current_temp is not None and temperature < self._current_temp:
             self._force_off = True
+
         if temperature in self._preset_temp_modes and self._preset_sync_mode == "sync":
             await self.async_set_preset_mode(self._preset_temp_modes[temperature])
         else:
             await self.async_set_preset_mode(PRESET_NONE)
             self._target_temp = temperature
+
         await self._async_control_heating(calc_pid=True)
         self.async_write_ha_state()
 
@@ -1637,9 +1657,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         if preset_mode == PRESET_NONE and self.preset_mode == PRESET_NONE:
             return
 
-        if self._current_temp is not None and self._target_temp is not None:
-            # Force computing PID on previous setpoint to avoid integral windup when changing setpoint
-            await self._async_control_heating(calc_pid=True)
+        # Closing the previous period before switching to a new preset (and thus a new _target_temp)
+        await self._async_close_previous_period()
 
         if preset_mode != PRESET_NONE and self.preset_mode == PRESET_NONE:
             self._saved_target_temp = self._target_temp
@@ -1660,6 +1679,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         else:
             # if boost_pid_off is false, don't change the PID mode
             await self._async_control_heating(calc_pid=True)
+        self.async_write_ha_state()
 
     async def calc_pid(self, time_func: object = None):
         """calculate control output and handle autotune"""
