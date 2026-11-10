@@ -156,6 +156,7 @@ class PID:
         self._last_input = None
         self._last_input_time = None
         self._integral = 0.0
+        self._external = 0.0
 
     def calc(
         self, input_val, set_point, input_time=None, last_input_time=None, ext_temp=None
@@ -218,14 +219,21 @@ class PID:
         # Feedforward compensation value for external temperature
         self._external = self._Ke * self._dext
 
-        # Anti-windup clamping: only integrate if output is not saturated
-        saturated_high = self._last_output >= self._out_max
-        saturated_low = self._last_output <= self._out_min
-        pushing_deeper = (saturated_high and self._error > 0) or (
-            saturated_low and self._error < 0
+        # Anti-windup clamping: evaluate saturation on total output (including external compensation)
+        total_last_output = self._last_output + self._external
+        saturated_high = total_last_output >= self._out_max
+        saturated_low = total_last_output <= self._out_min
+
+        # Neutral point for the integral is -self._external (so that I + E = 0 when P = D = 0)
+        neutral_i = -self._external
+        winding_up_high = (
+            saturated_high and self._error > 0 and self._integral >= neutral_i
+        )
+        winding_up_low = (
+            saturated_low and self._error < 0 and self._integral <= neutral_i
         )
 
-        if not pushing_deeper and self._dt > 0:
+        if not (winding_up_high or winding_up_low) and self._dt > 0:
             self._integral += self._Ki * self._error * self._dt
 
         if self._Ki:
