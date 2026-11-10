@@ -1,19 +1,18 @@
 """Tests for the Smart Thermostat climate platform."""
 
-from datetime import timedelta
 import csv
 import math
-from pathlib import Path
-import pytest
+from datetime import timedelta
 
+import pytest
 from homeassistant.components.climate import (
     ATTR_TEMPERATURE,
-    DOMAIN as CLIMATE_DOMAIN,
-    SERVICE_SET_HVAC_MODE,
-    SERVICE_SET_TEMPERATURE,
     ClimateEntity,
     ClimateEntityFeature,
     HVACMode,
+)
+from homeassistant.components.climate import (
+    DOMAIN as CLIMATE_DOMAIN,
 )
 from homeassistant.core import State
 from homeassistant.setup import async_setup_component
@@ -194,10 +193,10 @@ async def test_proportional_valve_position(hass):
 
     assert last_position == 50
     assert (
-            hass.states.get("climate.proportional_valve_thermostat").attributes[
-                "control_output"
-            ]
-            == 50
+        hass.states.get("climate.proportional_valve_thermostat").attributes[
+            "control_output"
+        ]
+        == 50
     )
 
 
@@ -397,9 +396,9 @@ class DummyTRV(ClimateEntity):
         self._attr_hvac_mode = HVACMode.HEAT
         self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
         self._attr_supported_features = (
-                ClimateEntityFeature.TARGET_TEMPERATURE
-                | ClimateEntityFeature.TURN_OFF
-                | ClimateEntityFeature.TURN_ON
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.TURN_OFF
+            | ClimateEntityFeature.TURN_ON
         )
 
     @property

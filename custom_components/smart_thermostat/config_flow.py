@@ -6,13 +6,13 @@ from collections.abc import Mapping
 from typing import Any, cast
 
 import voluptuous as vol
-
-from homeassistant.components.climate import HVACMode
 from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
+from homeassistant.components.climate import HVACMode
 from homeassistant.components.input_number import DOMAIN as INPUT_NUMBER_DOMAIN
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components.number import DOMAIN as NUMBER_DOMAIN
-from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN, SensorDeviceClass
+from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN
 from homeassistant.const import CONF_NAME, DEGREE
 from homeassistant.data_entry_flow import section
@@ -85,8 +85,12 @@ BASIC_SCHEMA = vol.Schema(
 
 TEMPERATURE_SCHEMA = vol.Schema(
     {
-        vol.Optional(const.CONF_MIN_TEMP, default=const.DEFAULT_MIN_TEMP): TEMPERATURE_SELECTOR,
-        vol.Optional(const.CONF_MAX_TEMP, default=const.DEFAULT_MAX_TEMP): TEMPERATURE_SELECTOR,
+        vol.Optional(
+            const.CONF_MIN_TEMP, default=const.DEFAULT_MIN_TEMP
+        ): TEMPERATURE_SELECTOR,
+        vol.Optional(
+            const.CONF_MAX_TEMP, default=const.DEFAULT_MAX_TEMP
+        ): TEMPERATURE_SELECTOR,
         vol.Optional(
             const.CONF_TARGET_TEMP, default=const.DEFAULT_TARGET_TEMP
         ): TEMPERATURE_SELECTOR,
@@ -128,7 +132,9 @@ PRESETS_SCHEMA = vol.Schema(
         ): selector.SelectSelector(
             selector.SelectSelectorConfig(options=["sync", "none"])
         ),
-        vol.Required(const.CONF_BOOST_PID_OFF, default=False): selector.BooleanSelector(),
+        vol.Required(
+            const.CONF_BOOST_PID_OFF, default=False
+        ): selector.BooleanSelector(),
     }
 )
 
@@ -138,8 +144,12 @@ PID_SCHEMA = vol.Schema(
         vol.Required(const.CONF_KI, default=const.DEFAULT_KI): NUMBER_SELECTOR,
         vol.Required(const.CONF_KD, default=const.DEFAULT_KD): NUMBER_SELECTOR,
         vol.Optional(const.CONF_KE, default=const.DEFAULT_KE): NUMBER_SELECTOR,
-        vol.Required(const.CONF_PWM, default=const.DEFAULT_PWM_DURATION): DURATION_SELECTOR,
-        vol.Optional(const.CONF_KEEP_ALIVE, default=const.DEFAULT_KEEP_ALIVE): DURATION_SELECTOR,
+        vol.Required(
+            const.CONF_PWM, default=const.DEFAULT_PWM_DURATION
+        ): DURATION_SELECTOR,
+        vol.Optional(
+            const.CONF_KEEP_ALIVE, default=const.DEFAULT_KEEP_ALIVE
+        ): DURATION_SELECTOR,
         vol.Optional(
             const.CONF_SAMPLING_PERIOD, default=const.DEFAULT_SAMPLING_PERIOD_DURATION
         ): DURATION_SELECTOR,
@@ -173,23 +183,31 @@ ADVANCED_SCHEMA = vol.Schema(
                 min=0, max=3, mode=selector.NumberSelectorMode.BOX
             )
         ),
-        vol.Optional(const.CONF_OUTPUT_MIN, default=const.DEFAULT_OUTPUT_MIN): NUMBER_SELECTOR,
-        vol.Optional(const.CONF_OUTPUT_MAX, default=const.DEFAULT_OUTPUT_MAX): NUMBER_SELECTOR,
+        vol.Optional(
+            const.CONF_OUTPUT_MIN, default=const.DEFAULT_OUTPUT_MIN
+        ): NUMBER_SELECTOR,
+        vol.Optional(
+            const.CONF_OUTPUT_MAX, default=const.DEFAULT_OUTPUT_MAX
+        ): NUMBER_SELECTOR,
         vol.Optional(const.CONF_OUT_CLAMP_LOW): CLAMP_SELECTOR,
         vol.Optional(const.CONF_OUT_CLAMP_HIGH): CLAMP_SELECTOR,
         vol.Optional(
-            const.CONF_MIN_CYCLE_DURATION, default=const.DEFAULT_MIN_CYCLE_DURATION_DURATION
+            const.CONF_MIN_CYCLE_DURATION,
+            default=const.DEFAULT_MIN_CYCLE_DURATION_DURATION,
         ): DURATION_SELECTOR,
         vol.Optional(const.CONF_MIN_OFF_CYCLE_DURATION): DURATION_SELECTOR,
         vol.Required("advanced_options"): section(
             vol.Schema(
                 {
-                    vol.Optional(const.CONF_MIN_CYCLE_DURATION_PID_OFF): DURATION_SELECTOR,
+                    vol.Optional(
+                        const.CONF_MIN_CYCLE_DURATION_PID_OFF
+                    ): DURATION_SELECTOR,
                     vol.Optional(
                         const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF
                     ): DURATION_SELECTOR,
                     vol.Optional(
-                        const.CONF_SENSOR_STALL, default=const.DEFAULT_SENSOR_STALL_DURATION
+                        const.CONF_SENSOR_STALL,
+                        default=const.DEFAULT_SENSOR_STALL_DURATION,
                     ): DURATION_SELECTOR,
                     vol.Optional(
                         const.CONF_OUTPUT_SAFETY, default=const.DEFAULT_OUTPUT_SAFETY
@@ -200,7 +218,9 @@ ADVANCED_SCHEMA = vol.Schema(
                     vol.Required(
                         const.CONF_FORCE_OFF_STATE, default=True
                     ): selector.BooleanSelector(),
-                    vol.Optional(const.CONF_DEBUG, default=False): selector.BooleanSelector(),
+                    vol.Optional(
+                        const.CONF_DEBUG, default=False
+                    ): selector.BooleanSelector(),
                 }
             ),
             options={"collapsed": True},
@@ -210,7 +230,7 @@ ADVANCED_SCHEMA = vol.Schema(
 
 
 async def _validate_config(
-        handler: SchemaCommonFlowHandler, user_input: dict[str, Any]
+    handler: SchemaCommonFlowHandler, user_input: dict[str, Any]
 ) -> dict[str, Any]:
     """Validate user input."""
     min_temp = user_input.get(const.CONF_MIN_TEMP)
