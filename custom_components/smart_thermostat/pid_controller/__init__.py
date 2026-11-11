@@ -67,6 +67,7 @@ class PID:
         self._input_time = None
         self._last_input = None
         self._last_input_time = None
+        self._last_error = None
         self._error = 0
         self._input_diff = 0
         self._dext = 0
@@ -155,7 +156,7 @@ class PID:
         self._input_time = None
         self._last_input = None
         self._last_input_time = None
-        self._integral = 0.0
+        self._last_error = None
         self._external = 0.0
 
     def calc(
@@ -234,8 +235,12 @@ class PID:
         )
 
         if not (winding_up_high or winding_up_low) and self._dt > 0:
-            self._integral += self._Ki * self._error * self._dt
-
+            if self._last_error is not None:
+                # Trapezoidal rule (#329): average error over the elapsed interval
+                effective_error = 0.5 * (self._error + self._last_error)
+            else:
+                effective_error = self._error
+            self._integral += self._Ki * effective_error * self._dt
         if self._Ki:
             # Clamp integral term taking external compensation into account
             i_min = self._out_min - self._external
@@ -253,6 +258,7 @@ class PID:
 
         # Compute raw PID Output (downstream climate component handles final output clamping)
         self._output = self._proportional + self._integral + self._derivative
+        self._last_error = self._error
         return self._output, True
 
 
