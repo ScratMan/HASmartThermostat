@@ -575,3 +575,82 @@ async def test_thermal_simulation_climate_closed_loop(hass, freezer, tmp_path):
         writer.writerows(simulation_data)
 
     assert output_path.exists()
+
+
+async def test_integral_memory_across_hvac_mode_transitions(hass, freezer):
+    """Test preserving integral on HEAT -> OFF -> HEAT (e.g. open window) and clearing on HEAT -> OFF -> COOL."""
+    hass.states.async_set("sensor.temperature", "19.0")
+    hass.states.async_set("switch.heater", "off")
+    hass.states.async_set("switch.cooler", "off")
+
+    config = {
+        CLIMATE_DOMAIN: {
+            "platform": DOMAIN,
+            "name": "Memory Test Thermostat",
+            "heater": ["switch.heater"],
+            "cooler": ["switch.cooler"],
+            "target_sensor": "sensor.temperature",
+            "target_temp": 20.0,
+            "initial_hvac_mode": HVACMode.HEAT,
+            "kp": 10.0,
+            "ki": 0.02,
+            "kd": 0.0,
+            "pwm": timedelta(seconds=60),
+            "keep_alive": timedelta(seconds=60),
+            "sampling_period": timedelta(seconds=0),
+        }
+    }
+
+    assert await async_setup_component(hass, CLIMATE_DOMAIN, config)
+    await hass.async_block_till_done()
+
+    entity_id = "climate.memory_test_thermostat"
+
+    # 1. Accumulate integral in HEAT mode (+1.0°C error over 500s -> pid_i = 10.0)
+    freezer.tick(timedelta(seconds=500))
+    hass.states.async_set("sensor.temperature", "19.0001")
+    await hass.async_block_till_done()
+
+    state = hass.states.get(entity_id)
+    assert state.attributes["pid_i"] == pytest.approx(10.0, abs=0.05)
+
+    # 2. Switch to OFF (simulating open-window automation)
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        "set_hvac_mode",
+        {"entity_id": entity_id, "hvac_mode": HVACMode.OFF},
+        blocking=True,
+    )
+    state = hass.states.get(entity_id)
+    assert state.state == HVACMode.OFF
+    assert state.attributes["pid_i"] == pytest.approx(10.0, abs=0.05)
+
+    # 3. Advance time while OFF and resume HEAT (window closed)
+    # Integral memory must be preserved and the OFF duration must not be integrated
+    freezer.tick(timedelta(seconds=300))
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        "set_hvac_mode",
+        {"entity_id": entity_id, "hvac_mode": HVACMode.HEAT},
+        blocking=True,
+    )
+    state = hass.states.get(entity_id)
+    assert state.state == HVACMode.HEAT
+    assert state.attributes["pid_i"] == pytest.approx(10.0, abs=0.05)
+
+    # 4. Switch to OFF then COOL (indirect direction change: HEAT -> OFF -> COOL)
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        "set_hvac_mode",
+        {"entity_id": entity_id, "hvac_mode": HVACMode.OFF},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        "set_hvac_mode",
+        {"entity_id": entity_id, "hvac_mode": HVACMode.COOL},
+        blocking=True,
+    )
+    state = hass.states.get(entity_id)
+    assert state.state == HVACMode.COOL
+    assert state.attributes["pid_i"] == pytest.approx(0.0)

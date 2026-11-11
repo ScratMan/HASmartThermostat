@@ -149,7 +149,7 @@ class PID:
         if ke is not None and isinstance(ke, (int, float)):
             self._Ke = ke
 
-    def clear_samples(self):
+    def clear_samples(self, clear_integral=False):
         """Clear the samples values and timestamp to restart PID from clean state after
         a switch off of the thermostat."""
         self._input = None
@@ -157,7 +157,8 @@ class PID:
         self._last_input = None
         self._last_input_time = None
         self._last_error = None
-        self._external = 0.0
+        if clear_integral:
+            self._integral = 0.0
 
     def calc(
         self, input_val, set_point, input_time=None, last_input_time=None, ext_temp=None

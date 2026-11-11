@@ -115,3 +115,55 @@ def test_trapezoidal_rule_sudden_heat_spike():
     t1 = t0 + 3292.0
     pid.calc(input_val=20.57, set_point=20.0, input_time=t1, last_input_time=t0)
     assert pid.integral == pytest.approx(1.79334, rel=1e-4)
+
+
+def test_clear_samples_preserve_or_reset_integral():
+    """Verify clear_samples preserves integral when clear_integral=False and resets it when True."""
+    pid = PID(kp=10.0, ki=0.02, kd=1.0, ke=0.5, out_min=0.0, out_max=100.0)
+    t0 = 1000.0
+
+    # 1. Establish an active heating state with accumulated integral
+    pid.calc(
+        input_val=19.0,
+        set_point=20.0,
+        input_time=t0,
+        last_input_time=None,
+        ext_temp=10.0,
+    )
+    t1 = t0 + 500.0
+    pid.calc(
+        input_val=19.0, set_point=20.0, input_time=t1, last_input_time=t0, ext_temp=10.0
+    )
+
+    assert pid.integral == pytest.approx(10.0)  # 0.02 * 1.0 * 500
+    assert pid.external == pytest.approx(5.0)  # 0.5 * (20 - 10)
+
+    # 2. Simulate temporary OFF mode (e.g., open window): preserve integral, reset timing/error history
+    pid.clear_samples(clear_integral=False)
+    assert pid.integral == pytest.approx(10.0)
+
+    # 3. Resume heating after window closes (room dropped to 18.0°C)
+    # First sample after clear_samples must not integrate the OFF duration, nor compute derivative spike,
+    # and must use exact error (+2.0°C) without averaging with pre-OFF _last_error.
+    t2 = t1 + 600.0
+    pid.calc(
+        input_val=18.0,
+        set_point=20.0,
+        input_time=t2,
+        last_input_time=None,
+        ext_temp=10.0,
+    )
+    assert pid.integral == pytest.approx(10.0)
+    assert pid.derivative == pytest.approx(0.0)
+
+    # Next sample 100s later (18.5°C -> error +1.5°C): trapezoid uses (2.0 + 1.5) / 2 = 1.75°C
+    # dI = 0.02 * 1.75 * 100 = +3.5 -> I becomes 13.5
+    t3 = t2 + 100.0
+    pid.calc(
+        input_val=18.5, set_point=20.0, input_time=t3, last_input_time=t2, ext_temp=10.0
+    )
+    assert pid.integral == pytest.approx(13.5)
+
+    # 4. Full reset (e.g., switching from HEAT to COOL): clear_integral=True
+    pid.clear_samples(clear_integral=True)
+    assert pid.integral == pytest.approx(0.0)

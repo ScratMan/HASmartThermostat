@@ -529,6 +529,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._pid_out_min = 0
             self._pid_out_max = 0
             self._ac_mode = False
+        self._last_active_hvac = None
         self._kp = kwargs.get("kp", 100)
         self._ki = kwargs.get("ki", 0)
         self._kd = kwargs.get("kd", 0)
@@ -1096,8 +1097,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode | str) -> None:
         """Set new target hvac mode."""
-        old_hvac_mode = self._hvac_mode
-
         if hvac_mode == HVACMode.HEAT:
             self._pid_out_min = self._output_min
             self._pid_out_max = self._output_max
@@ -1142,22 +1141,25 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._previous_temp_time = None
             self._last_pid_calc_time = None
             if self._pid_controller is not None:
-                self._pid_controller.clear_samples()
+                self._pid_controller.clear_samples(clear_integral=False)
         else:
             _LOGGER.error("%s: Unrecognized HVAC mode: %s", self.entity_id, hvac_mode)
             return
 
         # Clear samples when toggling between active modes (HEAT <-> COOL). Not when the mode is
         # first set at startup (old mode None): that would discard the integral restored from pid_i.
-        if (
-            old_hvac_mode is not None
-            and old_hvac_mode != self._hvac_mode
-            and self._pid_controller is not None
-        ):
-            self._previous_temp = None
-            self._previous_temp_time = None
-            self._last_pid_calc_time = None
-            self._pid_controller.clear_samples()
+        if self._hvac_mode != HVACMode.OFF:
+            # Reset integral only if the active thermal direction changed (e.g. HEAT -> COOL or HEAT -> OFF -> COOL)
+            if (
+                self._last_active_hvac is not None
+                and self._last_active_hvac != self._hvac_mode
+                and self._pid_controller is not None
+            ):
+                self._previous_temp = None
+                self._previous_temp_time = None
+                self._last_pid_calc_time = None
+                self._pid_controller.clear_samples(clear_integral=True)
+            self._last_active_hvac = self._hvac_mode
 
         if self._pid_controller:
             # Apply the new output limits to the PID controller after changing the mode
