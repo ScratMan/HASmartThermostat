@@ -1520,6 +1520,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     service = SERVICE_TURN_OFF
                 else:
                     service = SERVICE_TURN_ON
+            if entity_domain != VALVE_DOMAIN and not self.hass.services.has_service(
+                entity_domain, service
+            ):
+                entity_domain = "homeassistant"
             _LOGGER.debug(
                 f"{self.entity_id}: Calling {entity_domain}.{service} on {heater_or_cooler_entity}"
             )
@@ -1581,6 +1585,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     service = SERVICE_TURN_ON
                 else:
                     service = SERVICE_TURN_OFF
+            if entity_domain != VALVE_DOMAIN and not self.hass.services.has_service(
+                entity_domain, service
+            ):
+                entity_domain = "homeassistant"
             _LOGGER.debug(
                 f"{self.entity_id}: Calling {entity_domain}.{service} on {entity}"
             )
