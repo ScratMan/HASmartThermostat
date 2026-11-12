@@ -1516,13 +1516,21 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 entities.extend(self._cooler_entity_id)
         return [entity for entity in entities if entity is not None]
 
-    def _device_service(self, entity_id: str, active: bool) -> str:
-        """Return the service turning the given entity ON or OFF."""
-        if split_entity_id(entity_id)[0] == VALVE_DOMAIN:
-            return SERVICE_OPEN_VALVE if active else SERVICE_CLOSE_VALVE
-        if self._heater_polarity_invert:
-            return SERVICE_TURN_OFF if active else SERVICE_TURN_ON
-        return SERVICE_TURN_ON if active else SERVICE_TURN_OFF
+    def _device_service(self, entity_id: str, active: bool) -> tuple[str, str]:
+        """Return the (domain, service) tuple turning the given entity ON or OFF."""
+        domain = split_entity_id(entity_id)[0]
+        if domain == VALVE_DOMAIN:
+            service = SERVICE_OPEN_VALVE if active else SERVICE_CLOSE_VALVE
+        elif self._heater_polarity_invert:
+            service = SERVICE_TURN_OFF if active else SERVICE_TURN_ON
+        else:
+            service = SERVICE_TURN_ON if active else SERVICE_TURN_OFF
+
+        # If domain (i.e GROUP domain) has no turn_on/turn_off service, then fallback to homeassistant domain
+        if domain != VALVE_DOMAIN and not self.hass.services.has_service(domain, service):
+            domain = "homeassistant"
+
+        return domain, service
 
     def _min_cycle_allows(self, active: bool) -> bool:
         """Return True when the device stayed long enough in its current state."""
@@ -1585,12 +1593,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             _LOGGER.info("%s: Turning %s %s", self.entity_id, state, ", ".join(entities))
 
         for entity in entities:
-            service = self._device_service(entity, active)
+            domain, service = self._device_service(entity, active)
             _LOGGER.debug(
-                f"{self.entity_id}: Calling {split_entity_id(entity)[0]}.{service} on {entity}"
+                f"{self.entity_id}: Calling {domain}.{service} on {entity}"
             )
             await self.hass.services.async_call(
-                split_entity_id(entity)[0], service, {ATTR_ENTITY_ID: entity}
+                domain, service, {ATTR_ENTITY_ID: entity}
             )
 
         if not refresh:
