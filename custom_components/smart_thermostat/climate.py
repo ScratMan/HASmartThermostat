@@ -1343,6 +1343,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self, now: datetime | None = None, calc_pid: bool = False
     ) -> None:
         """Run PID controller, optional autotune for faster integration"""
+        if self.hass.state != CoreState.running:
+            # Only control heating once HA is ready: sensor events received during
+            # startup would drive the device with incomplete inputs.
+            return
         async with self._temp_lock:
             if not self._active and None not in (self._current_temp, self._target_temp):
                 self._active = True
