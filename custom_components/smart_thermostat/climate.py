@@ -437,9 +437,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         # and the first transition always goes through.
         self._last_heat_cycle_time = None
         self._last_device_state = None
-        self._min_on_cycle_duration_pid_on = (
-            kwargs.get("min_cycle_duration") or timedelta(seconds=0)
-        )
+        self._min_on_cycle_duration_pid_on = kwargs.get(
+            "min_cycle_duration"
+        ) or timedelta(seconds=0)
         self._min_off_cycle_duration_pid_on = kwargs.get("min_off_cycle_duration")
         self._min_on_cycle_duration_pid_off = kwargs.get("min_cycle_duration_pid_off")
         self._min_off_cycle_duration_pid_off = kwargs.get(
@@ -1531,7 +1531,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             service = SERVICE_TURN_ON if active else SERVICE_TURN_OFF
 
         # If domain (i.e GROUP domain) has no turn_on/turn_off service, then fallback to homeassistant domain
-        if domain != VALVE_DOMAIN and not self.hass.services.has_service(domain, service):
+        if domain != VALVE_DOMAIN and not self.hass.services.has_service(
+            domain, service
+        ):
             domain = "homeassistant"
 
         return domain, service
@@ -1543,10 +1545,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         duration = (
             self._min_off_cycle_duration if active else self._min_on_cycle_duration
         )
-        return (
-                time.monotonic() - self._last_heat_cycle_time
-                >= duration.total_seconds()
-        )
+        return time.monotonic() - self._last_heat_cycle_time >= duration.total_seconds()
 
     def _mark_device_state(self, active: bool) -> None:
         """Remember the last known state of the device and when it changed."""
@@ -1578,10 +1577,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         # The first request only establishes the baseline: no history is known yet to
         # measure a minimum cycle against.
         if (
-                not refresh
-                and not force
-                and self._last_device_state is not None
-                and not self._min_cycle_allows(active)
+            not refresh
+            and not force
+            and self._last_device_state is not None
+            and not self._min_cycle_allows(active)
         ):
             _LOGGER.info(
                 "%s: Reject request turning %s %s: Cycle is too short",
@@ -1592,15 +1591,17 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             return
 
         if refresh:
-            _LOGGER.info("%s: Refresh state %s %s", self.entity_id, state, ", ".join(entities))
+            _LOGGER.info(
+                "%s: Refresh state %s %s", self.entity_id, state, ", ".join(entities)
+            )
         else:
-            _LOGGER.info("%s: Turning %s %s", self.entity_id, state, ", ".join(entities))
+            _LOGGER.info(
+                "%s: Turning %s %s", self.entity_id, state, ", ".join(entities)
+            )
 
         for entity in entities:
             domain, service = self._device_service(entity, active)
-            _LOGGER.debug(
-                f"{self.entity_id}: Calling {domain}.{service} on {entity}"
-            )
+            _LOGGER.debug(f"{self.entity_id}: Calling {domain}.{service} on {entity}")
             await self.hass.services.async_call(
                 domain, service, {ATTR_ENTITY_ID: entity}
             )
