@@ -1426,6 +1426,16 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     self._target_temp,
                 )
 
+            if (
+                self._sensor_stall != 0
+                and time.time() - self._last_sensor_update > self._sensor_stall
+            ):
+                # sensor not updated for too long, considered as stall, set to safety level
+                self._control_output = self._output_safety
+                await self.set_control_value()
+                self.async_write_ha_state()
+                return
+
             if not self._active or self._hvac_mode == HVACMode.OFF:
                 if (
                     self._force_off_state
@@ -1443,16 +1453,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     else:
                         self._control_output = self._output_min
                         await self._async_set_valve_value(self._control_output)
-                self.async_write_ha_state()
-                return
-
-            if (
-                self._sensor_stall != 0
-                and time.time() - self._last_sensor_update > self._sensor_stall
-            ):
-                # sensor not updated for too long, considered as stall, set to safety level
-                self._control_output = self._output_safety
-                await self.set_control_value()
                 self.async_write_ha_state()
                 return
 

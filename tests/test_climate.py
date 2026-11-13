@@ -895,3 +895,51 @@ async def test_sensor_stall_watchdog_resets_and_triggers_safety(hass, freezer):
     # 6. Verify watchdog triggered and output_safety value is applied
     state = hass.states.get(entity_id)
     assert state.attributes["control_output"] == output_safety_val
+
+
+@pytest.mark.asyncio
+async def test_sensor_unavailable_from_startup_triggers_safety(hass, freezer):
+    """Test that starting with an unavailable sensor triggers output_safety after sensor_stall delay (#220)."""
+    # 1. Setup initial states: sensor is unavailable from startup
+    hass.states.async_set("sensor.temperature", "unavailable")
+    hass.states.async_set("switch.heater_switch", "off")
+
+    sensor_stall_duration = timedelta(minutes=10)
+    output_safety_val = 15.0  # Duty cycle percentage / valve position on safety
+
+    config = {
+        CLIMATE_DOMAIN: {
+            "platform": DOMAIN,
+            "name": "Stall Startup Thermostat",
+            "heater": "switch.heater_switch",
+            "target_sensor": "sensor.temperature",
+            "target_temp": 20.0,
+            "initial_hvac_mode": HVACMode.HEAT,
+            "kp": 10.0,
+            "ki": 0.0,
+            "kd": 0.0,
+            "sensor_stall": sensor_stall_duration,
+            "output_safety": output_safety_val,
+            "keep_alive": timedelta(minutes=1),
+            "sampling_period": timedelta(seconds=0),
+        }
+    }
+
+    assert await async_setup_component(hass, CLIMATE_DOMAIN, config)
+    await hass.async_block_till_done()
+
+    entity_id = "climate.stall_startup_thermostat"
+    entity = hass.data["entity_components"]["climate"].get_entity(entity_id)
+
+    # 2. At t=0, temperature is unknown/unavailable, so safety should not have triggered yet
+    state = hass.states.get(entity_id)
+    assert state.attributes.get("control_output") != output_safety_val
+
+    # 3. Advance time past the 10-minute sensor_stall threshold (10 min + 1 sec)
+    freezer.tick(timedelta(minutes=10, seconds=1))
+    await entity._async_control_heating()
+    await hass.async_block_till_done()
+
+    # 4. Verify watchdog triggered safety mode despite never receiving a valid temperature state
+    state = hass.states.get(entity_id)
+    assert state.attributes["control_output"] == output_safety_val
