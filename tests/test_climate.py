@@ -319,6 +319,117 @@ async def test_heat_cool_dual_mode(hass):
     assert hass.states.get("switch.heater").state == "off"
 
 
+@pytest.mark.asyncio
+async def test_thermal_simulation_pid_mode_transition_to_hysteresis(hass, freezer):
+    """Test transitioning from PID AUTO (with Ke) to PID OFF (pure hysteresis deadband) and back."""
+    room_temp = 18.0
+    outdoor_temp = 2.0  # Cold outdoor temperature
+
+    hass.states.async_set("sensor.temperature", f"{room_temp:.2f}")
+    hass.states.async_set("sensor.outdoor_temperature", f"{outdoor_temp:.2f}")
+    hass.states.async_set("switch.heater_switch", "off")
+
+    config = {
+        CLIMATE_DOMAIN: {
+            "platform": DOMAIN,
+            "name": "Transition Thermostat",
+            "heater": "switch.heater_switch",
+            "target_sensor": "sensor.temperature",
+            "outdoor_sensor": "sensor.outdoor_temperature",
+            "target_temp": 20.0,
+            "hot_tolerance": 0.2,  # Upper threshold: 20.2°C
+            "cold_tolerance": 0.2,  # Lower threshold: 19.8°C
+            "kp": 20.0,
+            "ki": 0.01,
+            "kd": 5.0,
+            "ke": 5.0,  # High Ke: 5 * (20 - 2) = +90% offset in AUTO mode
+            "pwm": timedelta(seconds=60),  # Valid PWM for switch entity
+            "keep_alive": timedelta(seconds=60),
+            "sampling_period": timedelta(seconds=0),
+            "debug": True,
+        }
+    }
+
+    assert await async_setup_component(hass, CLIMATE_DOMAIN, config)
+    await hass.async_block_till_done()
+
+    entity_id = "climate.transition_thermostat"
+
+    # Turn ON thermostat in HEAT mode
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        "set_hvac_mode",
+        {"entity_id": entity_id, "hvac_mode": HVACMode.HEAT},
+        blocking=True,
+    )
+
+    # -------------------------------------------------------------------------
+    # PHASE 1: Verify initial state in PID AUTO mode (PID active)
+    # -------------------------------------------------------------------------
+    state_auto = hass.states.get(entity_id)
+    assert state_auto.attributes["pid_mode"] == "auto"
+
+    # -------------------------------------------------------------------------
+    # PHASE 2: Switch PID mode to OFF (Pure Hysteresis with Deadband verification)
+    # -------------------------------------------------------------------------
+    await hass.services.async_call(
+        DOMAIN,
+        "set_pid_mode",
+        {"entity_id": entity_id, "mode": "off"},
+        blocking=True,
+    )
+
+    state_off_init = hass.states.get(entity_id)
+    assert state_off_init.attributes["pid_mode"] == "off"
+
+    # --- Step 2a: Temperature drops below lower threshold (19.7°C < 19.8°C) ---
+    freezer.tick(timedelta(seconds=10))
+    hass.states.async_set("sensor.temperature", "19.70")
+    await hass.async_block_till_done()
+
+    state_low = hass.states.get(entity_id)
+    assert state_low.attributes["control_output"] == 100.0
+
+    # --- Step 2b: Temperature rises inside deadband (20.0°C) ---
+    # Must preserve previous state (100.0 / ON)
+    freezer.tick(timedelta(seconds=10))
+    hass.states.async_set("sensor.temperature", "20.00")
+    await hass.async_block_till_done()
+
+    state_deadband_up = hass.states.get(entity_id)
+    assert state_deadband_up.attributes["control_output"] == 100.0
+
+    # --- Step 2c: Temperature exceeds upper threshold (20.3°C > 20.2°C) ---
+    freezer.tick(timedelta(seconds=10))
+    hass.states.async_set("sensor.temperature", "20.30")
+    await hass.async_block_till_done()
+
+    state_high = hass.states.get(entity_id)
+    assert state_high.attributes["control_output"] == 0.0
+
+    # --- Step 2d: Temperature drops back inside deadband (20.0°C) ---
+    # Must preserve previous state (0.0 / OFF)
+    freezer.tick(timedelta(seconds=10))
+    hass.states.async_set("sensor.temperature", "20.00")
+    await hass.async_block_till_done()
+
+    state_deadband_down = hass.states.get(entity_id)
+    assert state_deadband_down.attributes["control_output"] == 0.0
+
+    # -------------------------------------------------------------------------
+    # PHASE 3: Switch back to PID AUTO mode
+    # -------------------------------------------------------------------------
+    await hass.services.async_call(
+        DOMAIN,
+        "set_pid_mode",
+        {"entity_id": entity_id, "mode": "auto"},
+        blocking=True,
+    )
+
+    state_back_auto = hass.states.get(entity_id)
+    assert state_back_auto.attributes["pid_mode"] == "auto"
+
+
 @pytest.mark.slow
 @pytest.mark.simulation
 async def test_thermal_simulation_closed_loop(hass, freezer, tmp_path):

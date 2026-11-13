@@ -572,11 +572,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._pid_out_min,
             self._pid_out_max,
             self._sampling_period.seconds,
-            self._cold_tolerance,
-            self._hot_tolerance,
         )
         if self._autotune != "none":
-            self._pid_controller.mode = "OFF"
+            self._pid_mode = "off"
             self._pid_autotune = pid_controller.PIDAutotune(
                 self._difference,
                 self._lookback,
@@ -599,7 +597,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._ki,
                 self._kd,
             )
-            self._pid_controller.mode = "AUTO"
+            self._pid_mode = "auto"
 
     @staticmethod
     def set_none_params_default(
@@ -777,11 +775,13 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             ):
                 self._ke = float(old_state.attributes.get("ke", 0))
                 self._pid_controller.set_pid_param(ke=self._ke)
-            if (
-                old_state.attributes.get("pid_mode") is not None
-                and self._pid_controller is not None
-            ):
-                self._pid_controller.mode = old_state.attributes.get("pid_mode", "AUTO")
+            if str(old_state.attributes.get("pid_mode", "auto")).lower() in [
+                "auto",
+                "off",
+            ]:
+                self._pid_mode = str(
+                    old_state.attributes.get("pid_mode", "auto")
+                ).lower()
 
         else:
             # No previous state, try and restore defaults
@@ -980,9 +980,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     @property
     def pid_mode(self):
         """Return the PID operating mode."""
-        if getattr(self, "_pid_controller", None) is not None:
-            return getattr(self._pid_controller, "mode").lower()
-        return "off"
+        return self._pid_mode
 
     @property
     def pid_control_output(self):
@@ -1250,8 +1248,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     async def async_set_pid_mode(self, **kwargs):
         """Set PID parameters."""
         mode = kwargs.get("mode", None)
+        assert mode is not None, "PID mode must be specified"
+        assert str(mode).upper() in ["AUTO", "OFF"], (
+            "PID mode must be either 'AUTO' or 'OFF'"
+        )
         if str(mode).upper() in ["AUTO", "OFF"] and self._pid_controller is not None:
-            self._pid_controller.mode = str(mode).upper()
+            self._pid_mode = str(mode).lower()
         await self._async_control_heating(calc_pid=True)
 
     async def async_set_preset_temp(self, **kwargs):
@@ -1453,26 +1455,44 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 await self.set_control_value()
                 self.async_write_ha_state()
                 return
-            elif calc_pid and self._sampling_period.seconds == 0:
-                await self.calc_pid()
 
-            # If external temperature is available, calculate the compensation and add to control output without
-            # affecting the PID calculation.
-            if self._ext_temp is not None:
-                self._e = round(
-                    self._ke * (self._target_temp - self._ext_temp),
-                    self._output_precision,
+            if self.pid_mode == "off":
+                # Hysteresis control
+                if self._hvac_mode == HVACMode.COOL:
+                    if self._current_temp >= self._target_temp + self._hot_tolerance:
+                        self._control_output = self._pid_out_max
+                    elif self._current_temp <= self._target_temp - self._cold_tolerance:
+                        self._control_output = self._pid_out_min
+                else:
+                    # En mode HEAT : ON si T <= target - cold_tolerance, OFF si T >= target + hot_tolerance
+                    if self._current_temp <= self._target_temp - self._cold_tolerance:
+                        self._control_output = self._pid_out_max
+                    elif self._current_temp >= self._target_temp + self._hot_tolerance:
+                        self._control_output = self._pid_out_min
+
+            else:
+                if calc_pid and self._sampling_period.seconds == 0:
+                    await self.calc_pid()
+
+                # If external temperature is available, calculate the compensation and add to control output without
+                # affecting the PID calculation.
+                if self._ext_temp is not None:
+                    self._e = round(
+                        self._ke * (self._target_temp - self._ext_temp),
+                        self._output_precision,
+                    )
+                else:
+                    self._e = 0
+
+                # Round value to configured precision to avoid excessive updates for small changes
+                self._control_output = round(
+                    self._pid_output + self._e, self._output_precision
                 )
-
-            # Round value to configured precision to avoid excessive updates for small changes
-            self._control_output = round(
-                self._pid_output + self._e, self._output_precision
-            )
-            if not self._output_precision:
-                self._control_output = int(self._control_output)
-            self._control_output = max(
-                min(self._control_output, self._pid_clamp_high), self._pid_clamp_low
-            )
+                if not self._output_precision:
+                    self._control_output = int(self._control_output)
+                self._control_output = max(
+                    min(self._control_output, self._pid_clamp_high), self._pid_clamp_low
+                )
 
             await self.set_control_value()
             self.async_write_ha_state()
@@ -1757,12 +1777,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             or self._target_temp is None
         ):
             return
-        update = False
-        if self._previous_temp_time is None:
-            self._previous_temp_time = time.time()
-        if self._cur_temp_time is None:
-            self._cur_temp_time = time.time()
-        self._previous_temp_time = min(self._previous_temp_time, self._cur_temp_time)
         if self._autotune != "none":
             if self._trigger_source == "sensor":
                 self._trigger_source = None
@@ -1799,13 +1813,21 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         self._pid_out_min,
                         self._pid_out_max,
                         self._sampling_period.seconds,
-                        self._cold_tolerance,
-                        self._hot_tolerance,
                     )
                     self._autotune = "none"
             self._pid_output = self._pid_autotune.output
             self._p = self._i = self._d = error = self._dt = 0
         else:
+            if self.pid_mode == "off":
+                return
+            update = False
+            if self._previous_temp_time is None:
+                self._previous_temp_time = time.time()
+            if self._cur_temp_time is None:
+                self._cur_temp_time = time.time()
+            self._previous_temp_time = min(
+                self._previous_temp_time, self._cur_temp_time
+            )
             if self._sampling_period:
                 # Fixed-rate mode: dt is the wall-clock time between two PID computations
                 now = time.time()

@@ -20,8 +20,6 @@ class PID:
         out_min=float("-inf"),
         out_max=float("+inf"),
         sampling_period=0,
-        cold_tolerance=0.3,
-        hot_tolerance=0.3,
     ):
         """A proportional-integral-derivative controller.
         :param kp: Proportional coefficient.
@@ -38,10 +36,6 @@ class PID:
         :type out_max: float
         :param sampling_period: Time period between two PID calculations in seconds.
         :type sampling_period: float
-        :param cold_tolerance: Temperature threshold tolerance below setpoint when OFF.
-        :type cold_tolerance: float
-        :param hot_tolerance: Temperature threshold tolerance above setpoint when OFF.
-        :type hot_tolerance: float
         """
         if kp is None:
             raise ValueError("kp must be specified")
@@ -75,19 +69,7 @@ class PID:
         self._last_output = 0
         self._output = 0
         self._external = 0
-        self._mode = "AUTO"
         self._sampling_period = sampling_period
-        self._cold_tolerance = cold_tolerance
-        self._hot_tolerance = hot_tolerance
-
-    @property
-    def mode(self):
-        return self._mode
-
-    @mode.setter
-    def mode(self, mode):
-        assert mode.upper() in ["AUTO", "OFF"]
-        self._mode = mode.upper()
 
     @property
     def out_max(self):
@@ -186,19 +168,6 @@ class PID:
         self._input_time = input_time
         self._last_set_point = self._set_point
         self._set_point = set_point
-
-        if self.mode == "OFF":
-            # If PID is off, simply switch between min and max output
-            if input_val <= set_point - self._cold_tolerance:
-                self._output = self._out_max
-                _LOGGER.debug("PID is off and input lower than set point: heater ON")
-                return self._output, True
-            elif input_val >= set_point + self._hot_tolerance:
-                self._output = self._out_min
-                _LOGGER.debug("PID is off and input higher than set point: heater OFF")
-                return self._output, True
-            else:
-                return self._output, False
 
         # Compute all the working error variables
         self._error = set_point - input_val
