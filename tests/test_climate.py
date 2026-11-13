@@ -654,3 +654,66 @@ async def test_integral_memory_across_hvac_mode_transitions(hass, freezer):
     state = hass.states.get(entity_id)
     assert state.state == HVACMode.COOL
     assert state.attributes["pid_i"] == pytest.approx(0.0)
+
+
+@pytest.mark.asyncio
+async def test_sensor_stall_watchdog_resets_and_triggers_safety(hass, freezer):
+    """Test that sensor stall watchdog is reset by state updates/reports and triggers output_safety on timeout (#339)."""
+    # 1. Setup initial sensor states
+    hass.states.async_set("sensor.temperature", "19.0")
+    hass.states.async_set("switch.heater_switch", "off")
+
+    sensor_stall_duration = timedelta(hours=6)
+    output_safety_val = 8.0  # Duty cycle percentage or valve position on safety trigger
+
+    config = {
+        CLIMATE_DOMAIN: {
+            "platform": DOMAIN,
+            "name": "Stall Test Thermostat",
+            "heater": "switch.heater_switch",
+            "target_sensor": "sensor.temperature",
+            "target_temp": 20.0,
+            "initial_hvac_mode": HVACMode.HEAT,
+            "kp": 10.0,
+            "ki": 0.0,
+            "kd": 0.0,
+            "sensor_stall": sensor_stall_duration,
+            "output_safety": output_safety_val,
+            "keep_alive": timedelta(minutes=5),
+            "sampling_period": timedelta(seconds=0),
+        }
+    }
+
+    assert await async_setup_component(hass, CLIMATE_DOMAIN, config)
+    await hass.async_block_till_done()
+
+    entity_id = "climate.stall_test_thermostat"
+    entity = hass.data["entity_components"]["climate"].get_entity(entity_id)
+
+    # 2. Advance time near the stall threshold (5 hours) without new events
+    freezer.tick(timedelta(hours=5))
+    await entity._async_control_heating()
+    state = hass.states.get(entity_id)
+    assert state.attributes["control_output"] != output_safety_val
+
+    # 3. Simulate periodic state report event with identical temperature value (issue #339)
+    # This must refresh the watchdog timestamp (_last_sensor_update)
+    freezer.tick(timedelta(minutes=30))  # Total time elapsed: 5h 30m
+    hass.states.async_set("sensor.temperature", "19.0")
+    await hass.async_block_till_done()
+
+    # 4. Advance time past the original 6h mark (6h 30m total, but only 1h since last report)
+    # Thermostat should STILL NOT be in safety mode because the report event reset the watchdog
+    freezer.tick(timedelta(hours=1))
+    await entity._async_control_heating()
+    state = hass.states.get(entity_id)
+    assert state.attributes["control_output"] != output_safety_val
+
+    # 5. Now let time elapse beyond the sensor_stall threshold (6 hours with zero updates)
+    freezer.tick(timedelta(hours=6, minutes=1))
+    await entity._async_control_heating()
+    await hass.async_block_till_done()
+
+    # 6. Verify watchdog triggered and output_safety value is applied
+    state = hass.states.get(entity_id)
+    assert state.attributes["control_output"] == output_safety_val

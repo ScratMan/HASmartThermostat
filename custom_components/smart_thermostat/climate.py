@@ -83,6 +83,7 @@ from homeassistant.helpers.entity_platform import (
 )
 from homeassistant.helpers.event import (
     async_track_state_change_event,
+    async_track_state_report_event,
     async_track_time_interval,
 )
 from homeassistant.helpers.reload import async_setup_reload_service
@@ -642,7 +643,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         # Add listeners
         self.async_on_remove(
             async_track_state_change_event(
-                self.hass, self._sensor_entity_id, self._async_sensor_changed
+                self.hass, [self._sensor_entity_id], self._async_sensor_changed
+            )
+        )
+        self.async_on_remove(
+            async_track_state_report_event(
+                self.hass, [self._sensor_entity_id], self._async_sensor_changed
             )
         )
         if self._ext_sensor_entity_id:
@@ -1285,28 +1291,58 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         # Get default temp from super class
         return super().max_temp
 
+    @staticmethod
+    def _extract_state_timestamp(state: Any) -> float:
+        """Extract the best available timestamp from a state object."""
+        return getattr(
+            state,
+            "last_reported_timestamp",
+            getattr(
+                state,
+                "last_updated_timestamp",
+                getattr(state, "last_changed_timestamp", time.time()),
+            ),
+        )
+
     @callback
-    async def _async_sensor_changed(self, event: Event[EventStateChangedData]):
-        """Handle temperature changes."""
-        new_state = event.data["new_state"]
-        if new_state is None:
+    def _async_sensor_changed(self, event: Event) -> None:
+        """Handle temperature sensor state or report updates."""
+        new_state = event.data.get("new_state")
+        if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            return
+
+        # 1. Extract event timestamp for deduplication and timing computations
+        event_time = self._extract_state_timestamp(new_state)
+
+        # Deduplicate calls in case both state_changed and state_report listeners handle the exact same event
+        if self._cur_temp_time == event_time:
             return
 
         self._previous_temp_time = self._cur_temp_time
-        self._cur_temp_time = time.time()
+        self._cur_temp_time = event_time
+
+        # 2. Update temperature readings (updates self._previous_temp, self._current_temp, self._last_sensor_update)
         self._async_update_temp(new_state)
         self._trigger_source = "sensor"
-        _LOGGER.debug(
-            "%s: Received new temperature: %s", self.entity_id, self._current_temp
-        )
-        await self._async_control_heating(calc_pid=True)
-        self.async_write_ha_state()
+
+        # 3. Schedule heating control pass if temperature changed or during first initialization
+        if self._previous_temp != self._current_temp or self._last_device_state is None:
+            _LOGGER.debug(
+                "%s: Received updated temperature: %s",
+                self.entity_id,
+                self._current_temp,
+            )
+            self.hass.async_create_task(
+                self._async_control_heating(calc_pid=True),
+                eager_start=True,
+            )
+            self.async_write_ha_state()
 
     @callback
-    async def _async_ext_sensor_changed(self, event: Event[EventStateChangedData]):
-        """Handle temperature changes."""
-        new_state = event.data["new_state"]
-        if new_state is None:
+    def _async_ext_sensor_changed(self, event: Event) -> None:
+        """Handle external temperature sensor state changes."""
+        new_state = event.data.get("new_state")
+        if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
         self._async_update_ext_temp(new_state)
@@ -1314,38 +1350,39 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         _LOGGER.debug(
             "%s: Received new external temperature: %s", self.entity_id, self._ext_temp
         )
-        await self._async_control_heating(calc_pid=False)
+        self.hass.async_create_task(
+            self._async_control_heating(calc_pid=False), eager_start=True
+        )
 
     @callback
-    def _async_switch_changed(self, event: Event[EventStateChangedData]):
+    def _async_switch_changed(self, event: Event) -> None:
         """Handle heater switch state changes."""
-        event_type = event.event_type
-        new_state = event.data["new_state"]
+        new_state = event.data.get("new_state")
         if new_state is None:
             _LOGGER.debug(
-                f"{self.entity_id}: Switch {event_type} event received, new state is None, ignoring.",
+                f"{self.entity_id}: Switch {event.event_type} event received, new state is None, ignoring.",
             )
             return
         _LOGGER.debug(
-            f"{self.entity_id}: Switch {event_type} event received, writing state to DB."
+            f"{self.entity_id}: Switch {event.event_type} event received, writing state to DB."
         )
         if event.data.get("entity_id") in self.heater_or_cooler_entity:
             active = self._is_device_active
             if (
-                    self._last_device_state is not None
-                    and active != self._last_device_state
+                self._last_device_state is not None
+                and active != self._last_device_state
             ):
                 # The device was switched by another actor: restart the cycle timer from now.
                 self._mark_device_state(active)
         self.async_write_ha_state()
 
     @callback
-    def _async_update_temp(self, state):
+    def _async_update_temp(self, state) -> None:
         """Update thermostat with latest state from sensor."""
         try:
             self._previous_temp = self._current_temp
             self._current_temp = float(state.state)
-            self._last_sensor_update = time.time()
+            self._last_sensor_update = self._extract_state_timestamp(state)
         except ValueError as ex:
             _LOGGER.debug(
                 "%s: Unable to update from sensor %s: %s",
@@ -1355,11 +1392,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             )
 
     @callback
-    def _async_update_ext_temp(self, state):
-        """Update thermostat with latest state from sensor."""
+    def _async_update_ext_temp(self, state) -> None:
+        """Update thermostat with latest state from external sensor."""
         try:
             self._ext_temp = float(state.state)
-            self._last_ext_sensor_update = time.time()
+            self._last_ext_sensor_update = self._extract_state_timestamp(state)
         except ValueError as ex:
             _LOGGER.debug(
                 "%s: Unable to update from sensor %s: %s",
