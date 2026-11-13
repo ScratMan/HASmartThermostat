@@ -200,6 +200,73 @@ async def test_proportional_valve_position(hass):
     )
 
 
+@pytest.mark.asyncio
+async def test_input_number_heater_output_clamping(hass):
+    """Test that proportional output to an input_number never exceeds output_max (#243)."""
+    # 1. Register input_number domain and setup mock service to track set_value calls
+    await async_setup_component(hass, "input_number", {})
+    await async_setup_component(hass, "sensor", {})
+    await hass.async_block_till_done()
+
+    last_set_value: float | None = None
+
+    async def _handle_set_value(call):
+        nonlocal last_set_value
+        last_set_value = call.data.get("value")
+        hass.states.async_set("input_number.z1valve", f"{last_set_value}")
+
+    hass.services.async_register("input_number", "set_value", _handle_set_value)
+
+    # Setup initial sensor states matching Issue #243
+    hass.states.async_set("sensor.temperature", "17.0")
+    hass.states.async_set("input_number.z1valve", "0.0")
+
+    # Configuration identical to Issue #243 (output range 0..10, Kd = 500)
+    config = {
+        CLIMATE_DOMAIN: {
+            "platform": DOMAIN,
+            "name": "Zone1 Thermostat",
+            "heater": ["input_number.z1valve"],
+            "target_sensor": "sensor.temperature",
+            "min_temp": 7.0,
+            "max_temp": 28.0,
+            "target_temp": 19.0,
+            "kp": 5.0,
+            "ki": 0.01,
+            "kd": 500.0,  # High Kd that previously caused raw PID output spike to 33.6
+            "output_min": 0.0,
+            "output_max": 10.0,
+            "pwm": timedelta(seconds=0),
+            "keep_alive": timedelta(seconds=60),
+            "sampling_period": timedelta(seconds=0),
+        }
+    }
+
+    assert await async_setup_component(hass, CLIMATE_DOMAIN, config)
+    await hass.async_block_till_done()
+
+    # 2. Switch mode to HEAT (triggers initial control pass)
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        "set_hvac_mode",
+        {"entity_id": "climate.zone1_thermostat", "hvac_mode": HVACMode.HEAT},
+        blocking=True,
+    )
+
+    # 3. Simulate sudden large setpoint increase to 28°C (Step 3 of issue #243)
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        "set_temperature",
+        {"entity_id": "climate.zone1_thermostat", "temperature": 28.0},
+        blocking=True,
+    )
+
+    # 4. Verify that the output value sent to input_number is strictly clamped to output_max (10.0)
+    state = hass.states.get("climate.zone1_thermostat")
+    assert state.attributes["control_output"] == 10.0
+    assert last_set_value == 10.0
+
+
 async def test_heat_cool_dual_mode(hass):
     """Test switching between HEAT and COOL modes with heater and cooler entities."""
     hass.states.async_set("sensor.temperature", "25.0")
