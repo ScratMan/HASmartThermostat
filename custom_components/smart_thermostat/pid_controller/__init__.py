@@ -20,6 +20,7 @@ class PID:
         out_min=float("-inf"),
         out_max=float("+inf"),
         sampling_period=0,
+        derivative_filter=0,
     ):
         """A proportional-integral-derivative controller.
         :param kp: Proportional coefficient.
@@ -36,6 +37,8 @@ class PID:
         :type out_max: float
         :param sampling_period: Time period between two PID calculations in seconds.
         :type sampling_period: float
+        :param derivative_filter: Time constant for the derivative filter.
+        :type derivative_filter: float
         """
         if kp is None:
             raise ValueError("kp must be specified")
@@ -70,6 +73,7 @@ class PID:
         self._output = 0
         self._external = 0
         self._sampling_period = sampling_period
+        self._derivative_filter = derivative_filter
 
     @property
     def out_max(self):
@@ -139,6 +143,7 @@ class PID:
         self._last_input = None
         self._last_input_time = None
         self._last_error = None
+        self._derivative = 0.0
         if clear_integral:
             self._integral = 0.0
 
@@ -221,8 +226,17 @@ class PID:
         self._proportional = self._Kp * self._error
 
         # Derivative term calculated on input to prevent derivative kick
-        if self._dt > 0 and self._last_input is not None:
-            self._derivative = -(self._Kd * self._input_diff) / self._dt
+        if self._Kd and self._dt > 0 and self._last_input is not None:
+            raw_derivative = -(self._Kd * self._input_diff) / self._dt
+
+            if self._derivative_filter > 0:
+                # Calculate EMA smoothing factor alpha = dt / (tau + dt)
+                alpha = self._dt / (self._derivative_filter + self._dt)
+                self._derivative = (
+                    1.0 - alpha
+                ) * self._derivative + alpha * raw_derivative
+            else:
+                self._derivative = raw_derivative
         else:
             self._derivative = 0.0
 

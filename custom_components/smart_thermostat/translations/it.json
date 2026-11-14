@@ -84,12 +84,15 @@
           "ke": "Guadagno Compensazione Esterna (Ke)",
           "pwm": "Periodo PWM",
           "keep_alive": "Intervallo Keep-alive",
+          "derivative_filter": "Costante di tempo filtro derivativo",
           "sampling_period": "Frequenza di campionamento PID"
         },
         "data_description": {
           "ke": "Guadagno applicato alla differenza tra temperatura impostata ed esterna.",
           "pwm": "Tempo di ciclo completo per la regolazione PWM (obbligatorio, impostare a 0 per attuatori analogici come valvole, termostati...).",
-          "keep_alive": "Invia periodicamente il comando all'attuatore."
+          "keep_alive": "Invia periodicamente il comando all'attuatore.",
+          "derivative_filter": "Costante di tempo (tau) per il filtro passa-basso EMA applicato al termine derivativo per smussare il rumore del sensore (0 per disabilitare).",
+          "sampling_period": "Intervallo di tempo tra i calcoli PID. Utile per ridurre il carico di calcolo con sensori ad alta frequenza di aggiornamento."
         },
         "sections": {
           "autotune_options": {
@@ -241,12 +244,15 @@
           "ke": "Guadagno Compensazione Esterna (Ke)",
           "pwm": "Periodo PWM",
           "keep_alive": "Intervallo Keep-alive",
+          "derivative_filter": "Costante di tempo filtro derivativo",
           "sampling_period": "Frequenza di campionamento PID"
         },
         "data_description": {
           "ke": "Guadagno applicato alla differenza tra temperatura impostata ed esterna.",
           "pwm": "Tempo di ciclo completo per la regolazione PWM (obbligatorio, impostare a 0 per attuatori analogici come valvole, termostati...).",
-          "keep_alive": "Invia periodicamente il comando all'attuatore."
+          "keep_alive": "Invia periodicamente il comando all'attuatore.",
+          "derivative_filter": "Costante di tempo (tau) per il filtro passa-basso EMA applicato al termine derivativo per smussare il rumore del sensore (0 per disabilitare).",
+          "sampling_period": "Intervallo di tempo tra i calcoli PID. Utile per ridurre il carico di calcolo con sensori ad alta frequenza di aggiornamento."
         },
         "sections": {
           "autotune_options": {

@@ -234,3 +234,19 @@ set_preset_temp:
       example: true
       selector:
         boolean:
+set_derivative_filter:
+  name: Set derivative filter
+  description: Sets the time constant (tau) for the derivative low-pass EMA filter.
+  target:
+    entity:
+      integration: smart_thermostat
+      domain: climate
+  fields:
+    derivative_filter:
+      name: Derivative Filter Time Constant
+      description: Time constant for smoothing the derivative term (set to 00:00:00 to disable).
+      required: true
+      advanced: false
+      example: '00:02:00'
+      selector:
+        duration:

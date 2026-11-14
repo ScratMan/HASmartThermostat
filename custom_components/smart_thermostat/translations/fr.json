@@ -84,12 +84,15 @@
           "ke": "Gain Compensation Extérieure (Ke)",
           "pwm": "Période PWM",
           "keep_alive": "Intervalle Keep-alive",
+          "derivative_filter": "Constante de temps du filtre dérivé",
           "sampling_period": "Période d'échantillonnage PID"
         },
         "data_description": {
           "ke": "Coefficient appliqué à la différence entre la consigne et la température extérieure.",
-          "pwm": "Temps de cycle complet pour la régulation en largeur d'impulsion (obligatoire, mettre 0 pour des actionneurs analogiques type vanne, thermostats...). ",
-          "keep_alive": "Renvoie la commande à l'actionneur à intervalle régulier."
+          "pwm": "Temps de cycle complet pour la régulation en largeur d'impulsion (obligatoire, mettre 0 pour des actionneurs analogiques type vanne, thermostats...).",
+          "keep_alive": "Renvoie la commande à l'actionneur à intervalle régulier.",
+          "derivative_filter": "Constante de temps (tau) du filtre passe-bas EMA appliqué au terme dérivé pour lisser le bruit du capteur (0 pour désactiver).",
+          "sampling_period": "Intervalle de temps entre les calculs PID. Utile pour réduire la charge de calcul avec des capteurs à fréquence d'actualisation élevée."
         },
         "sections": {
           "autotune_options": {
@@ -241,12 +244,15 @@
           "ke": "Gain Compensation Extérieure (Ke)",
           "pwm": "Période PWM",
           "keep_alive": "Intervalle Keep-alive",
+          "derivative_filter": "Constante de temps du filtre dérivé",
           "sampling_period": "Période d'échantillonnage PID"
         },
         "data_description": {
           "ke": "Coefficient appliqué à la différence entre la consigne et la température extérieure.",
-          "pwm": "Temps de cycle complet pour la régulation en largeur d'impulsion (obligatoire, mettre 0 pour des actionneurs analogiques type vanne, thermostats...). ",
-          "keep_alive": "Renvoie la commande à l'actionneur à intervalle régulier."
+          "pwm": "Temps de cycle complet pour la régulation en largeur d'impulsion (obligatoire, mettre 0 pour des actionneurs analogiques type vanne, thermostats...).",
+          "keep_alive": "Renvoie la commande à l'actionneur à intervalle régulier.",
+          "derivative_filter": "Constante de temps (tau) du filtre passe-bas EMA appliqué au terme dérivé pour lisser le bruit du capteur (0 pour désactiver).",
+          "sampling_period": "Intervalle de temps entre les calculs PID. Utile pour réduire la charge de calcul avec des capteurs à fréquence d'actualisation élevée."
         },
         "sections": {
           "autotune_options": {

@@ -110,6 +110,7 @@ _DURATION_KEYS = (
     const.CONF_SENSOR_STALL,
     const.CONF_PWM,
     const.CONF_LOOKBACK,
+    const.CONF_DERIVATIVE_FILTER,
 )
 
 
@@ -210,6 +211,7 @@ def _build_parameters(hass: HomeAssistant, config: Mapping[str, Any]) -> dict[st
         "autotune": normalized.get(const.CONF_AUTOTUNE),
         "noiseband": normalized.get(const.CONF_NOISEBAND),
         "lookback": normalized.get(const.CONF_LOOKBACK),
+        "derivative_filter": normalized.get(const.CONF_DERIVATIVE_FILTER),
         const.CONF_DEBUG: normalized.get(const.CONF_DEBUG),
     }
 
@@ -259,6 +261,15 @@ def _register_entity_services(platform: entity_platform.EntityPlatform) -> None:
             vol.Optional("value", default=0.0): vol.Coerce(float),
         },
         "clear_integral",
+    )
+    platform.async_register_entity_service(
+        "set_derivative_filter",
+        {
+            vol.Required("derivative_filter"): vol.All(
+                cv.time_period, cv.positive_timedelta
+            ),
+        },
+        "async_set_derivative_filter",
     )
 
 
@@ -373,6 +384,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
             cv.time_period, cv.positive_timedelta
         ),
         vol.Optional(const.CONF_DEBUG, default=False): cv.boolean,
+        vol.Optional(
+            const.CONF_DERIVATIVE_FILTER, default=const.DEFAULT_DERIVATIVE_FILTER
+        ): vol.All(cv.time_period, cv.positive_timedelta),
     }
 )
 
@@ -434,6 +448,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._temp_precision = kwargs.get("precision")
         self._target_temperature_step = kwargs.get("target_temp_step")
         self._debug = kwargs.get(const.CONF_DEBUG)
+        self._derivative_filter = kwargs.get("derivative_filter")
+        if isinstance(self._derivative_filter, timedelta):
+            self._derivative_filter_seconds = self._derivative_filter.total_seconds()
+        else:
+            self._derivative_filter_seconds = 0.0
         # None means no device state change was recorded yet: PWM starts a fresh cycle
         # and the first transition always goes through.
         self._last_heat_cycle_time = None
@@ -572,6 +591,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._pid_out_min,
             self._pid_out_max,
             self._sampling_period.seconds,
+            self._derivative_filter_seconds,
         )
         if self._autotune != "none":
             self._pid_mode = "off"
@@ -1021,6 +1041,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             "ke": self._ke,
             "pid_mode": self.pid_mode,
             "pid_i": 0 if self._autotune != "none" else self.pid_control_i,
+            "derivative_filter": self._derivative_filter_seconds,
         }
         if self._debug:
             device_state_attributes.update(
@@ -1266,6 +1287,24 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             )
             setattr(self, f"_{preset_name.replace('_disable', '')}", value)
         await self._async_control_heating(calc_pid=True)
+
+    async def async_set_derivative_filter(self, **kwargs):
+        """Set derivative filter time constant."""
+        derivative_filter = kwargs.get("derivative_filter")
+        if derivative_filter is not None:
+            if isinstance(derivative_filter, timedelta):
+                self._derivative_filter = derivative_filter
+                self._derivative_filter_seconds = derivative_filter.total_seconds()
+            else:
+                self._derivative_filter_seconds = float(derivative_filter)
+                self._derivative_filter = timedelta(
+                    seconds=int(self._derivative_filter_seconds)
+                )
+
+            if self._pid_controller is not None:
+                self._pid_controller.derivative_filter = self._derivative_filter_seconds
+            await self._async_control_heating(calc_pid=True)
+            self.async_write_ha_state()
 
     async def clear_integral(self, **kwargs):
         """Clear the integral value."""
@@ -1813,6 +1852,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         self._pid_out_min,
                         self._pid_out_max,
                         self._sampling_period.seconds,
+                        self._derivative_filter_seconds,
                     )
                     self._autotune = "none"
             self._pid_output = self._pid_autotune.output

@@ -84,12 +84,15 @@
           "ke": "Outdoor Compensation Gain (Ke)",
           "pwm": "PWM Period",
           "keep_alive": "Keep-alive Interval",
+          "derivative_filter": "Derivative Filter Time Constant",
           "sampling_period": "PID Sampling Period"
         },
         "data_description": {
           "ke": "Gain applied to the difference between target and outdoor temperature.",
           "pwm": "Full cycle time for pulse-width modulation regulation (required, set to 0 for analog actuators such as valves, thermostats...).",
-          "keep_alive": "Periodically re-sends command to the actuator."
+          "keep_alive": "Periodically re-sends command to the actuator.",
+          "derivative_filter": "Time constant (tau) for the low-pass EMA filter applied to the derivative term to smooth sensor noise (set to 0 to disable).",
+          "sampling_period": "Time interval between PID calculations. Useful to reduce computational load when using sensors with high update rates."
         },
         "sections": {
           "autotune_options": {
@@ -241,12 +244,15 @@
           "ke": "Outdoor Compensation Gain (Ke)",
           "pwm": "PWM Period",
           "keep_alive": "Keep-alive Interval",
+          "derivative_filter": "Derivative Filter Time Constant",
           "sampling_period": "PID Sampling Period"
         },
         "data_description": {
           "ke": "Gain applied to the difference between target and outdoor temperature.",
           "pwm": "Full cycle time for pulse-width modulation regulation (required, set to 0 for analog actuators such as valves, thermostats...).",
-          "keep_alive": "Periodically re-sends command to the actuator."
+          "keep_alive": "Periodically re-sends command to the actuator.",
+          "derivative_filter": "Time constant (tau) for the low-pass EMA filter applied to the derivative term to smooth sensor noise (set to 0 to disable).",
+          "sampling_period": "Time interval between PID calculations. Useful to reduce computational load when using sensors with high update rates."
         },
         "sections": {
           "autotune_options": {

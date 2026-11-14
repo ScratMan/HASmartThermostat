@@ -151,6 +151,10 @@ PID_SCHEMA = vol.Schema(
             const.CONF_KEEP_ALIVE, default=const.DEFAULT_KEEP_ALIVE
         ): DURATION_SELECTOR,
         vol.Optional(
+            const.CONF_DERIVATIVE_FILTER,
+            default=const.DEFAULT_DERIVATIVE_FILTER_DURATION,
+        ): DURATION_SELECTOR,
+        vol.Optional(
             const.CONF_SAMPLING_PERIOD, default=const.DEFAULT_SAMPLING_PERIOD_DURATION
         ): DURATION_SELECTOR,
         vol.Optional("autotune_options"): section(

@@ -48,7 +48,7 @@
               "initial_hvac_mode": "Initialer HVAC-Modus"
             },
             "data_description": {
-              "hot_tolerance": "Hysterese oberhalb des Sollwerts.",
+              "hot_tolerance": "Hysteresse oberhalb des Sollwerts.",
               "cold_tolerance": "Hysterese unterhalb des Sollwerts.",
               "initial_hvac_mode": "Initialer Status des Thermostats."
             }
@@ -84,12 +84,15 @@
           "ke": "Außenkompensationsgewinn (Ke)",
           "pwm": "PWM-Periode",
           "keep_alive": "Keep-Alive-Intervall",
+          "derivative_filter": "Differenzial-Filterzeitkonstante",
           "sampling_period": "PID-Abtastrate"
         },
         "data_description": {
           "ke": "Verstärkung angewendet auf die Differenz zwischen Soll- und Außentemperatur.",
           "pwm": "Volle Zykluszeit für die Pulsweitenmodulationsregelung (erforderlich, auf 0 setzen für analoge Aktoren wie Ventile, Thermostate...).",
-          "keep_alive": "Sendet regelmäßig Steuerbefehle an den Aktor."
+          "keep_alive": "Sendet regelmäßig Steuerbefehle an den Aktor.",
+          "derivative_filter": "Zeitkonstante (tau) für den EMA-Tiefpassfilter auf dem Differenzialanteil zur Glättung des Sensorrauschens (0 zum Deaktivieren).",
+          "sampling_period": "Zeitintervall zwischen PID-Berechnungen. Nützlich zur Reduzierung der Rechenlast bei Sensoren mit hoher Aktualisierungsrate."
         },
         "sections": {
           "autotune_options": {
@@ -241,12 +244,15 @@
           "ke": "Außenkompensationsgewinn (Ke)",
           "pwm": "PWM-Periode",
           "keep_alive": "Keep-Alive-Intervall",
+          "derivative_filter": "Differenzial-Filterzeitkonstante",
           "sampling_period": "PID-Abtastrate"
         },
         "data_description": {
           "ke": "Verstärkung angewendet auf die Differenz zwischen Soll- und Außentemperatur.",
           "pwm": "Volle Zykluszeit für die Pulsweitenmodulationsregelung (erforderlich, auf 0 setzen für analoge Aktoren wie Ventile, Thermostate...).",
-          "keep_alive": "Sendet regelmäßig Steuerbefehle an den Aktor."
+          "keep_alive": "Sendet regelmäßig Steuerbefehle an den Aktor.",
+          "derivative_filter": "Zeitkonstante (tau) für den EMA-Tiefpassfilter auf dem Differenzialanteil zur Glättung des Sensorrauschens (0 zum Deaktivieren).",
+          "sampling_period": "Zeitintervall zwischen PID-Berechnungen. Nützlich zur Reduzierung der Rechenlast bei Sensoren mit hoher Aktualisierungsrate."
         },
         "sections": {
           "autotune_options": {

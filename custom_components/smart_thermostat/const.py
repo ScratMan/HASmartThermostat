@@ -34,6 +34,8 @@ DEFAULT_AUTOTUNE = "none"
 DEFAULT_NOISEBAND = 0.5
 DEFAULT_OUTPUT_SAFETY = 5.0
 DEFAULT_PRESET_SYNC_MODE = "none"
+DEFAULT_DERIVATIVE_FILTER = "00:00:00"
+DEFAULT_DERIVATIVE_FILTER_DURATION = {"hours": 0, "minutes": 0, "seconds": 0}
 
 CONF_HEATER = "heater"
 CONF_COOLER = "cooler"
@@ -81,6 +83,7 @@ CONF_AUTOTUNE = "autotune"
 CONF_NOISEBAND = "noiseband"
 CONF_LOOKBACK = "lookback"
 CONF_DEBUG = "debug"
+CONF_DERIVATIVE_FILTER = "derivative_filter"
 
 AUTOTUNE_OPTIONS = [
     "none",
