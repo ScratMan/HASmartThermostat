@@ -430,6 +430,65 @@ async def test_thermal_simulation_pid_mode_transition_to_hysteresis(hass, freeze
     assert state_back_auto.attributes["pid_mode"] == "auto"
 
 
+async def test_hysteresis_cool_mode_not_inverted(hass, freezer):
+    """In COOL + pid_mode off: too hot must trigger max cooling, too cold must stop it."""
+    hass.states.async_set("sensor.temperature", "22.0")
+    hass.states.async_set("switch.cooler", "off")
+
+    config = {
+        CLIMATE_DOMAIN: {
+            "platform": DOMAIN,
+            "name": "Cool Hysteresis Thermostat",
+            "cooler": "switch.cooler",
+            "target_sensor": "sensor.temperature",
+            "target_temp": 22.0,
+            "hot_tolerance": 0.2,  # Upper threshold: 22.2°C
+            "cold_tolerance": 0.2,  # Lower threshold: 21.8°C
+            "pwm": timedelta(seconds=60),
+            "keep_alive": timedelta(seconds=60),
+            "sampling_period": timedelta(seconds=0),
+        }
+    }
+
+    assert await async_setup_component(hass, CLIMATE_DOMAIN, config)
+    await hass.async_block_till_done()
+
+    entity_id = "climate.cool_hysteresis_thermostat"
+
+    await hass.services.async_call(
+        CLIMATE_DOMAIN,
+        "set_hvac_mode",
+        {"entity_id": entity_id, "hvac_mode": HVACMode.COOL},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        DOMAIN,
+        "set_pid_mode",
+        {"entity_id": entity_id, "mode": "off"},
+        blocking=True,
+    )
+
+    # Too hot (22.5°C > 22.2°C): cooler must run at full power.
+    # In COOL mode pid_out_min = -output_max, and set_control_value uses abs(),
+    # so max cooling means control_output = -100.0.
+    freezer.tick(timedelta(seconds=10))
+    hass.states.async_set("sensor.temperature", "22.50")
+    await hass.async_block_till_done()
+
+    state_hot = hass.states.get(entity_id)
+    assert state_hot.attributes["control_output"] == -100.0
+    assert hass.states.get("switch.cooler").state == "on"
+
+    # Too cold (21.5°C < 21.8°C): cooler must stop (control_output = 0).
+    freezer.tick(timedelta(seconds=10))
+    hass.states.async_set("sensor.temperature", "21.50")
+    await hass.async_block_till_done()
+
+    state_cold = hass.states.get(entity_id)
+    assert state_cold.attributes["control_output"] == 0.0
+    assert hass.states.get("switch.cooler").state == "off"
+
+
 @pytest.mark.slow
 @pytest.mark.simulation
 async def test_thermal_simulation_closed_loop(hass, freezer, tmp_path):
