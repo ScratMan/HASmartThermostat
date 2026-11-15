@@ -439,7 +439,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._force_off_state = kwargs.get("force_off_state", True)
         self._keep_alive = kwargs.get("keep_alive", timedelta(seconds=60))
         self._sampling_period = kwargs.get("sampling_period", timedelta(seconds=0))
-        self._sensor_stall = kwargs.get("sensor_stall", timedelta(hours=6)).seconds
+        self._sensor_stall = kwargs.get(
+            "sensor_stall", timedelta(hours=6)
+        ).total_seconds()
         self._output_safety = kwargs.get("output_safety")
         self._hvac_mode = kwargs.get("initial_hvac_mode", None)
         self._saved_target_temp = kwargs.get("target_temp", None) or kwargs.get(
@@ -557,7 +559,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._ki = kwargs.get("ki", 0)
         self._kd = kwargs.get("kd", 0)
         self._ke = kwargs.get("ke", 0)
-        self._pwm = kwargs.get("pwm", timedelta(minutes=15)).seconds
+        self._pwm = kwargs.get("pwm", timedelta(minutes=15)).total_seconds()
         self._p = self._i = self._d = self._e = self._dt = 0
         self._control_output = self._pid_output = self._output_min
         self._force_on = False
@@ -574,10 +576,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             "brewing",
         ]:
             self._autotune = "none"
-        self._lookback = (
-            kwargs.get("lookback", 7200).seconds
-            + kwargs.get("lookback", 7200).days * 86400
-        )
+        self._lookback = kwargs.get("lookback", timedelta(hours=2)).total_seconds()
         self._noiseband = kwargs.get("noiseband", 0.5)
         self._cold_tolerance = abs(kwargs.get("cold_tolerance", 0.3))
         self._hot_tolerance = abs(kwargs.get("hot_tolerance", 0.3))
@@ -590,7 +589,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._ke,
             self._pid_out_min,
             self._pid_out_max,
-            self._sampling_period.seconds,
+            self._sampling_period.total_seconds(),
             self._derivative_filter_seconds,
         )
         if self._autotune != "none":
@@ -1510,7 +1509,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         self._control_output = self._pid_out_min
 
             else:
-                if calc_pid and self._sampling_period.seconds == 0:
+                if calc_pid and self._sampling_period.total_seconds() == 0:
                     await self.calc_pid()
 
                 # If external temperature is available, calculate the compensation and add to control output without
@@ -1851,7 +1850,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         self._ke,
                         self._pid_out_min,
                         self._pid_out_max,
-                        self._sampling_period.seconds,
+                        self._sampling_period.total_seconds(),
                         self._derivative_filter_seconds,
                     )
                     self._autotune = "none"
