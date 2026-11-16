@@ -770,30 +770,33 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     in [HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL, HVACMode.OFF]
                     else HVACMode.OFF
                 )
-            if (
-                old_state.attributes.get("kp") is not None
-                and self._pid_controller is not None
-            ):
-                self._kp = float(old_state.attributes.get("kp", 100))
-                self._pid_controller.set_pid_param(kp=self._kp)
-            if (
-                old_state.attributes.get("ki") is not None
-                and self._pid_controller is not None
-            ):
-                self._ki = float(old_state.attributes.get("ki", 0))
-                self._pid_controller.set_pid_param(ki=self._ki)
-            if (
-                old_state.attributes.get("kd") is not None
-                and self._pid_controller is not None
-            ):
-                self._kd = float(old_state.attributes.get("kd", 0))
-                self._pid_controller.set_pid_param(kd=self._kd)
-            if (
-                old_state.attributes.get("ke") is not None
-                and self._pid_controller is not None
-            ):
-                self._ke = float(old_state.attributes.get("ke", 0))
-                self._pid_controller.set_pid_param(ke=self._ke)
+            # Determine if entity is configured via YAML or UI (ConfigEntry)
+            is_yaml_config = (
+                not hasattr(self, "registry_entry")
+                or self.registry_entry is None
+                or self.registry_entry.config_entry_id is None
+            )
+
+            if is_yaml_config and self._pid_controller is not None:
+                # Climate is configured via YAML, restore PID gains and mode from previous state
+
+                def restore_pid_gains(gain_name: str, default_value: float) -> None:
+                    """Restore PID gain from previous state or use default."""
+                    if old_state.attributes.get(gain_name) is not None:
+                        gain_value = float(
+                            old_state.attributes.get(gain_name, default_value)
+                        )
+                        self._pid_controller.set_pid_param(**{gain_name: gain_value})
+                        setattr(self, f"_{gain_name}", gain_value)
+
+                for gain_name, default_value in [
+                    ("kp", 100),
+                    ("ki", 0),
+                    ("kd", 0),
+                    ("ke", 0),
+                ]:
+                    restore_pid_gains(gain_name, default_value)
+
             if str(old_state.attributes.get("pid_mode", "auto")).lower() in [
                 "auto",
                 "off",
@@ -1263,7 +1266,29 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             if gain is not None:
                 setattr(self, f"_{pid_kx}", float(gain))
         self._pid_controller.set_pid_param(self._kp, self._ki, self._kd, self._ke)
+
+        config_entry_id = (
+            getattr(self.registry_entry, "config_entry_id", None)
+            if hasattr(self, "registry_entry") and self.registry_entry is not None
+            else None
+        )
+
+        if config_entry_id:
+            config_entry = self.hass.config_entries.async_get_entry(config_entry_id)
+            if config_entry:
+                new_options = {
+                    **config_entry.options,
+                    "kp": self._kp,
+                    "ki": self._ki,
+                    "kd": self._kd,
+                    "ke": self._ke,
+                }
+                self.hass.config_entries.async_update_entry(
+                    config_entry, options=new_options
+                )
+
         await self._async_control_heating(calc_pid=True)
+        self.async_write_ha_state()
 
     async def async_set_pid_mode(self, **kwargs):
         """Set PID parameters."""

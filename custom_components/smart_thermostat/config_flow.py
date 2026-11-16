@@ -45,7 +45,7 @@ DURATION_SELECTOR = selector.DurationSelector(
     selector.DurationSelectorConfig(allow_negative=False)
 )
 NUMBER_SELECTOR = selector.NumberSelector(
-    selector.NumberSelectorConfig(mode=selector.NumberSelectorMode.BOX, step=0.1)
+    selector.NumberSelectorConfig(mode=selector.NumberSelectorMode.BOX, step="any")
 )
 TEMPERATURE_SELECTOR = selector.NumberSelector(
     selector.NumberSelectorConfig(
