@@ -753,6 +753,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         f"_{preset_mode}",
                         float(old_state.attributes.get(preset_mode, 0)),
                     )
+                    self._support_flags |= ClimateEntityFeature.PRESET_MODE
+
             if old_state.attributes.get(ATTR_PRESET_MODE) is not None:
                 self._attr_preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
             if (
@@ -1310,6 +1312,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 else (max(min(float(preset_temp), self.max_temp), self.min_temp))
             )
             setattr(self, f"_{preset_name.replace('_disable', '')}", value)
+        if self.presets:
+            self._support_flags |= ClimateEntityFeature.PRESET_MODE
+        else:
+            self._support_flags &= ~ClimateEntityFeature.PRESET_MODE
+
         await self._async_control_heating(calc_pid=True)
 
     async def async_set_derivative_filter(self, **kwargs):
