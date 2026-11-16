@@ -1499,9 +1499,9 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 # Hysteresis control
                 if self._hvac_mode == HVACMode.COOL:
                     if self._current_temp >= self._target_temp + self._hot_tolerance:
-                        self._control_output = self._pid_out_max
-                    elif self._current_temp <= self._target_temp - self._cold_tolerance:
                         self._control_output = self._pid_out_min
+                    elif self._current_temp <= self._target_temp - self._cold_tolerance:
+                        self._control_output = self._pid_out_max
                 else:
                     # En mode HEAT : ON si T <= target - cold_tolerance, OFF si T >= target + hot_tolerance
                     if self._current_temp <= self._target_temp - self._cold_tolerance:
