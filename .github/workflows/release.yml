@@ -1,0 +1,28 @@
+name: Update Version on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-manifest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update manifest.json version
+        run: |
+          VERSION=${{ github.ref_name }}
+          CLEAN_VERSION=${VERSION#v}
+          jq ".version = \"$CLEAN_VERSION\"" custom_components/smart_thermostat/manifest.json > tmp.json && mv tmp.json custom_components/smart_thermostat/manifest.json
+
+      - name: Commit and push changes
+        run: |
+          git config local user.email "action@github.com"
+          git config local user.name "GitHub Action"
+          git add custom_components/smart_thermostat/manifest.json
+          git commit -m "chore(release): bump manifest version to ${{ github.ref_name }}"
+          git push
