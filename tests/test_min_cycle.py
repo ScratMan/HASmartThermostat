@@ -223,3 +223,96 @@ async def test_pwm_cycle_respects_min_duration(hass, freezer):
     turn_off = [call for call in calls if call[0] == "turn_off"]
     assert len(turn_off) == 1
     assert turn_off[0][1] - on_time >= 30
+
+
+async def test_mixed_digital_and_analog_isolated_min_cycles(hass, freezer):
+    """Test mixed digital (switch) and analog (number) control with isolated min cycle timers."""
+    # 1. Setup switch services (with follow_state) and register input_number service mock
+    await _setup_services(hass, follow_state=True)
+    await async_setup_component(hass, "input_number", {})
+    await hass.async_block_till_done()
+
+    last_number_value: float | None = None
+
+    async def _handle_set_value(call):
+        nonlocal last_number_value
+        last_number_value = call.data.get("value")
+        hass.states.async_set("input_number.analog_heater", f"{last_number_value}")
+
+    hass.services.async_register("input_number", "set_value", _handle_set_value)
+
+    # 2. Set initial entity states in the State Machine
+    hass.states.async_set("sensor.temperature", "18.0")
+    hass.states.async_set("switch.digital_heater", "off")
+    hass.states.async_set("input_number.analog_heater", "0.0")
+
+    config = _thermostat_config(
+        unique_id="mixed_thermostat",
+        heater=["switch.digital_heater", "input_number.analog_heater"],
+        target_temp=20.0,
+        kp=10.0,
+        ki=0.0,
+        kd=0.0,
+        output_min=0.0,
+        output_max=100.0,
+        min_cycle_duration="00:02:00",
+        pwm=timedelta(seconds=0),
+        keep_alive=timedelta(seconds=60),
+    )
+
+    _restore(hass)
+    assert await async_setup_component(hass, CLIMATE_DOMAIN, config)
+    await hass.async_block_till_done()
+
+    entity = _entity(hass)
+
+    # 3. Initial heating pass: State transition 0 -> ON/20.0
+    hass.states.async_set("sensor.temperature", "18.0")
+    await entity._async_control_heating(calc_pid=True)
+    await hass.async_block_till_done()
+
+    assert hass.states.get("switch.digital_heater").state == "on"
+    assert last_number_value == 20.0
+
+    # 4. Continuous modulation at +30s (20.0 -> 10.0: still active (>0), must NOT be rejected)
+    freezer.tick(timedelta(seconds=30))
+    hass.states.async_set("sensor.temperature", "19.0")
+    await entity._async_control_heating(calc_pid=True)
+    await hass.async_block_till_done()
+
+    assert hass.states.get("switch.digital_heater").state == "on"
+    assert last_number_value == 10.0
+
+    # 5. End of ON cycle at +121s: Drop to 0% (State transition ON -> OFF)
+    freezer.tick(timedelta(seconds=91))
+    hass.states.async_set("sensor.temperature", "20.0")
+    await entity._async_control_heating(calc_pid=True)
+    await hass.async_block_till_done()
+
+    assert hass.states.get("switch.digital_heater").state == "off"
+    assert last_number_value == 0.0
+
+    # 6. Attempt re-activation at +151s (30s after turning OFF, below min_off_cycle_duration of 2 min)
+    # Analog entity attempts a state transition 0 -> 40.0 (OFF -> ON)
+    freezer.tick(timedelta(seconds=30))
+    hass.states.async_set(
+        "sensor.temperature", "16.0"
+    )  # High heating demand (PID output = 40%)
+    await entity._async_control_heating(calc_pid=True)
+    await hass.async_block_till_done()
+
+    # TEST ANALOG REJECT:
+    # Both the switch AND the analog valve must reject turn-on because 30s < 2 min!
+    assert hass.states.get("switch.digital_heater").state == "off"
+    assert (
+        last_number_value == 0.0
+    )  # Analog stays at 0.0, the setpoint change to 40.0 was rejected
+
+    # 7. Complete OFF duration elapsed at +242s (2 minutes after turning OFF)
+    freezer.tick(timedelta(seconds=91))
+    await entity._async_control_heating(calc_pid=True)
+    await hass.async_block_till_done()
+
+    # OFF -> ON transition is now allowed for both entities
+    assert hass.states.get("switch.digital_heater").state == "on"
+    assert last_number_value == 40.0

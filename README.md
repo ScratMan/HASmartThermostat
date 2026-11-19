@@ -5,7 +5,8 @@
 Create a virtual thermostat with accurate and reactive temperature control through PID controller.
 [Principle of the PID controller.](https://en.wikipedia.org/wiki/PID_controller)
 Any heater or air conditioner unit with ON/OFF switch or pilot wire can be controlled using a pulse
-width modulation that depends on the temperature error and its variation over time.
+width modulation that depends on the temperature error and its variation over time. Continuous or analog
+devices (valves, lights, input numbers, slave thermostats) are driven directly using their native position or setpoint values.
 
 ![](https://github.com/ScratMan/HASmartThermostat/blob/master/climate_chart.png?raw=true)
 
@@ -78,12 +79,11 @@ climate:
 ```yaml
 climate:
   - platform: smart_thermostat
-    name: Smart Thermostat Multiple Valves Example
-    unique_id: smart_thermostat_m_valve_example
+    name: Smart Thermostat Mixed Actuators Example
+    unique_id: smart_thermostat_mixed_actuators_example
     heater:
-      - valve.radiator_valve_1
-      - valve.radiator_valve_2
-      - valve.radiator_valve_3
+      - switch.supplementary_electric_heater  # On/Off device (uses PWM)
+      - valve.radiator_valve_1                # Analog device (0-100% position)
     target_sensor: sensor.ambient_temperature
     min_temp: 7
     max_temp: 28
@@ -96,8 +96,8 @@ climate:
     ki: 0.01
     kd: 500
     output_min: 0
-    output_max: 99
-    pwm: 0
+    output_max: 100
+    pwm: 00:15:00
 
 ```
 
@@ -120,19 +120,22 @@ climate:
     kd: 500
     output_min: 7
     output_max: 28
-    pwm: 0
 
 ```
 
 ## Usage:
 
-The target sensor measures the ambient temperature while the heater switch controls an ON/OFF
-heating system.
+The target sensor measures the ambient temperature while the heater entities control the heating system.
 
-The PID controller computes the amount of time the heater should remain ON over the PWM period to
-reach the temperature set point, in example with PWM set to 15 minutes, if output is 100% the
-heater will be kept on for the next 15 minutes PWM period. If PID output is 33%, the heater will be
-switched ON for 5 minutes only.
+The PID controller computes the output needed to reach the temperature setpoint.
+- For **digital / ON-OFF devices** (e.g. `switch`), the thermostat uses pulse-width modulation (PWM) to regulate heating time over the PWM period. For example, with PWM set to 15 minutes, if the PID output is 100% the switch will remain ON for 15 minutes. If the PID output is 33%, the switch will stay ON for 5 minutes only.
+- For **analog / continuous devices** (e.g. `valve`, `light`, `fan`, `climate`, `number`, `input_number`), the output value (or calculated setpoint) is sent directly to the entity.
+
+When mixing digital and analog entities in the `heater` or `cooler` options, the thermostat handles both types seamlessly: digital entities follow the PWM duty cycle while analog entities receive the exact output value simultaneously.
+
+> [!WARNING]
+> **Do not mix `climate` entities with other entity types** (such as `switch` `valve`, `light`, or `number`) within the same `heater` or `cooler` list.
+> `climate` entities expect absolute target temperature setpoints (e.g. `15.0` to `28.0` °C configured via `output_min` and `output_max`), whereas valves or lights expect percentage or duty-cycle control signals (e.g. `0` to `100` %). Combining them under a single master thermostat will cause mismatched control ranges.
 
 By default, the PID controller will be called each time the target sensor is updated. When using
 main powered sensor with high sampling rate, the *sampling_period* parameter should be used to slow
@@ -166,7 +169,7 @@ To make it quick and simple:
 
 * Kd gain adjusts the derivative part of the compensation. Derivative compensates the inertia of
   the system. If the sensor temperature increases quickly between two samples, the PID will decrease
-  the PWM level accordingly to limit the overshoot.
+  the output level accordingly to limit the overshoot.
 
 PID output value is the weighted sum of the control terms:
 
@@ -186,7 +189,7 @@ PID output value is the weighted sum of the control terms:
 
 `output = P + I + D`
 
-Output is then limited to 0% to 100% range to control the PWM.
+Output is then limited to the `output_min` to `output_max` range (0% to 100% by default).
 
 #### Outdoor temperature compensation
 
@@ -197,7 +200,7 @@ outdoor temperature. An external component E is added to the PID output:
 
 `output = P + I + D + E`
 
-Output is then limited to 0% to 100% range to control the PWM.
+Output is then limited to the `output_min` to `output_max` range.
 The Ke gain depends on the insulation of the building, on recent buildings with good insulation, a
 gain of 0.6 is recommended. This compensation will act like the integral of the PID, but with
 faster response time, so the integral will be more stable.
@@ -215,7 +218,7 @@ acceptable values.
 Next, measure the effect on the room temperature of turning the new inner thermostat to the highest
 temperature and then turning it off again. Feed that into PID Tuner, and create the main Smart Thermostat,
 with the `unique_id` of the inner thermostat as the heater. The `sampling_period` and `min_cycle_duration`
-should be higher for the outer thermostat, and naturally its `pwm` should be `0`.
+should be higher for the outer thermostat, and naturally its `pwm` can be left to `0` or omitted.
 
 See here a full example:
 
@@ -242,7 +245,6 @@ climate:
     kp: 19.4
     ki: 0.005
     kd: 0
-    pwm: 0
 
   - platform: smart_thermostat
     name: "Bedroom Underfloor Heating Inner Thermostat"
@@ -399,21 +401,15 @@ gains to quickly test the behavior without waiting the integral to stabilize by 
 
 * **unique_id** (Optional): unique entity_id for the smart thermostat (required when cascading thermostats).
 
-* **heater** (Optional): entity_id for heater control, should be a single or list of toggle
-  device (switch or input_boolean), light or valve (light, number, input_number). If a valve
-  or a light entity is used, pwm parameter should be set to 0. Becomes air conditioning switch
-  when ac_mode is set to true.
-  If you have e.g. multiple radiators in one room, you can enter all of them in a list, and the
-  thermostat will apply the output value to each of them.
-  If neither heater nor cooler is specified, the thermostat will not operate and remain stuck in OFF mode.
+* **heater** (Optional): entity_id or list of entity_ids for heater control. Can contain digital ON/OFF devices (switch, input_boolean) as well as analog/continuous devices (valve, light, fan, climate, number, input_number), or a mix of both types. Becomes air conditioning switch when ac_mode is set to true.
+  If you have e.g. multiple radiators or valves in one room, you can enter all of them in a list, and the thermostat will dispatch control appropriately.
+  If neither heater nor cooler is specified, the thermostat will not operate and remain stuck in OFF mode.\
+  Digital and analog entities (e.g., a `switch` relay and a `valve`) can be mixed together in the same list. **Do not mix `climate` entities with other analog types** due to differing output ranges (`output_min` / `output_max`).
 
-* **cooler** (Optional): entity_id for cooling control, should be a single or list of toggle
-  device (switch or input_boolean), light or valve (light, number, input_number). If a valve
-  or a light is used, pwm parameter should be set to 0.
-  If you have e.g. multiple coolers in one room, you can enter all of them in a list, and the
-  thermostat will apply the output value to each of them.
+* **cooler** (Optional): entity_id or list of entity_ids for cooling control. Can contain digital ON/OFF devices as well as analog/continuous devices, or a mix of both types.
   If both heater and cooler are specified, the thermostat will allow switching between heating and cooling mode.
-  If neither heater nor cooler is specified, the thermostat will not operate and remain stuck in OFF mode.
+  If neither heater nor cooler is specified, the thermostat will not operate and remain stuck in OFF mode.\
+  Digital and analog entities (e.g., a `switch` relay and a `valve`) can be mixed together in the same list. **Do not mix `climate` entities with other analog types** due to differing output ranges (`output_min` / `output_max`).
 
 * **invert_heater** (Optional): if set to true, inverts the polarity of heater switch (switch is on
   while idle and off while active). Must be a boolean (defaults to false).
@@ -424,9 +420,7 @@ gains to quickly test the behavior without waiting the integral to stabilize by 
 * **outdoor_sensor** (Optional): entity_id for an outdoor temperature sensor, outdoor_sensor.state
   must be temperature.
 
-* **keep_alive** (Required): sets update interval for the PWM pulse width. If interval is too big,
-  the PWM granularity will be reduced, leading to lower accuracy of temperature control, can be float
-  in seconds, or time hh:mm:ss.
+* **keep_alive** (Required): sets update interval for the PWM pulse width and device state refreshes. Can be float in seconds, or time hh:mm:ss.
 
 * **kp** (Recommended): Set PID parameter, proportional (p) control value (float, default 100). *Note:* Once the
   thermostat has been created, changing the configuration PID values will not
@@ -453,15 +447,9 @@ gains to quickly test the behavior without waiting the integral to stabilize by 
   > 3. **Smooth / Already filtered sensors (e.g., Home Assistant `filter` integration or slow Zigbee/Z-Wave sensors):**
   >    Leave it set to **`00:00:00`** (default) as additional filtering is unnecessary and could add redundant phase lag.
 
-* **pwm** (Required): Set period of the pulse width modulation. If too long, the response time of
-  the thermostat will be too slow, leading to lower accuracy of temperature control. Can be float in
-  seconds or time hh:mm:ss (default 15mn). Set it to 0 only when using heater entity with "analog" input
-  values (for example 0/100%) like valves or lights. Do not set it to 0 when using binary entity with
-  ON/OFF states.
+* **pwm** (Required): Set period of the pulse width modulation for ON/OFF binary entities. Can be float in seconds or time hh:mm:ss (default 15mn). Note that PWM modulation is applied exclusively to ON/OFF digital entities; any analog entities (valves, lights, input numbers, slave thermostats) will automatically receive their target setpoints/positions directly regardless of the `pwm` setting.
 
-* **min_cycle_duration** (Optional): Set a minimum amount of time that the switch specified in the
-  heater option must be in its current state prior to being switched either off or on (useful to
-  protect boilers). Can be float in seconds or time hh:mm:ss (default 0s).
+* **min_cycle_duration** (Optional): Set a minimum amount of time that controlled devices must stay in their current state prior to being switched either off or on (useful to protect boilers or limit valve oscillations). Can be float in seconds or time hh:mm:ss (default 0s).
 
 * **min_off_cycle_duration** (Optional): When `min_cycle_duration` is specified, Set a minimum
   amount of time that the switch specified in the heater option must remain in OFF state prior to

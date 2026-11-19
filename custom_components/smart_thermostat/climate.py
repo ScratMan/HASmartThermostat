@@ -459,8 +459,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._derivative_filter_seconds = 0.0
         # None means no device state change was recorded yet: PWM starts a fresh cycle
         # and the first transition always goes through.
-        self._last_heat_cycle_time = None
-        self._last_device_state = None
+        self._last_switch_cycle_time = None
+        self._last_switch_state = None
+        self._last_analog_state = None
+        self._last_analog_cycle_time = None
         self._min_on_cycle_duration_pid_on = kwargs.get(
             "min_cycle_duration"
         ) or timedelta(seconds=0)
@@ -1427,11 +1429,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         if event.data.get("entity_id") in self._all_heat_cool_entities:
             active = self._is_device_active
             if (
-                self._last_device_state is not None
-                and active != self._last_device_state
+                self._last_switch_state is not None
+                and active != self._last_switch_state
             ):
                 # The device was switched by another actor: restart the cycle timer from now.
-                self._mark_device_state(active)
+                self._mark_switch_state(active)
         self.async_write_ha_state()
 
     @callback
@@ -1710,19 +1712,37 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
         return domain, service
 
-    def _min_cycle_allows(self, active: bool) -> bool:
+    def _min_switch_cycle_allows(self, active: bool) -> bool:
         """Return True when the device stayed long enough in its current state."""
-        if self._last_heat_cycle_time is None:
+        if self._last_switch_cycle_time is None:
             return True
         duration = (
             self._min_off_cycle_duration if active else self._min_on_cycle_duration
         )
-        return time.monotonic() - self._last_heat_cycle_time >= duration.total_seconds()
+        return (
+            time.monotonic() - self._last_switch_cycle_time >= duration.total_seconds()
+        )
 
-    def _mark_device_state(self, active: bool) -> None:
-        """Remember the last known state of the device and when it changed."""
-        self._last_device_state = active
-        self._last_heat_cycle_time = time.monotonic()
+    def _min_analog_cycle_allows(self, active: bool) -> bool:
+        """Return True when the analog device stayed long enough in its current active/inactive state."""
+        if self._last_analog_cycle_time is None:
+            return True
+        duration = (
+            self._min_off_cycle_duration if active else self._min_on_cycle_duration
+        )
+        return (
+            time.monotonic() - self._last_analog_cycle_time >= duration.total_seconds()
+        )
+
+    def _mark_switch_state(self, active: bool) -> None:
+        """Remember the last known state of the switch devices and when it changed."""
+        self._last_switch_state = active
+        self._last_switch_cycle_time = time.monotonic()
+
+    def _mark_analog_state(self, active: bool) -> None:
+        """Remember the last known state of the analog devices and when it changed."""
+        self._last_analog_state = active
+        self._last_analog_cycle_time = time.monotonic()
 
     async def _async_set_device_state(
         self, entities: list[str], active: bool, force: bool = False
@@ -1738,8 +1758,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             )
             return
 
-        refresh = self._last_device_state == active
-        if not refresh and self._last_device_state is None:
+        refresh = self._last_switch_state == active
+        if not refresh and self._last_switch_state is None:
             # Nothing was requested yet: re-sending the state the device already has is
             # a refresh.
             refresh = self._is_device_active == active
@@ -1747,8 +1767,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         if (
             not refresh
             and not force
-            and self._last_device_state is not None
-            and not self._min_cycle_allows(active)
+            and self._last_switch_state is not None
+            and not self._min_switch_cycle_allows(active)
         ):
             _LOGGER.debug(
                 "%s: Reject request turning %s %s: Cycle is too short",
@@ -1765,8 +1785,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             # Au démarrage (_last_device_state is None), si l'appareil est déjà dans l'état
             # demandé (refresh), on mémorise son état SANS démarrer de timer de cycle (_last_heat_cycle_time resta None)
             # pour permettre un basculement immédiat si la première mesure de température l'exige.
-            if self._last_device_state is None:
-                self._last_device_state = active
+            if self._last_switch_state is None:
+                self._last_switch_state = active
                 return
         else:
             _LOGGER.debug(
@@ -1784,7 +1804,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
         # Dès qu'une transition effective a lieu (refresh is False), on enregistre l'état ET le timestamp !
         if not refresh:
-            self._mark_device_state(active)
+            self._mark_switch_state(active)
 
     async def _async_device_turn_on(self, entities: list[str] | None = None):
         """Turn the toggleable devices on."""
@@ -1805,24 +1825,23 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         await self._async_set_device_state(entities, False, force=force)
 
     async def _async_set_analog_value(self, entities: list[str], value: float):
-        """Set the analog value for the given entities."""
-        # Get if the target value is considered active (non-zero) or inactive (zero)
+        """Set the analog value for the given entities while respecting an isolated cycle timer."""
         target_active = value > 0
 
-        # Check if the device state is changing from active to inactive or vice versa
-        if (
-            self._last_device_state is not None
-            and target_active != self._last_device_state
-        ):
-            # If minimum cycle duration is not respected, reject the change and log it
-            if not self._min_cycle_allows(target_active):
-                _LOGGER.debug(
-                    "%s: Reject analog state change to %s for %s: Cycle is too short",
-                    self.entity_id,
-                    value,
-                    ", ".join(entities),
-                )
-                return
+        # Store initial state if it's the first time we are setting an analog value
+        if self._last_analog_state is None:
+            self._last_analog_state = target_active
+
+        # Only enforce the cycle timer if there is a state transition (0 <-> >0)
+        state_transition = target_active != self._last_analog_state
+        if state_transition and not self._min_analog_cycle_allows(target_active):
+            _LOGGER.debug(
+                "%s: Reject analog state change to %s for %s: Analog cycle is too short",
+                self.entity_id,
+                value,
+                ", ".join(entities),
+            )
+            return
 
         _LOGGER.debug(
             "%s: Change state of %s to %s",
@@ -1838,6 +1857,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     self.entity_id,
                     entity_id,
                 )
+                continue
 
             entity_domain = split_entity_id(entity_id)[0]
             if entity_domain == LIGHT_DOMAIN:
@@ -1908,8 +1928,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 )
 
         # If a real transition 0 <-> >0 has occurred, we update the cycle timer
-        if self._last_device_state != target_active:
-            self._mark_device_state(target_active)
+        if state_transition:
+            self._mark_analog_state(target_active)
 
     async def async_set_preset_mode(self, preset_mode: str):
         """Set new preset mode.
@@ -2082,8 +2102,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """turn off and on the heater proportionally to control_value."""
         time_passed = (
             float("inf")
-            if self._last_heat_cycle_time is None
-            else time.monotonic() - self._last_heat_cycle_time
+            if self._last_switch_cycle_time is None
+            else time.monotonic() - self._last_switch_cycle_time
         )
         # Compute time_on based on PWM duration and PID output
         time_on = self._pwm * abs(self._control_output) / self._difference
