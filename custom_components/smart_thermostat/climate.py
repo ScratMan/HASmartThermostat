@@ -15,6 +15,7 @@ import voluptuous as vol
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
+    ATTR_TARGET_TEMP_STEP,
     PLATFORM_SCHEMA,
     PRESET_ACTIVITY,
     PRESET_AWAY,
@@ -34,11 +35,11 @@ from homeassistant.components.climate import (
 from homeassistant.components.climate import (
     DOMAIN as CLIMATE_DOMAIN,
 )
-from homeassistant.components.fan import ATTR_PERCENTAGE
+from homeassistant.components.fan import ATTR_PERCENTAGE, FanEntityFeature
 from homeassistant.components.fan import DOMAIN as FAN_DOMAIN
 from homeassistant.components.fan import SERVICE_TURN_ON as SERVICE_TURN_FAN_ON
 from homeassistant.components.input_number import DOMAIN as INPUT_NUMBER_DOMAIN
-from homeassistant.components.light import ATTR_BRIGHTNESS_PCT
+from homeassistant.components.light import ATTR_BRIGHTNESS_PCT, LightEntityFeature
 from homeassistant.components.light import DOMAIN as LIGHT_DOMAIN
 from homeassistant.components.light import SERVICE_TURN_ON as SERVICE_TURN_LIGHT_ON
 from homeassistant.components.number.const import ATTR_VALUE, SERVICE_SET_VALUE
@@ -48,6 +49,7 @@ from homeassistant.components.valve import (
     SERVICE_CLOSE_VALVE,
     SERVICE_OPEN_VALVE,
     SERVICE_SET_VALVE_POSITION,
+    ValveEntityFeature,
 )
 from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN
 from homeassistant.components.valve.const import ValveState
@@ -1178,27 +1180,14 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             return
 
         if hvac_mode == HVACMode.OFF:
-            if self._pwm:
-                _LOGGER.debug(
-                    "%s: Turn OFF heater from async_set_hvac_mode(%s)",
-                    self.entity_id,
-                    hvac_mode,
-                )
-                await self._async_heater_turn_off(force=True)
-            else:
-                _LOGGER.debug(
-                    "%s: Set heater to %s from async_set_hvac_mode(%s)",
-                    self.entity_id,
-                    self._control_output,
-                    hvac_mode,
-                )
-                await self._async_set_valve_value(self._control_output)
+            self._control_output = 0
             # Clear the samples to avoid integrating the off period
             self._previous_temp = None
             self._previous_temp_time = None
             self._last_pid_calc_time = None
             if self._pid_controller is not None:
                 self._pid_controller.clear_samples(clear_integral=False)
+            await self.set_control_value()
 
         # Clear samples when toggling between active modes (HEAT <-> COOL). Not when the mode is
         # first set at startup (old mode None): that would discard the integral restored from pid_i.
@@ -1214,8 +1203,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._last_pid_calc_time = None
                 self._pid_controller.clear_samples(clear_integral=True)
             self._last_active_hvac = self._hvac_mode
-
-        if self._hvac_mode != HVACMode.OFF:
             await self._async_control_heating(calc_pid=True)
         # Ensure we update the current operation after changing the mode
         self.async_write_ha_state()
@@ -1387,28 +1374,27 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         event_time = self._extract_state_timestamp(new_state)
 
         # Deduplicate calls in case both state_changed and state_report listeners handle the exact same event
-        if self._cur_temp_time == event_time:
+        if self._cur_temp_time == event_time and self._previous_temp is not None:
             return
 
         self._previous_temp_time = self._cur_temp_time
         self._cur_temp_time = event_time
 
-        # 2. Update temperature readings (updates self._previous_temp, self._current_temp, self._last_sensor_update)
+        # 2. Update temperature readings
         self._async_update_temp(new_state)
         self._trigger_source = "sensor"
 
-        # 3. Schedule heating control pass if temperature changed or during first initialization
-        if self._previous_temp != self._current_temp or self._last_device_state is None:
-            _LOGGER.debug(
-                "%s: Received updated temperature: %s",
-                self.entity_id,
-                self._current_temp,
-            )
-            self.hass.async_create_task(
-                self._async_control_heating(calc_pid=True),
-                eager_start=True,
-            )
-            self.async_write_ha_state()
+        # 3. Schedule heating control pass
+        _LOGGER.debug(
+            "%s: Received updated temperature: %s",
+            self.entity_id,
+            self._current_temp,
+        )
+        self.hass.async_create_task(
+            self._async_control_heating(calc_pid=True),
+            eager_start=True,
+        )
+        self.async_write_ha_state()
 
     @callback
     def _async_ext_sensor_changed(self, event: Event) -> None:
@@ -1438,7 +1424,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         _LOGGER.debug(
             f"{self.entity_id}: Switch {event.event_type} event received, writing state to DB."
         )
-        if event.data.get("entity_id") in self.heater_or_cooler_entity:
+        if event.data.get("entity_id") in self._all_heat_cool_entities:
             active = self._is_device_active
             if (
                 self._last_device_state is not None
@@ -1501,32 +1487,29 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 and time.time() - self._last_sensor_update > self._sensor_stall
             ):
                 # sensor not updated for too long, considered as stall, set to safety level
+                _LOGGER.warning(
+                    "%s: Sensor %s has not updated for %.1f seconds. Setting output to safety level (%.1f).",
+                    self.entity_id,
+                    self._sensor_entity_id,
+                    time.time() - self._last_sensor_update,
+                    self._output_safety,
+                )
                 self._control_output = self._output_safety
-                await self.set_control_value()
-                self.async_write_ha_state()
-                return
 
-            if not self._active or self._hvac_mode == HVACMode.OFF:
+            elif not self._active or self._hvac_mode == HVACMode.OFF:
                 if (
                     self._force_off_state
                     and self._hvac_mode == HVACMode.OFF
                     and self._is_device_active
                 ):
-                    _LOGGER.debug(
-                        "%s: %s is active while HVAC mode is %s. Turning it OFF.",
+                    _LOGGER.warning(
+                        "%s: %s is active while HVAC mode is 'OFF'. Turning OFF.",
                         self.entity_id,
-                        ", ".join([entity for entity in self.heater_or_cooler_entity]),
-                        self._hvac_mode,
+                        ", ".join(self._all_heat_cool_entities),
                     )
-                    if self._pwm:
-                        await self._async_heater_turn_off(force=True)
-                    else:
-                        self._control_output = self._output_min
-                        await self._async_set_valve_value(self._control_output)
-                self.async_write_ha_state()
-                return
+                    self._control_output = 0
 
-            if self.pid_mode == "off":
+            elif self.pid_mode == "off":
                 # Hysteresis control
                 if self._hvac_mode == HVACMode.COOL:
                     if self._current_temp >= self._target_temp + self._hot_tolerance:
@@ -1569,50 +1552,66 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     @property
     def _is_device_available(self) -> bool:
-        for heater_or_cooler_entity in self.heater_or_cooler_entity:
-            state = self.hass.states.get(heater_or_cooler_entity)
+        for entity in self._controlled_entities:
+            state = self.hass.states.get(entity)
             if state is None or state.state in [STATE_UNAVAILABLE, STATE_UNKNOWN]:
                 return False
         return True
 
+    def _is_entity_available(self, entity_id: str) -> bool:
+        """Check if a given entity is available."""
+        state = self.hass.states.get(entity_id)
+        return state is not None and state.state not in [
+            STATE_UNAVAILABLE,
+            STATE_UNKNOWN,
+        ]
+
     @property
     def _is_device_active(self):
-        if self._pwm:
-            """If the toggleable device is currently active."""
-            active = False
+        """If any of the devices is currently active."""
+        on_off_entities, analog_entities = self._separate_entities_by_control_type(
+            self._all_heat_cool_entities
+        )
+
+        active = False
+        if on_off_entities:
             expected = [STATE_ON, ValveState.OPEN, ValveState.OPENING]
             if self._heater_polarity_invert:
                 expected = [STATE_OFF, ValveState.OPEN, ValveState.OPENING]
-            for heater_or_cooler_entity in self.heater_or_cooler_entity:
-                if (
-                    getattr(
-                        self.hass.states.get(heater_or_cooler_entity), "state", None
-                    )
-                    in expected
-                ):
+            for entity in on_off_entities:
+                if getattr(self.hass.states.get(entity), "state", None) in expected:
                     active = True
-            return active
-        else:
-            # Case for non-toggleable devices, check if the value is greater than 0 or if the state is 'on' or 'open'
-            is_active = False
-            try:  # do not throw an error if the state is not yet available on startup
-                for heater_or_cooler_entity in self.heater_or_cooler_entity:
-                    entity_domain = split_entity_id(heater_or_cooler_entity)[0]
-                    state = getattr(
-                        self.hass.states.get(heater_or_cooler_entity), "state", None
-                    )
-                    if entity_domain == CLIMATE_DOMAIN:
-                        return state != HVACMode.OFF
-                    try:
-                        value = float(str(state))
-                        if value > 0:
-                            is_active = True
-                    except ValueError:
-                        if state in ["on", "open", "opening"]:
-                            is_active = True
-                return is_active
-            except Exception:
-                return False
+                    break
+        if analog_entities:
+            # Case for non-toggleable / analog devices
+            for entity in analog_entities:
+                state_obj = self.hass.states.get(entity)
+                if state_obj is None or state_obj.state in (
+                    STATE_UNAVAILABLE,
+                    STATE_UNKNOWN,
+                ):
+                    continue
+
+                state = state_obj.state
+                entity_domain = split_entity_id(entity)[0]
+
+                if entity_domain == CLIMATE_DOMAIN:
+                    if state != HVACMode.OFF:
+                        active = True
+                        break
+                    continue
+
+                # Try numeric conversion (e.g. position %, brightness, input_number value)
+                try:
+                    if float(state) > 0:
+                        active = True
+                        break
+                except ValueError:
+                    # Fallback for non-numeric state representations
+                    if state in (STATE_ON, ValveState.OPEN, ValveState.OPENING):
+                        active = True
+                        break
+        return active
 
     @property
     def supported_features(self):
@@ -1620,32 +1619,78 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         return self._support_flags
 
     @property
-    def heater_or_cooler_entity(self) -> list:
-        """Return the entity to be controlled based on HVAC MODE"""
-        if self.hvac_mode == HVACMode.COOL and self._cooler_entity_id:
-            return self._cooler_entity_id
-        elif self.hvac_mode == HVACMode.HEAT and self._heater_entity_id:
-            return self._heater_entity_id
-        else:  # Case for OFF
-            entities_list = []
-            if self._heater_entity_id:
-                entities_list.extend(self._heater_entity_id)
-            if self._cooler_entity_id:
-                entities_list.extend(self._cooler_entity_id)
-            return entities_list
+    def _controlled_entities(self) -> list[str]:
+        """Return the entity or entities to be controlled based on HVAC mode."""
+        entities_list: list[str] = []
 
-    def _device_entities(self, active: bool) -> list:
-        """Return the entities to drive for the requested state."""
-        if active:
-            entities = self.heater_or_cooler_entity
+        if self.hvac_mode == HVACMode.COOL and self._cooler_entity_id:
+            entities = self._cooler_entity_id
+            entities_list = entities if isinstance(entities, list) else [entities]
+        elif self.hvac_mode == HVACMode.HEAT and self._heater_entity_id:
+            entities = self._heater_entity_id
+            entities_list = entities if isinstance(entities, list) else [entities]
+        else:  # Case for OFF or unhandled modes
+            entities_list = self._all_heat_cool_entities
+
+        return [entity for entity in entities_list if entity is not None]
+
+    @property
+    def _all_heat_cool_entities(self) -> list[str]:
+        """Return all heater and cooler entities. Useful for HVACMode.OFF or unhandled modes."""
+        entities_list: list[str] = []
+        for target in (self._heater_entity_id, self._cooler_entity_id):
+            if target:
+                if isinstance(target, list):
+                    entities_list.extend(target)
+                else:
+                    entities_list.append(target)
+        return [entity for entity in entities_list if entity is not None]
+
+    def _is_entity_analog(self, entity_id: str) -> bool:
+        """Check if the given entity supports analog control (e.g., set_position) or is digital (on/off)."""
+        domain = split_entity_id(entity_id)[0]
+        analog = False
+        if domain == VALVE_DOMAIN:
+            state = self.hass.states.get(entity_id)
+            supported_features = (
+                state.attributes.get("supported_features", 0) if state else 0
+            )
+            analog = bool(supported_features & ValveEntityFeature.SET_POSITION)
+        elif domain == LIGHT_DOMAIN:
+            state = self.hass.states.get(entity_id)
+            supported_features = (
+                state.attributes.get("supported_features", 0) if state else 0
+            )
+            analog = bool(supported_features & LightEntityFeature.BRIGHTNESS)
+        elif domain == FAN_DOMAIN:
+            state = self.hass.states.get(entity_id)
+            supported_features = (
+                state.attributes.get("supported_features", 0) if state else 0
+            )
+            analog = bool(supported_features & FanEntityFeature.SET_SPEED)
+        elif domain == CLIMATE_DOMAIN:
+            analog = True  # Climate entities are considered analog since they can be set to specific temperatures
         else:
-            # Switching off drives every configured device, whatever the active mode.
-            entities = []
-            if self._heater_entity_id is not None:
-                entities.extend(self._heater_entity_id)
-            if self._cooler_entity_id is not None:
-                entities.extend(self._cooler_entity_id)
-        return [entity for entity in entities if entity is not None]
+            # For other domains, we can check if they have a 'set_value' service or similar to determine if they are analog
+            services = self.hass.services.async_services().get(domain, {})
+            analog = any(
+                service_name in services
+                for service_name in ["set_value", "set_position", "set_brightness"]
+            )
+        return analog
+
+    def _separate_entities_by_control_type(
+        self, entities: list[str]
+    ) -> tuple[list[str], list[str]]:
+        """Separate the given entities into analog and on/off control types."""
+        analog_entities = []
+        on_off_entities = []
+        for entity in entities:
+            if self._is_entity_analog(entity):
+                analog_entities.append(entity)
+            else:
+                on_off_entities.append(entity)
+        return on_off_entities, analog_entities
 
     def _device_service(self, entity_id: str, active: bool) -> tuple[str, str]:
         """Return the (domain, service) tuple turning the given entity ON or OFF."""
@@ -1679,37 +1724,33 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._last_device_state = active
         self._last_heat_cycle_time = time.monotonic()
 
-    async def _async_set_device_state(self, active: bool, force: bool = False) -> None:
-        """Request an ON or OFF state for the heater/cooler device.
-
-        Re-sending the state the device was last commanded to (keep_alive refresh) is
-        never treated as a transition, so a refresh can neither flip the device nor
-        bypass a minimum cycle duration.
-        """
-        entities = self._device_entities(active)
+    async def _async_set_device_state(
+        self, entities: list[str], active: bool, force: bool = False
+    ) -> None:
         state = "ON" if active else "OFF"
 
         if not self._is_device_available:
-            _LOGGER.info(
-                f"{self.entity_id}: Device is not ready, 'Turn {state}' rejected for"
-                f" {', '.join(entities)}"
+            _LOGGER.warning(
+                "%s: Device is not ready, 'Turn %s' rejected for %s",
+                self.entity_id,
+                state,
+                ", ".join(entities),
             )
             return
 
         refresh = self._last_device_state == active
         if not refresh and self._last_device_state is None:
             # Nothing was requested yet: re-sending the state the device already has is
-            # a refresh, so it does not start a minimum cycle.
+            # a refresh.
             refresh = self._is_device_active == active
-        # The first request only establishes the baseline: no history is known yet to
-        # measure a minimum cycle against.
+
         if (
             not refresh
             and not force
             and self._last_device_state is not None
             and not self._min_cycle_allows(active)
         ):
-            _LOGGER.info(
+            _LOGGER.debug(
                 "%s: Reject request turning %s %s: Cycle is too short",
                 self.entity_id,
                 state,
@@ -1718,93 +1759,157 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             return
 
         if refresh:
-            _LOGGER.info(
+            _LOGGER.debug(
                 "%s: Refresh state %s %s", self.entity_id, state, ", ".join(entities)
             )
+            # Au démarrage (_last_device_state is None), si l'appareil est déjà dans l'état
+            # demandé (refresh), on mémorise son état SANS démarrer de timer de cycle (_last_heat_cycle_time resta None)
+            # pour permettre un basculement immédiat si la première mesure de température l'exige.
+            if self._last_device_state is None:
+                self._last_device_state = active
+                return
         else:
-            _LOGGER.info(
+            _LOGGER.debug(
                 "%s: Turning %s %s", self.entity_id, state, ", ".join(entities)
             )
 
         for entity in entities:
             domain, service = self._device_service(entity, active)
-            _LOGGER.debug(f"{self.entity_id}: Calling {domain}.{service} on {entity}")
+            _LOGGER.debug(
+                "%s: Calling %s.%s on %s", self.entity_id, domain, service, entity
+            )
             await self.hass.services.async_call(
                 domain, service, {ATTR_ENTITY_ID: entity}
             )
 
+        # Dès qu'une transition effective a lieu (refresh is False), on enregistre l'état ET le timestamp !
         if not refresh:
             self._mark_device_state(active)
 
-    async def _async_heater_turn_on(self):
-        """Turn heater toggleable device on."""
-        await self._async_set_device_state(True)
-
-    async def _async_heater_turn_off(self, force=False):
-        """Turn heater toggleable device off."""
-        await self._async_set_device_state(False, force=force)
-
-    async def _async_set_valve_value(self, value: float):
-        if not self._is_device_available:
-            entities_list = ", ".join(
-                [entity for entity in self.heater_or_cooler_entity]
+    async def _async_device_turn_on(self, entities: list[str] | None = None):
+        """Turn the toggleable devices on."""
+        if not entities:
+            entities, _ = self._separate_entities_by_control_type(
+                self._controlled_entities
             )
-            _LOGGER.info(
-                f"{self.entity_id}: Device is not ready, 'Set valve value' rejected for {entities_list}"
-            )
-            return
+        await self._async_set_device_state(entities, True)
 
-        _LOGGER.info(
+    async def _async_device_turn_off(
+        self, entities: list[str] | None = None, force: bool = False
+    ):
+        """Turn the toggleable devices off."""
+        if not entities:
+            entities, _ = self._separate_entities_by_control_type(
+                self._controlled_entities
+            )
+        await self._async_set_device_state(entities, False, force=force)
+
+    async def _async_set_analog_value(self, entities: list[str], value: float):
+        """Set the analog value for the given entities."""
+        # Get if the target value is considered active (non-zero) or inactive (zero)
+        target_active = value > 0
+
+        # Check if the device state is changing from active to inactive or vice versa
+        if (
+            self._last_device_state is not None
+            and target_active != self._last_device_state
+        ):
+            # If minimum cycle duration is not respected, reject the change and log it
+            if not self._min_cycle_allows(target_active):
+                _LOGGER.debug(
+                    "%s: Reject analog state change to %s for %s: Cycle is too short",
+                    self.entity_id,
+                    value,
+                    ", ".join(entities),
+                )
+                return
+
+        _LOGGER.debug(
             "%s: Change state of %s to %s",
             self.entity_id,
-            ", ".join([entity for entity in self.heater_or_cooler_entity]),
+            ", ".join(entities),
             value,
         )
-        for heater_or_cooler_entity in self.heater_or_cooler_entity:
-            entity_domain = split_entity_id(heater_or_cooler_entity)[0]
+
+        for entity_id in entities:
+            if not self._is_entity_available(entity_id):
+                _LOGGER.warning(
+                    "%s: Device is not ready, 'Set analog value' rejected for %s",
+                    self.entity_id,
+                    entity_id,
+                )
+
+            entity_domain = split_entity_id(entity_id)[0]
             if entity_domain == LIGHT_DOMAIN:
                 data = {
-                    ATTR_ENTITY_ID: heater_or_cooler_entity,
-                    ATTR_BRIGHTNESS_PCT: value,
+                    ATTR_ENTITY_ID: entity_id,
+                    ATTR_BRIGHTNESS_PCT: round(value),
                 }
                 await self.hass.services.async_call(
                     LIGHT_DOMAIN, SERVICE_TURN_LIGHT_ON, data
                 )
             elif entity_domain == VALVE_DOMAIN:
-                data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_POSITION: value}
+                data = {ATTR_ENTITY_ID: entity_id, ATTR_POSITION: round(value)}
                 await self.hass.services.async_call(
                     VALVE_DOMAIN, SERVICE_SET_VALVE_POSITION, data
                 )
             elif entity_domain == FAN_DOMAIN:
-                data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_PERCENTAGE: value}
+                data = {ATTR_ENTITY_ID: entity_id, ATTR_PERCENTAGE: round(value)}
                 await self.hass.services.async_call(
                     FAN_DOMAIN, SERVICE_TURN_FAN_ON, data
                 )
             elif entity_domain == CLIMATE_DOMAIN:
-                state = self.hass.states.get(heater_or_cooler_entity).state
+                state_obj = self.hass.states.get(entity_id)
+                state = state_obj.state if state_obj else None
                 if self.hvac_mode != state:
                     data = {
-                        ATTR_ENTITY_ID: heater_or_cooler_entity,
+                        ATTR_ENTITY_ID: entity_id,
                         ATTR_HVAC_MODE: self.hvac_mode,
                     }
                     await self.hass.services.async_call(
                         CLIMATE_DOMAIN, SERVICE_SET_HVAC_MODE, data
                     )
                 if self.hvac_mode != HVACMode.OFF:
-                    data = {
-                        ATTR_ENTITY_ID: heater_or_cooler_entity,
-                        ATTR_TEMPERATURE: value,
-                    }
-                    await self.hass.services.async_call(
-                        CLIMATE_DOMAIN, SERVICE_SET_TEMPERATURE, data
+                    target_step = (
+                        state_obj.attributes.get(ATTR_TARGET_TEMP_STEP, 0.5)
+                        if state_obj
+                        else 0.5
                     )
+                    if not target_step or target_step <= 0:
+                        target_temp = round(value, 2)
+                    else:
+                        target_temp = round(round(value / target_step) * target_step, 2)
+                    current_target = (
+                        state_obj.attributes.get(ATTR_TEMPERATURE)
+                        if state_obj
+                        else None
+                    )
+
+                    if current_target is None or abs(value - current_target) >= (
+                        target_step - 1e-4
+                    ):
+                        if target_temp != current_target:
+                            data = {
+                                ATTR_ENTITY_ID: entity_id,
+                                ATTR_TEMPERATURE: target_temp,
+                            }
+                            await self.hass.services.async_call(
+                                CLIMATE_DOMAIN, SERVICE_SET_TEMPERATURE, data
+                            )
             else:
-                data = {ATTR_ENTITY_ID: heater_or_cooler_entity, ATTR_VALUE: value}
+                data = {
+                    ATTR_ENTITY_ID: entity_id,
+                    ATTR_VALUE: round(value, self._output_precision),
+                }
                 await self.hass.services.async_call(
-                    self._get_number_entity_domain(heater_or_cooler_entity),
+                    self._get_number_entity_domain(entity_id),
                     SERVICE_SET_VALUE,
                     data,
                 )
+
+        # If a real transition 0 <-> >0 has occurred, we update the cycle timer
+        if self._last_device_state != target_active:
+            self._mark_device_state(target_active)
 
     async def async_set_preset_mode(self, preset_mode: str):
         """Set new preset mode.
@@ -1938,30 +2043,42 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     async def set_control_value(self):
         """Set Output value for heater"""
-        if self._pwm:
+        control_entities = (
+            self._controlled_entities
+            if self._control_output != 0
+            else self._all_heat_cool_entities
+        )
+        on_off_entities, analog_entities = self._separate_entities_by_control_type(
+            control_entities
+        )
+
+        if on_off_entities:
             if abs(self._control_output) == self._difference:
                 if not self._is_device_active:
-                    _LOGGER.info(
+                    _LOGGER.debug(
                         "%s: Output is %s. Request turning ON %s",
                         self.entity_id,
                         self._difference,
-                        ", ".join([entity for entity in self.heater_or_cooler_entity]),
+                        ", ".join(on_off_entities),
                     )
-                await self._async_heater_turn_on()
+                await self._async_device_turn_on(on_off_entities)
             elif abs(self._control_output) > 0:
-                await self.pwm_switch()
+                await self.pwm_switch(on_off_entities)
             else:
                 if self._is_device_active:
-                    _LOGGER.info(
+                    _LOGGER.debug(
                         "%s: Output is 0. Request turning OFF %s",
                         self.entity_id,
-                        ", ".join([entity for entity in self.heater_or_cooler_entity]),
+                        ", ".join(on_off_entities),
                     )
-                await self._async_heater_turn_off()
-        else:
-            await self._async_set_valve_value(abs(self._control_output))
+                await self._async_device_turn_off(on_off_entities)
+        if analog_entities:
+            if self._control_output != 0 or self._is_device_active:
+                await self._async_set_analog_value(
+                    analog_entities, abs(self._control_output)
+                )
 
-    async def pwm_switch(self):
+    async def pwm_switch(self, entities: list[str]):
         """turn off and on the heater proportionally to control_value."""
         time_passed = (
             float("inf")
@@ -1982,37 +2099,37 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             time_off = self._min_off_cycle_duration.total_seconds()
         if self._is_device_active:
             if time_on <= time_passed or self._force_off:
-                _LOGGER.info(
+                _LOGGER.debug(
                     "%s: ON time passed. Request turning OFF %s",
                     self.entity_id,
-                    ", ".join([entity for entity in self.heater_or_cooler_entity]),
+                    ", ".join(entities),
                 )
-                await self._async_heater_turn_off()
+                await self._async_device_turn_off(entities)
             else:
-                _LOGGER.info(
+                _LOGGER.debug(
                     "%s: Time until %s turns OFF: %s sec",
                     self.entity_id,
-                    ", ".join([entity for entity in self.heater_or_cooler_entity]),
+                    ", ".join(entities),
                     int(time_on - time_passed),
                 )
                 if self._keep_alive:
-                    await self._async_heater_turn_on()
+                    await self._async_device_turn_on(entities)
         else:
             if time_off <= time_passed or self._force_on:
-                _LOGGER.info(
+                _LOGGER.debug(
                     "%s: OFF time passed. Request turning ON %s",
                     self.entity_id,
-                    ", ".join([entity for entity in self.heater_or_cooler_entity]),
+                    ", ".join(entities),
                 )
-                await self._async_heater_turn_on()
+                await self._async_device_turn_on(entities)
             else:
-                _LOGGER.info(
+                _LOGGER.debug(
                     "%s: Time until %s turns ON: %s sec",
                     self.entity_id,
-                    ", ".join([entity for entity in self.heater_or_cooler_entity]),
+                    ", ".join(entities),
                     int(time_off - time_passed),
                 )
                 if self._keep_alive:
-                    await self._async_heater_turn_off()
+                    await self._async_device_turn_off(entities)
         self._force_on = False
         self._force_off = False

@@ -41,6 +41,7 @@ def _thermostat_config(**overrides):
     config = {key: value for key, value in config.items() if value is not None}
     return {CLIMATE_DOMAIN: config}
 
+
 async def _setup_services(hass, follow_state: bool):
     """Register switch services; follow_state mirrors the command into the entity state."""
     await async_setup_component(hass, "switch", {})
@@ -63,10 +64,12 @@ async def _setup_services(hass, follow_state: bool):
     hass.services.async_register("switch", "turn_off", _handle)
     return calls
 
+
 def _entity(hass):
     return hass.data["entity_components"]["climate"].get_entity(
         "climate.test_thermostat"
     )
+
 
 def _restore(hass, state=HVACMode.HEAT, temperature=20.0):
     mock_restore_cache(
@@ -79,6 +82,7 @@ def _restore(hass, state=HVACMode.HEAT, temperature=20.0):
             ),
         ),
     )
+
 
 async def _start(hass, temperature="20.0", config=None):
     hass.states.async_set("sensor.temperature", temperature)
@@ -153,12 +157,12 @@ async def test_refresh_does_not_restart_cycle_timer(hass):
     cycle_time = entity._last_heat_cycle_time
     service_calls = len(calls)
 
-    await entity._async_heater_turn_on()  # keep-alive refresh
+    await entity._async_device_turn_on()  # keep-alive refresh
     assert len(calls) == service_calls + 1
     assert calls[-1][0] == "turn_on"
     assert entity._last_heat_cycle_time == cycle_time
 
-    await entity._async_heater_turn_off()  # still inside the minimum ON cycle
+    await entity._async_device_turn_off()  # still inside the minimum ON cycle
     assert len(calls) == service_calls + 1
 
 
@@ -180,7 +184,7 @@ async def test_external_device_change_restarts_cycle_timer(hass):
     assert entity._last_device_state is False
     assert entity._last_heat_cycle_time > cycle_time
 
-    await entity._async_heater_turn_on()  # minimum OFF cycle not elapsed
+    await entity._async_device_turn_on()  # minimum OFF cycle not elapsed
     assert len(calls) == service_calls
 
 
