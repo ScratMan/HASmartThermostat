@@ -154,13 +154,13 @@ async def test_refresh_does_not_restart_cycle_timer(hass):
     hass.states.async_set("sensor.temperature", "10.0")
     await hass.async_block_till_done()
     assert calls[-1][0] == "turn_on"
-    cycle_time = entity._last_heat_cycle_time
+    cycle_time = entity._last_switch_cycle_time
     service_calls = len(calls)
 
     await entity._async_device_turn_on()  # keep-alive refresh
     assert len(calls) == service_calls + 1
     assert calls[-1][0] == "turn_on"
-    assert entity._last_heat_cycle_time == cycle_time
+    assert entity._last_switch_cycle_time == cycle_time
 
     await entity._async_device_turn_off()  # still inside the minimum ON cycle
     assert len(calls) == service_calls + 1
@@ -176,13 +176,13 @@ async def test_external_device_change_restarts_cycle_timer(hass):
     hass.states.async_set("sensor.temperature", "10.0")
     await hass.async_block_till_done()
     assert calls[-1][0] == "turn_on"
-    cycle_time = entity._last_heat_cycle_time
+    cycle_time = entity._last_switch_cycle_time
     service_calls = len(calls)
 
     hass.states.async_set("switch.heater_switch", "off")  # external actor
     await hass.async_block_till_done()
-    assert entity._last_device_state is False
-    assert entity._last_heat_cycle_time > cycle_time
+    assert entity._last_switch_state is False
+    assert entity._last_switch_cycle_time > cycle_time
 
     await entity._async_device_turn_on()  # minimum OFF cycle not elapsed
     assert len(calls) == service_calls
