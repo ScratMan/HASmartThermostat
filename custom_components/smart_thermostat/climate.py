@@ -107,10 +107,15 @@ _DURATION_KEYS = (
     const.CONF_MIN_OFF_CYCLE_DURATION,
     const.CONF_MIN_CYCLE_DURATION_PID_OFF,
     const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF,
+    const.CONF_MIN_CYCLE_DURATION_COOL,
+    const.CONF_MIN_OFF_CYCLE_DURATION_COOL,
+    const.CONF_MIN_CYCLE_DURATION_PID_OFF_COOL,
+    const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF_COOL,
     const.CONF_KEEP_ALIVE,
     const.CONF_SAMPLING_PERIOD,
     const.CONF_SENSOR_STALL,
     const.CONF_PWM,
+    const.CONF_PWM_COOL,
     const.CONF_LOOKBACK,
     const.CONF_DERIVATIVE_FILTER,
 )
@@ -183,6 +188,16 @@ def _build_parameters(hass: HomeAssistant, config: Mapping[str, Any]) -> dict[st
         "min_off_cycle_duration_pid_off": normalized.get(
             const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF
         ),
+        "min_cycle_duration_cool": normalized.get(const.CONF_MIN_CYCLE_DURATION_COOL),
+        "min_off_cycle_duration_cool": normalized.get(
+            const.CONF_MIN_OFF_CYCLE_DURATION_COOL
+        ),
+        "min_cycle_duration_pid_off_cool": normalized.get(
+            const.CONF_MIN_CYCLE_DURATION_PID_OFF_COOL
+        ),
+        "min_off_cycle_duration_pid_off_cool": normalized.get(
+            const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF_COOL
+        ),
         "keep_alive": normalized.get(const.CONF_KEEP_ALIVE),
         "sampling_period": normalized.get(const.CONF_SAMPLING_PERIOD),
         "sensor_stall": normalized.get(const.CONF_SENSOR_STALL),
@@ -204,11 +219,20 @@ def _build_parameters(hass: HomeAssistant, config: Mapping[str, Any]) -> dict[st
         "output_max": normalized.get(const.CONF_OUTPUT_MAX),
         "output_clamp_low": normalized.get(const.CONF_OUT_CLAMP_LOW),
         "output_clamp_high": normalized.get(const.CONF_OUT_CLAMP_HIGH),
+        "output_min_cool": normalized.get(const.CONF_OUTPUT_MIN_COOL),
+        "output_max_cool": normalized.get(const.CONF_OUTPUT_MAX_COOL),
+        "output_clamp_low_cool": normalized.get(const.CONF_OUT_CLAMP_LOW_COOL),
+        "output_clamp_high_cool": normalized.get(const.CONF_OUT_CLAMP_HIGH_COOL),
         "kp": normalized.get(const.CONF_KP),
         "ki": normalized.get(const.CONF_KI),
         "kd": normalized.get(const.CONF_KD),
         "ke": normalized.get(const.CONF_KE),
         "pwm": normalized.get(const.CONF_PWM),
+        "kp_cool": normalized.get(const.CONF_KP_COOL),
+        "ki_cool": normalized.get(const.CONF_KI_COOL),
+        "kd_cool": normalized.get(const.CONF_KD_COOL),
+        "ke_cool": normalized.get(const.CONF_KE_COOL),
+        "pwm_cool": normalized.get(const.CONF_PWM_COOL),
         "boost_pid_off": normalized.get(const.CONF_BOOST_PID_OFF),
         "autotune": normalized.get(const.CONF_AUTOTUNE),
         "noiseband": normalized.get(const.CONF_NOISEBAND),
@@ -324,6 +348,18 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF): vol.All(
             cv.time_period, cv.positive_timedelta
         ),
+        vol.Optional(const.CONF_MIN_CYCLE_DURATION_COOL): vol.All(
+            cv.time_period, cv.positive_timedelta
+        ),
+        vol.Optional(const.CONF_MIN_OFF_CYCLE_DURATION_COOL): vol.All(
+            cv.time_period, cv.positive_timedelta
+        ),
+        vol.Optional(const.CONF_MIN_CYCLE_DURATION_PID_OFF_COOL): vol.All(
+            cv.time_period, cv.positive_timedelta
+        ),
+        vol.Optional(const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF_COOL): vol.All(
+            cv.time_period, cv.positive_timedelta
+        ),
         vol.Required(const.CONF_KEEP_ALIVE): vol.All(
             cv.time_period, cv.positive_timedelta
         ),
@@ -370,11 +406,26 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(const.CONF_OUT_CLAMP_HIGH): vol.Maybe(
             vol.Any(vol.Coerce(float), cv.entity_id)
         ),
+        vol.Optional(const.CONF_OUTPUT_MIN_COOL): vol.Coerce(float),
+        vol.Optional(const.CONF_OUTPUT_MAX_COOL): vol.Coerce(float),
+        vol.Optional(const.CONF_OUT_CLAMP_LOW_COOL): vol.Maybe(
+            vol.Any(vol.Coerce(float), cv.entity_id)
+        ),
+        vol.Optional(const.CONF_OUT_CLAMP_HIGH_COOL): vol.Maybe(
+            vol.Any(vol.Coerce(float), cv.entity_id)
+        ),
         vol.Optional(const.CONF_KP, default=const.DEFAULT_KP): vol.Coerce(float),
         vol.Optional(const.CONF_KI, default=const.DEFAULT_KI): vol.Coerce(float),
         vol.Optional(const.CONF_KD, default=const.DEFAULT_KD): vol.Coerce(float),
         vol.Optional(const.CONF_KE, default=const.DEFAULT_KE): vol.Coerce(float),
         vol.Optional(const.CONF_PWM, default=const.DEFAULT_PWM): vol.All(
+            cv.time_period, cv.positive_timedelta
+        ),
+        vol.Optional(const.CONF_KP_COOL): vol.Coerce(float),
+        vol.Optional(const.CONF_KI_COOL): vol.Coerce(float),
+        vol.Optional(const.CONF_KD_COOL): vol.Coerce(float),
+        vol.Optional(const.CONF_KE_COOL): vol.Coerce(float),
+        vol.Optional(const.CONF_PWM_COOL): vol.All(
             cv.time_period, cv.positive_timedelta
         ),
         vol.Optional(const.CONF_BOOST_PID_OFF, default=False): cv.boolean,
@@ -463,6 +514,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._last_switch_state = None
         self._last_analog_state = None
         self._last_analog_cycle_time = None
+
         self._min_on_cycle_duration_pid_on = kwargs.get(
             "min_cycle_duration"
         ) or timedelta(seconds=0)
@@ -471,6 +523,18 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._min_off_cycle_duration_pid_off = kwargs.get(
             "min_off_cycle_duration_pid_off"
         )
+
+        self._min_on_cycle_duration_pid_on_cool = kwargs.get("min_cycle_duration_cool")
+        self._min_off_cycle_duration_pid_on_cool = kwargs.get(
+            "min_off_cycle_duration_cool"
+        )
+        self._min_on_cycle_duration_pid_off_cool = kwargs.get(
+            "min_cycle_duration_pid_off_cool"
+        )
+        self._min_off_cycle_duration_pid_off_cool = kwargs.get(
+            "min_off_cycle_duration_pid_off_cool"
+        )
+
         self._active = False
         self._trigger_source = None
         self._current_temp = None
@@ -533,13 +597,31 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._output_clamp_high = self.set_none_params_default(
             kwargs, "output_clamp_high", self._output_max
         )
+
+        out_min_cool = kwargs.get("output_min_cool")
+        self._output_min_cool = -abs(out_min_cool) if out_min_cool is not None else None
+        out_max_cool = kwargs.get("output_max_cool")
+        self._output_max_cool = -abs(out_max_cool) if out_max_cool is not None else None
+        out_clamp_low_cool = kwargs.get("output_clamp_low_cool")
+        self._output_clamp_low_cool = (
+            -abs(out_clamp_low_cool)
+            if isinstance(out_clamp_low_cool, (int, float))
+            else out_clamp_low_cool
+        )
+        out_clamp_high_cool = kwargs.get("output_clamp_high_cool")
+        self._output_clamp_high_cool = (
+            -abs(out_clamp_high_cool)
+            if isinstance(out_clamp_high_cool, (int, float))
+            else out_clamp_high_cool
+        )
+
         self._difference = self._output_max - self._output_min
         self._pid_out_min = self._pid_clamp_low = self.__clamp_low_value__ = (
-            self._output_min
-        )
+            self.__clamp_low_value_cool__
+        ) = self._output_min
         self._pid_out_max = self._pid_clamp_high = self.__clamp_high_value__ = (
-            self._output_max
-        )
+            self.__clamp_high_value_cool__
+        ) = self._output_max
 
         if self._heater_entity_id is not None and self._cooler_entity_id is not None:
             # If both heater and cooler are defined, or if ac_mode is enabled, we support both heat and cool modes
@@ -559,11 +641,22 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self._pid_out_max = 0
             self._ac_mode = False
         self._last_active_hvac = None
+
+        self._pid_mode = "auto"
+
         self._kp = kwargs.get("kp", 100)
         self._ki = kwargs.get("ki", 0)
         self._kd = kwargs.get("kd", 0)
         self._ke = kwargs.get("ke", 0)
         self._pwm = kwargs.get("pwm", timedelta(minutes=15)).total_seconds()
+
+        self._kp_cool = kwargs.get("kp_cool")
+        self._ki_cool = kwargs.get("ki_cool")
+        self._kd_cool = kwargs.get("kd_cool")
+        self._ke_cool = kwargs.get("ke_cool")
+        pwm_cool = kwargs.get("pwm_cool")
+        self._pwm_cool = pwm_cool.total_seconds() if pwm_cool is not None else None
+
         self._p = self._i = self._d = self._e = self._dt = 0
         self._control_output = self._pid_output = self._output_min
         self._force_on = False
@@ -586,16 +679,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         self._hot_tolerance = abs(kwargs.get("hot_tolerance", 0.3))
         self._last_sensor_update = time.time()
         self._last_ext_sensor_update = time.time()
-        self._pid_controller = pid_controller.PID(
-            self._kp,
-            self._ki,
-            self._kd,
-            self._ke,
-            self._pid_out_min,
-            self._pid_out_max,
-            self._sampling_period.total_seconds(),
-            self._derivative_filter_seconds,
-        )
         if self._autotune != "none":
             self._pid_mode = "off"
             self._pid_autotune = pid_controller.PIDAutotune(
@@ -616,11 +699,150 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             _LOGGER.debug(
                 "%s: PID Gains kp = %s, ki = %s, kd = %s",
                 self.unique_id,
-                self._kp,
-                self._ki,
-                self._kd,
+                self.kp,
+                self.ki,
+                self.kd,
             )
-            self._pid_mode = "auto"
+            self._pid_controller = pid_controller.PID(
+                self.kp,
+                self.ki,
+                self.kd,
+                self.ke,
+                self._pid_out_min,
+                self._pid_out_max,
+                self._sampling_period.total_seconds(),
+                self._derivative_filter_seconds,
+            )
+
+    # @property
+    # def kp_cool(self) -> float:
+    #     """Return the Kp value for cooling mode."""
+    #     if self._kp_cool is not None:
+    #         return self._kp_cool
+    #     return self._kp
+
+    # @property
+    # def ki_cool(self) -> float:
+    #     """Return the Ki value for cooling mode."""
+    #     if self._ki_cool is not None:
+    #         return self._ki_cool
+    #     return self._ki
+
+    # @property
+    # def kd_cool(self) -> float:
+    #     """Return the Kd value for cooling mode."""
+    #     if self._kd_cool is not None:
+    #         return self._kd_cool
+    #     return self._kd
+
+    # @property
+    # def ke_cool(self) -> float:
+    #     """Return the Ke value for cooling mode."""
+    #     if self._ke_cool is not None:
+    #         return self._ke_cool
+    #     return self._ke
+
+    # @property
+    # def pwm_cool(self) -> float:
+    #     """Return the PWM duration in seconds for cooling mode."""
+    #     if self._pwm_cool is not None:
+    #         return self._pwm_cool
+    #     return self._pwm
+
+    # @property
+    # def output_min_cool(self) -> float:
+    #     """Return the output min value for cooling mode."""
+    #     if self._output_min_cool is not None:
+    #         return self._output_min_cool
+    #     return -self._output_max
+
+    # @property
+    # def output_max_cool(self) -> float:
+    #     """Return the output max value for cooling mode."""
+    #     if self._output_max_cool is not None:
+    #         return self._output_max_cool
+    #     return -self._output_min
+
+    # @property
+    # def output_clamp_low_cool(self) -> Any:
+    #     """Return the low clamp value for cooling mode."""
+    #     if self._output_clamp_low_cool is not None:
+    #         return self._output_clamp_low_cool
+    #     if isinstance(self.output_clamp_high, (int, float)):
+    #         return -self.output_clamp_high
+    #     return self.output_clamp_high
+
+    # @property
+    # def output_clamp_high_cool(self) -> Any:
+    #     """Return the high clamp value for cooling mode."""
+    #     if self._output_clamp_high_cool is not None:
+    #         return self._output_clamp_high_cool
+    #     if isinstance(self.output_clamp_low, (int, float)):
+    #         return -self.output_clamp_low
+    #     return self.output_clamp_low
+
+    # @property
+    # def min_cycle_duration_cool(self) -> timedelta | None:
+    #     """Return the minimum cycle duration for cooling mode."""
+    #     if self._min_on_cycle_duration_pid_on_cool is not None:
+    #         return self._min_on_cycle_duration_pid_on_cool
+    #     return self._min_on_cycle_duration_pid_on
+
+    # @property
+    # def min_off_cycle_duration_cool(self) -> timedelta | None:
+    #     """Return the minimum off cycle duration for cooling mode."""
+    #     if self._min_off_cycle_duration_pid_on_cool is not None:
+    #         return self._min_off_cycle_duration_pid_on_cool
+    #     return self._min_off_cycle_duration_pid_on
+
+    # @property
+    # def min_cycle_duration_pid_off_cool(self) -> timedelta | None:
+    #     """Return the minimum cycle duration with PID off for cooling mode."""
+    #     if self._min_on_cycle_duration_pid_off_cool is not None:
+    #         return self._min_on_cycle_duration_pid_off_cool
+    #     return self._min_on_cycle_duration_pid_off
+
+    # @property
+    # def min_off_cycle_duration_pid_off_cool(self) -> timedelta | None:
+    #     """Return the minimum off cycle duration with PID off for cooling mode."""
+    #     if self._min_off_cycle_duration_pid_off_cool is not None:
+    #         return self._min_off_cycle_duration_pid_off_cool
+    #     return self._min_off_cycle_duration_pid_off
+
+    @property
+    def kp(self) -> float:
+        """Return active Kp depending on current HVAC mode."""
+        return self._get_parameter("kp")
+
+    @property
+    def ki(self) -> float:
+        """Return active Ki depending on current HVAC mode."""
+        return self._get_parameter("ki")
+
+    @property
+    def kd(self) -> float:
+        """Return active Kd depending on current HVAC mode."""
+        return self._get_parameter("kd")
+
+    @property
+    def ke(self) -> float:
+        """Return active Ke depending on current HVAC mode."""
+        return self._get_parameter("ke")
+
+    @property
+    def pwm(self) -> float:
+        """Return active PWM depending on current HVAC mode."""
+        return self._get_parameter("pwm")
+
+    @property
+    def output_min(self) -> float:
+        """Return the minimum output value."""
+        return self._get_parameter("output_min")
+
+    @property
+    def output_max(self) -> float:
+        """Return the maximum output value."""
+        return self._get_parameter("output_max")
 
     @staticmethod
     def set_none_params_default(
@@ -704,11 +926,18 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     self.hass, self.calc_pid, self._sampling_period
                 )
             )
-        clamp_entities = [
-            e
-            for e in (self._output_clamp_low, self._output_clamp_high)
-            if isinstance(e, str) and cv.entity_id(e)
-        ]
+        clamp_entities = set(
+            [
+                e
+                for e in (
+                    self._output_clamp_low,
+                    self._output_clamp_high,
+                    self._output_clamp_low_cool,
+                    self._output_clamp_high_cool,
+                )
+                if isinstance(e, str) and cv.entity_id(e)
+            ]
+        )
 
         if clamp_entities:
             for entity_id in clamp_entities:
@@ -792,7 +1021,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                         gain_value = float(
                             old_state.attributes.get(gain_name, default_value)
                         )
-                        self._pid_controller.set_pid_param(**{gain_name: gain_value})
                         setattr(self, f"_{gain_name}", gain_value)
 
                 for gain_name, default_value in [
@@ -802,6 +1030,24 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                     ("ke", 0),
                 ]:
                     restore_pid_gains(gain_name, default_value)
+
+                if any(
+                    [
+                        old_state.attributes.get("kp_cool") is not None,
+                        old_state.attributes.get("ki_cool") is not None,
+                        old_state.attributes.get("kd_cool") is not None,
+                        old_state.attributes.get("ke_cool") is not None,
+                    ]
+                ):
+                    for gain_name, default_value in [
+                        ("kp_cool", None),
+                        ("ki_cool", None),
+                        ("kd_cool", None),
+                        ("ke_cool", None),
+                    ]:
+                        restore_pid_gains(gain_name, default_value)
+
+                self._pid_controller.set_pid_param(self.kp, self.ki, self.kd, self.ke)
 
             if str(old_state.attributes.get("pid_mode", "auto")).lower() in [
                 "auto",
@@ -964,26 +1210,78 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 presets.update({mode: preset_mode_temp})
         return presets
 
-    @property
-    def _min_on_cycle_duration(self):
-        if self.pid_mode == "off" and self._min_on_cycle_duration_pid_off is not None:
-            return self._min_on_cycle_duration_pid_off
-        return self._min_on_cycle_duration_pid_on
+    def _get_parameter(self, name):
+        pid_mode = "_pid_off" if self.pid_mode == "off" else "_pid_on"
+        cool = "_cool" if self._hvac_mode == HVACMode.COOL else ""
+        for param_name in [
+            f"_{name}{pid_mode}{cool}",
+            f"_{name}_pid_on{cool}",
+            f"_{name}{cool}",
+            f"_{name}{pid_mode}",
+            f"_{name}_pid_on",
+            f"_{name}",
+        ]:
+            if hasattr(self, param_name) and getattr(self, param_name) is not None:
+                return getattr(self, param_name)
+        return
 
     @property
-    def _min_off_cycle_duration(self):
-        if self.pid_mode == "off" and self._min_off_cycle_duration_pid_off is not None:
-            return self._min_off_cycle_duration_pid_off
-        if self.pid_mode == "off" and self._min_on_cycle_duration_pid_off is not None:
-            return self._min_on_cycle_duration_pid_off
-        elif self._min_off_cycle_duration_pid_on is not None:
-            return self._min_off_cycle_duration_pid_on
-        return self._min_on_cycle_duration
+    def min_on_cycle_duration(self):
+        name = "min_on_cycle_duration"
+        value = self._get_parameter(name)
+        if value is None:
+            raise ValueError(f"Parameter {name} is not defined for this thermostat.")
+        return value
+
+        # if self._hvac_mode == HVACMode.COOL:
+        #     if (
+        #         self.pid_mode == "off"
+        #         and self.min_cycle_duration_pid_off_cool is not None
+        #     ):
+        #         return self.min_cycle_duration_pid_off_cool
+        #     if self.min_cycle_duration_cool is not None:
+        #         return self.min_cycle_duration_cool
+
+        # if self.pid_mode == "off" and self._min_on_cycle_duration_pid_off is not None:
+        #     return self._min_on_cycle_duration_pid_off
+        # return self._min_on_cycle_duration_pid_on
+
+    @property
+    def min_off_cycle_duration(self):
+        name = "min_off_cycle_duration"
+        value = self._get_parameter(name)
+        if value is None:
+            return self._get_parameter("min_on_cycle_duration")
+        return value
+
+        # if self._hvac_mode == HVACMode.COOL:
+        #     if (
+        #         self.pid_mode == "off"
+        #         and self.min_off_cycle_duration_pid_off_cool is not None
+        #     ):
+        #         return self.min_off_cycle_duration_pid_off_cool
+        #     if (
+        #         self.pid_mode == "off"
+        #         and self.min_cycle_duration_pid_off_cool is not None
+        #     ):
+        #         return self.min_cycle_duration_pid_off_cool
+        #     elif self.min_off_cycle_duration_cool is not None:
+        #         return self.min_off_cycle_duration_cool
+        #     elif self.min_cycle_duration_cool is not None:
+        #         return self.min_cycle_duration_cool
+
+        # if self.pid_mode == "off" and self._min_off_cycle_duration_pid_off is not None:
+        #     return self._min_off_cycle_duration_pid_off
+        # if self.pid_mode == "off" and self._min_on_cycle_duration_pid_off is not None:
+        #     return self._min_on_cycle_duration_pid_off
+        # elif self._min_off_cycle_duration_pid_on is not None:
+        #     return self._min_off_cycle_duration_pid_on
+        # return self.min_on_cycle_duration
 
     @property
     def pid_parm(self):
         """Return the pid parameters of the thermostat."""
-        return self._kp, self._ki, self._kd
+        return self.kp, self.ki, self.kd
 
     @property
     def pid_control_p(self):
@@ -1018,7 +1316,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     @property
     def output_clamp_low(self):
         """Return the low clamp value for PID output."""
-        # If a unique_id is used, check entity's value
+        if self._hvac_mode == HVACMode.COOL:
+            if isinstance(self._output_clamp_low_cool, str):
+                return self.__clamp_low_value_cool__
+            if self._output_clamp_low_cool is not None:
+                return self._output_clamp_low_cool
+
         if isinstance(self._output_clamp_low, str):
             return self.__clamp_low_value__
         return self._output_clamp_low
@@ -1026,7 +1329,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     @property
     def output_clamp_high(self):
         """Return the high clamp value for PID output."""
-        # If a unique_id is used, check entity's value
+        if self._hvac_mode == HVACMode.COOL:
+            if isinstance(self._output_clamp_high_cool, str):
+                return self.__clamp_high_value_cool__
+            if self._output_clamp_high_cool is not None:
+                return self._output_clamp_high_cool
+
         if isinstance(self._output_clamp_high, str):
             return self.__clamp_high_value__
         return self._output_clamp_high
@@ -1051,6 +1359,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             "pid_i": 0 if self._autotune != "none" else self.pid_control_i,
             "derivative_filter": self._derivative_filter_seconds,
         }
+        if any([self._kp_cool, self._ki_cool, self._kd_cool, self._ke_cool]):
+            device_state_attributes.update(
+                {
+                    "kp_cool": self._kp_cool,
+                    "ki_cool": self._ki_cool,
+                    "kd_cool": self._kd_cool,
+                    "ke_cool": self._ke_cool,
+                }
+            )
         if self._debug:
             device_state_attributes.update(
                 {
@@ -1098,8 +1415,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             return
 
         if entity_id == self._output_clamp_low:
+            if isinstance(self._output_clamp_high, str):
+                high_clamp = self.__clamp_high_value__
+            else:
+                high_clamp = self._output_clamp_high
             self.__clamp_low_value__ = min(
-                max(new_value, self._output_min), 0.9 * self.output_clamp_high
+                max(new_value, self._output_min), 0.9 * high_clamp
             )
             _LOGGER.debug(
                 "%s: Output clamp low set to %s from entity %s",
@@ -1107,14 +1428,46 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self.__clamp_low_value__,
                 entity_id,
             )
-        elif entity_id == self._output_clamp_high:
+        if entity_id == self._output_clamp_high:
+            if isinstance(self._output_clamp_low, str):
+                low_clamp = self.__clamp_low_value__
+            else:
+                low_clamp = self._output_clamp_low
             self.__clamp_high_value__ = min(
-                max(new_value, 1.1 * self.output_clamp_low), self._output_max
+                max(new_value, 1.1 * low_clamp), self._output_max
             )
             _LOGGER.debug(
                 "%s: Output clamp high set to %s from entity %s",
                 self.entity_id,
                 self.__clamp_high_value__,
+                entity_id,
+            )
+        if entity_id == self._output_clamp_low_cool:
+            if isinstance(self._output_clamp_high_cool, str):
+                high_clamp = abs(self.__clamp_high_value_cool__)
+            else:
+                high_clamp = abs(self._output_clamp_high_cool)
+            self.__clamp_low_value_cool__ = min(
+                max(new_value, abs(self._output_min_cool)), 0.9 * high_clamp
+            )
+            _LOGGER.debug(
+                "%s: Output clamp low (cool) set to %s from entity %s",
+                self.entity_id,
+                self.__clamp_low_value_cool__,
+                entity_id,
+            )
+        if entity_id == self._output_clamp_high_cool:
+            if isinstance(self._output_clamp_low_cool, str):
+                low_clamp = abs(self.__clamp_low_value_cool__)
+            else:
+                low_clamp = abs(self._output_clamp_low_cool)
+            self.__clamp_high_value_cool__ = min(
+                max(new_value, 1.1 * low_clamp), abs(self._output_max_cool)
+            )
+            _LOGGER.debug(
+                "%s: Output clamp high (cool) set to %s from entity %s",
+                self.entity_id,
+                self.__clamp_high_value_cool__,
                 entity_id,
             )
 
@@ -1143,26 +1496,29 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
     def _apply_hvac_mode_state(self, hvac_mode: HVACMode | str) -> bool:
         """Apply the HVAC mode and the output limits it defines, without driving the device."""
         if hvac_mode == HVACMode.HEAT:
-            self._pid_out_min = self._output_min
-            self._pid_out_max = self._output_max
+            self._hvac_mode = HVACMode.HEAT
+            self._pid_out_min = self.output_min
+            self._pid_out_max = self.output_max
             self._pid_clamp_low = self.output_clamp_low
             self._pid_clamp_high = self.output_clamp_high
-            self._hvac_mode = HVACMode.HEAT
+            self._difference = self.output_max - self.output_min
         elif hvac_mode == HVACMode.COOL:
-            self._pid_out_min = -self._output_max
-            self._pid_out_max = self._output_min
-            self._pid_clamp_low = -self.output_clamp_high
-            self._pid_clamp_high = -self.output_clamp_low
             self._hvac_mode = HVACMode.COOL
+            self._pid_out_min = -abs(self.output_max)
+            self._pid_out_max = -abs(self.output_min)
+            self._pid_clamp_low = -abs(self.output_clamp_high)
+            self._pid_clamp_high = -abs(self.output_clamp_low)
+            self._difference = abs(self.output_max - self.output_min)
         elif hvac_mode == HVACMode.HEAT_COOL:
-            self._pid_out_min = -self._output_max
-            self._pid_out_max = self._output_max
+            self._hvac_mode = HVACMode.HEAT_COOL
+            self._pid_out_min = -self.output_max
+            self._pid_out_max = self.output_max
             self._pid_clamp_low = -self.output_clamp_high
             self._pid_clamp_high = self.output_clamp_high
-            self._hvac_mode = HVACMode.HEAT_COOL
+            self._difference = 2 * abs(self._output_max)
         elif hvac_mode == HVACMode.OFF:
             self._hvac_mode = HVACMode.OFF
-            self._control_output = self._output_min
+            self._control_output = 0
             self._pid_out_min = self._pid_out_max = self._pid_clamp_low = (
                 self._pid_clamp_high
             ) = 0
@@ -1171,7 +1527,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             return False
 
         if self._pid_controller:
-            # Apply the new output limits to the PID controller after changing the mode
+            self._pid_controller.set_pid_param(self.kp, self.ki, self.kd, self.ke)
             self._pid_controller.out_max = self._pid_out_max
             self._pid_controller.out_min = self._pid_out_min
         return True
@@ -1191,21 +1547,37 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._pid_controller.clear_samples(clear_integral=False)
             await self.set_control_value()
 
-        # Clear samples when toggling between active modes (HEAT <-> COOL). Not when the mode is
-        # first set at startup (old mode None): that would discard the integral restored from pid_i.
         if self._hvac_mode != HVACMode.OFF:
-            # Reset integral only if the active thermal direction changed (e.g. HEAT -> COOL or HEAT -> OFF -> COOL)
+            # Reset integral and force turn off previous devices if the active thermal direction changed
             if (
                 self._last_active_hvac is not None
                 and self._last_active_hvac != self._hvac_mode
-                and self._pid_controller is not None
             ):
-                self._previous_temp = None
-                self._previous_temp_time = None
-                self._last_pid_calc_time = None
-                self._pid_controller.clear_samples(clear_integral=True)
+                # Turn off all physical entities immediately before starting the new mode
+                all_on_off, all_analog = self._separate_entities_by_control_type(
+                    self._all_heat_cool_entities
+                )
+                if all_on_off:
+                    await self._async_device_turn_off(all_on_off, force=True)
+                if all_analog:
+                    await self._async_set_analog_value(all_analog, 0.0)
+
+                # Reset cycle timers to allow immediate action in the new mode
+                self._last_switch_state = None
+                self._last_switch_cycle_time = None
+                self._last_analog_state = None
+                self._last_analog_cycle_time = None
+
+                # Reset PID samples and integral
+                if self._pid_controller is not None:
+                    self._previous_temp = None
+                    self._previous_temp_time = None
+                    self._last_pid_calc_time = None
+                    self._pid_controller.clear_samples(clear_integral=True)
+
             self._last_active_hvac = self._hvac_mode
             await self._async_control_heating(calc_pid=True)
+
         # Ensure we update the current operation after changing the mode
         self.async_write_ha_state()
 
@@ -1253,10 +1625,11 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     async def async_set_pid(self, **kwargs):
         """Set PID parameters."""
+        suffix = "_cool" if self._hvac_mode == HVACMode.COOL else ""
         for pid_kx, gain in kwargs.items():
             if gain is not None:
-                setattr(self, f"_{pid_kx}", float(gain))
-        self._pid_controller.set_pid_param(self._kp, self._ki, self._kd, self._ke)
+                setattr(self, f"_{pid_kx}{suffix}", float(gain))
+        self._pid_controller.set_pid_param(self.kp, self.ki, self.kd, self.ke)
 
         config_entry_id = (
             getattr(self.registry_entry, "config_entry_id", None)
@@ -1269,10 +1642,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             if config_entry:
                 new_options = {
                     **config_entry.options,
-                    "kp": self._kp,
-                    "ki": self._ki,
-                    "kd": self._kd,
-                    "ke": self._ke,
+                    f"kp{suffix}": self.kp,
+                    f"ki{suffix}": self.ki,
+                    f"kd{suffix}": self.kd,
+                    f"ke{suffix}": self.ke,
                 }
                 self.hass.config_entries.async_update_entry(
                     config_entry, options=new_options
@@ -1533,7 +1906,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 # affecting the PID calculation.
                 if self._ext_temp is not None:
                     self._e = round(
-                        self._ke * (self._target_temp - self._ext_temp),
+                        self.ke * (self._target_temp - self._ext_temp),
                         self._output_precision,
                     )
                 else:
@@ -1716,9 +2089,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """Return True when the device stayed long enough in its current state."""
         if self._last_switch_cycle_time is None:
             return True
-        duration = (
-            self._min_off_cycle_duration if active else self._min_on_cycle_duration
-        )
+        duration = self.min_off_cycle_duration if active else self.min_on_cycle_duration
         return (
             time.monotonic() - self._last_switch_cycle_time >= duration.total_seconds()
         )
@@ -1727,9 +2098,7 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         """Return True when the analog device stayed long enough in its current active/inactive state."""
         if self._last_analog_cycle_time is None:
             return True
-        duration = (
-            self._min_off_cycle_duration if active else self._min_on_cycle_duration
-        )
+        duration = self.min_off_cycle_duration if active else self.min_on_cycle_duration
         return (
             time.monotonic() - self._last_analog_cycle_time >= duration.total_seconds()
         )
@@ -1988,23 +2357,24 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                             params.Kd,
                         )
                     params = self._pid_autotune.get_pid_parameters(self._autotune)
-                    self._kp = params.Kp
-                    self._ki = params.Ki
-                    self._kd = params.Kd
+                    suffix = "_cool" if self._hvac_mode == HVACMode.COOL else ""
+                    setattr(self, f"_kp{suffix}", params.Kp)
+                    setattr(self, f"_ki{suffix}", params.Ki)
+                    setattr(self, f"_kd{suffix}", params.Kd)
                     _LOGGER.warning(
                         "%s: Now running on PID Controller using "
                         "rule %s: Kp=%s, Ki=%s, Kd=%s",
                         self.entity_id,
                         self._autotune,
-                        self._kp,
-                        self._ki,
-                        self._kd,
+                        self.kp,
+                        self.ki,
+                        self.kd,
                     )
                     self._pid_controller = pid_controller.PID(
-                        self._kp,
-                        self._ki,
-                        self._kd,
-                        self._ke,
+                        self.kp,
+                        self.ki,
+                        self.kd,
+                        self.ke,
                         self._pid_out_min,
                         self._pid_out_max,
                         self._sampling_period.total_seconds(),
@@ -2105,18 +2475,19 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             if self._last_switch_cycle_time is None
             else time.monotonic() - self._last_switch_cycle_time
         )
-        # Compute time_on based on PWM duration and PID output
-        time_on = self._pwm * abs(self._control_output) / self._difference
-        time_off = self._pwm - time_on
+        # Compute time_on based on active PWM duration and PID output
+        active_pwm = self.pwm
+        time_on = active_pwm * abs(self._control_output) / self._difference
+        time_off = active_pwm - time_on
         # Check time_on and time_off are not too short
-        if 0 < time_on < self._min_on_cycle_duration.total_seconds():
+        if 0 < time_on < self.min_on_cycle_duration.total_seconds():
             # time_on is too short, increase time_off and time_on
-            time_off *= self._min_on_cycle_duration.total_seconds() / time_on
-            time_on = self._min_on_cycle_duration.total_seconds()
-        if 0 < time_off < self._min_off_cycle_duration.total_seconds():
+            time_off *= self.min_on_cycle_duration.total_seconds() / time_on
+            time_on = self.min_on_cycle_duration.total_seconds()
+        if 0 < time_off < self.min_off_cycle_duration.total_seconds():
             # time_off is too short, increase time_on and time_off
-            time_on *= self._min_off_cycle_duration.total_seconds() / time_off
-            time_off = self._min_off_cycle_duration.total_seconds()
+            time_on *= self.min_off_cycle_duration.total_seconds() / time_off
+            time_off = self.min_off_cycle_duration.total_seconds()
         if self._is_device_active:
             if time_on <= time_passed or self._force_off:
                 _LOGGER.debug(

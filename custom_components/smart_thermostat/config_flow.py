@@ -178,6 +178,16 @@ PID_SCHEMA = vol.Schema(
     }
 )
 
+PID_COOL_SCHEMA = vol.Schema(
+    {
+        vol.Optional(const.CONF_KP_COOL): NUMBER_SELECTOR,
+        vol.Optional(const.CONF_KI_COOL): NUMBER_SELECTOR,
+        vol.Optional(const.CONF_KD_COOL): NUMBER_SELECTOR,
+        vol.Optional(const.CONF_KE_COOL): NUMBER_SELECTOR,
+        vol.Optional(const.CONF_PWM_COOL): DURATION_SELECTOR,
+    }
+)
+
 ADVANCED_SCHEMA = vol.Schema(
     {
         vol.Optional(
@@ -232,6 +242,30 @@ ADVANCED_SCHEMA = vol.Schema(
     }
 )
 
+ADVANCED_COOL_SCHEMA = vol.Schema(
+    {
+        vol.Optional(const.CONF_OUTPUT_MIN_COOL): NUMBER_SELECTOR,
+        vol.Optional(const.CONF_OUTPUT_MAX_COOL): NUMBER_SELECTOR,
+        vol.Optional(const.CONF_OUT_CLAMP_LOW_COOL): CLAMP_SELECTOR,
+        vol.Optional(const.CONF_OUT_CLAMP_HIGH_COOL): CLAMP_SELECTOR,
+        vol.Optional(const.CONF_MIN_CYCLE_DURATION_COOL): DURATION_SELECTOR,
+        vol.Optional(const.CONF_MIN_OFF_CYCLE_DURATION_COOL): DURATION_SELECTOR,
+        vol.Required("advanced_cool_options"): section(
+            vol.Schema(
+                {
+                    vol.Optional(
+                        const.CONF_MIN_CYCLE_DURATION_PID_OFF_COOL
+                    ): DURATION_SELECTOR,
+                    vol.Optional(
+                        const.CONF_MIN_OFF_CYCLE_DURATION_PID_OFF_COOL
+                    ): DURATION_SELECTOR,
+                }
+            ),
+            options={"collapsed": True},
+        ),
+    }
+)
+
 
 async def _validate_config(
     handler: SchemaCommonFlowHandler, user_input: dict[str, Any]
@@ -262,17 +296,36 @@ async def _validate_config(
         if not (output_min <= clamp_low < clamp_high <= output_max):
             raise SchemaFlowError("output_min_max")
 
-    for clamp_key in (const.CONF_OUT_CLAMP_LOW, const.CONF_OUT_CLAMP_HIGH):
+    for clamp_key in (
+        const.CONF_OUT_CLAMP_LOW,
+        const.CONF_OUT_CLAMP_HIGH,
+        const.CONF_OUT_CLAMP_LOW_COOL,
+        const.CONF_OUT_CLAMP_HIGH_COOL,
+    ):
         val = user_input.get(clamp_key)
         if val is not None and isinstance(val, str):
             try:
                 # Convert to float if it's a number
                 user_input[clamp_key] = float(val)
             except ValueError:
-                # It's an entity ID, so we don't need to validate it here. It will be validated when the entity is resolved.
+                # It's an entity ID, so we don't need to validate it here.
                 pass
 
     return user_input
+
+
+async def _async_next_step_after_pid(options: dict[str, Any]) -> str:
+    """Determine next step after PID configuration based on cooler presence."""
+    if options.get(const.CONF_COOLER):
+        return "pid_cool"
+    return "advanced"
+
+
+async def _async_next_step_after_advanced(options: dict[str, Any]) -> str | None:
+    """Determine next step after Advanced configuration based on cooler presence."""
+    if options.get(const.CONF_COOLER):
+        return "advanced_cool"
+    return None
 
 
 STEPS_AFTER_INIT = {
@@ -287,10 +340,19 @@ STEPS_AFTER_INIT = {
     ),
     "pid": SchemaFlowFormStep(
         PID_SCHEMA,
+        next_step=_async_next_step_after_pid,
+    ),
+    "pid_cool": SchemaFlowFormStep(
+        PID_COOL_SCHEMA,
         next_step="advanced",
     ),
     "advanced": SchemaFlowFormStep(
         ADVANCED_SCHEMA,
+        validate_user_input=_validate_config,
+        next_step=_async_next_step_after_advanced,
+    ),
+    "advanced_cool": SchemaFlowFormStep(
+        ADVANCED_COOL_SCHEMA,
         validate_user_input=_validate_config,
     ),
 }
