@@ -75,8 +75,8 @@
         }
       },
       "pid": {
-        "title": "Controllo PID",
-        "description": "Configura i guadagni PID e il periodo PWM.",
+        "title": "Controllo PID (Riscaldamento)",
+        "description": "Configura i guadagni PID e il periodo PWM per il riscaldamento.",
         "data": {
           "kp": "Guadagno Proporzionale (Kp)",
           "ki": "Guadagno Integrale (Ki)",
@@ -111,9 +111,27 @@
           }
         }
       },
+      "pid_cool": {
+        "title": "Controllo PID (Raffreddamento)",
+        "description": "Configura i guadagni PID e il periodo PWM dedicati alla modalità raffreddamento (Lascia vuoto per ereditare i valori del riscaldamento).",
+        "data": {
+          "kp_cool": "Guadagno Proporzionale (Kp Cool)",
+          "ki_cool": "Guadagno Integrale (Ki Cool)",
+          "kd_cool": "Guadagno Derivativo (Kd Cool)",
+          "ke_cool": "Guadagno Compensazione Esterna (Ke Cool)",
+          "pwm_cool": "Periodo PWM (Raffreddamento)"
+        },
+        "data_description": {
+          "kp_cool": "Lascia vuoto per utilizzare il valore Kp del riscaldamento.",
+          "ki_cool": "Lascia vuoto per utilizzare il valore Ki del riscaldamento.",
+          "kd_cool": "Lascia vuoto per utilizzare il valore Kd del riscaldamento.",
+          "ke_cool": "Lascia vuoto per utilizzare il valore Ke del riscaldamento.",
+          "pwm_cool": "Lascia vuoto per utilizzare il periodo PWM del riscaldamento."
+        }
+      },
       "advanced": {
-        "title": "Impostazioni Avanzate",
-        "description": "Protezione cicli, limiti di uscita e sicurezza.",
+        "title": "Impostazioni Avanzate (Riscaldamento)",
+        "description": "Protezione cicli, limiti di uscita e sicurezza per il riscaldamento.",
         "data": {
           "output_precision": "Precisione di uscita",
           "output_min": "Uscita minima",
@@ -153,6 +171,40 @@
               "invert_heater": "Attiva se l'attuatore deve essere spento per riscaldare (es. relè invertito).",
               "force_off_state": "Garantisce che l'attuatore sia spento quando la modalità HVAC è OFF.",
               "debug": "Attiva la modalità di debug."
+            }
+          }
+        }
+      },
+      "advanced_cool": {
+        "title": "Impostazioni Avanzate (Raffreddamento)",
+        "description": "Protezione cicli e limiti di uscita per la modalità raffreddamento (Lascia vuoto per ereditare i valori del riscaldamento).",
+        "data": {
+          "output_min_cool": "Uscita minima (Raffreddamento)",
+          "output_max_cool": "Uscita massima (Raffreddamento)",
+          "out_clamp_low_cool": "Clamp di uscita basso (Raffreddamento)",
+          "out_clamp_high_cool": "Clamp di uscita alto (Raffreddamento)",
+          "min_cycle_duration_cool": "Durata minima ciclo (Raffreddamento)",
+          "min_off_cycle_duration_cool": "Durata minima arresto (Raffreddamento)"
+        },
+        "data_description": {
+          "output_min_cool": "Lascia vuoto per utilizzare l'uscita minima del riscaldamento.",
+          "output_max_cool": "Lascia vuoto per utilizzare l'uscita massima del riscaldamento.",
+          "out_clamp_low_cool": "Lascia vuoto per utilizzare la soglia bassa del riscaldamento.",
+          "out_clamp_high_cool": "Lascia vuoto per utilizzare la soglia alta del riscaldamento.",
+          "min_cycle_duration_cool": "Lascia vuoto per utilizzare la durata minima del ciclo del riscaldamento.",
+          "min_off_cycle_duration_cool": "Lascia vuoto per utilizzare la durata minima dell'arresto del riscaldamento."
+        },
+        "sections": {
+          "advanced_cool_options": {
+            "name": "Opzioni avanzate (Raffreddamento)",
+            "description": "Parametri avanzati per la modalità raffreddamento.",
+            "data": {
+              "min_cycle_duration_pid_off_cool": "Durata minima ciclo (PID OFF, Raffreddamento)",
+              "min_off_cycle_duration_pid_off_cool": "Durata minima arresto (PID OFF, Raffreddamento)"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off_cool": "Lascia vuoto per utilizzare la durata minima del ciclo (PID OFF) del riscaldamento.",
+              "min_off_cycle_duration_pid_off_cool": "Lascia vuoto per utilizzare la durata minima dell'arresto (PID OFF) del riscaldamento."
             }
           }
         }
@@ -235,8 +287,8 @@
         }
       },
       "pid": {
-        "title": "Controllo PID",
-        "description": "Configura i guadagni PID e il periodo PWM.",
+        "title": "Controllo PID (Riscaldamento)",
+        "description": "Configura i guadagni PID e il periodo PWM per il riscaldamento.",
         "data": {
           "kp": "Guadagno Proporzionale (Kp)",
           "ki": "Guadagno Integrale (Ki)",
@@ -271,9 +323,27 @@
           }
         }
       },
+      "pid_cool": {
+        "title": "Controllo PID (Raffreddamento)",
+        "description": "Configura i guadagni PID e il periodo PWM dedicati alla modalità raffreddamento (Lascia vuoto per ereditare i valori del riscaldamento).",
+        "data": {
+          "kp_cool": "Guadagno Proporzionale (Kp Cool)",
+          "ki_cool": "Guadagno Integrale (Ki Cool)",
+          "kd_cool": "Guadagno Derivativo (Kd Cool)",
+          "ke_cool": "Guadagno Compensazione Esterna (Ke Cool)",
+          "pwm_cool": "Periodo PWM (Raffreddamento)"
+        },
+        "data_description": {
+          "kp_cool": "Lascia vuoto per utilizzare il valore Kp del riscaldamento.",
+          "ki_cool": "Lascia vuoto per utilizzare il valore Ki del riscaldamento.",
+          "kd_cool": "Lascia vuoto per utilizzare il valore Kd del riscaldamento.",
+          "ke_cool": "Lascia vuoto per utilizzare il valore Ke del riscaldamento.",
+          "pwm_cool": "Lascia vuoto per utilizzare il periodo PWM del riscaldamento."
+        }
+      },
       "advanced": {
-        "title": "Impostazioni Avanzate",
-        "description": "Protezione cicli, limiti di uscita e sicurezza.",
+        "title": "Impostazioni Avanzate (Riscaldamento)",
+        "description": "Protezione cicli, limiti di uscita e sicurezza per il riscaldamento.",
         "data": {
           "output_precision": "Precisione di uscita",
           "output_min": "Uscita minima",
@@ -313,6 +383,40 @@
               "invert_heater": "Attiva se l'attuatore deve essere spento per riscaldare (es. relè invertito).",
               "force_off_state": "Garantisce che l'attuatore sia spento quando la modalità HVAC è OFF.",
               "debug": "Attiva la modalità di debug."
+            }
+          }
+        }
+      },
+      "advanced_cool": {
+        "title": "Impostazioni Avanzate (Raffreddamento)",
+        "description": "Protezione cicli e limiti di uscita per la modalità raffreddamento (Lascia vuoto per ereditare i valori del riscaldamento).",
+        "data": {
+          "output_min_cool": "Uscita minima (Raffreddamento)",
+          "output_max_cool": "Uscita massima (Raffreddamento)",
+          "out_clamp_low_cool": "Clamp di uscita basso (Raffreddamento)",
+          "out_clamp_high_cool": "Clamp di uscita alto (Raffreddamento)",
+          "min_cycle_duration_cool": "Durata minima ciclo (Raffreddamento)",
+          "min_off_cycle_duration_cool": "Durata minima arresto (Raffreddamento)"
+        },
+        "data_description": {
+          "output_min_cool": "Lascia vuoto per utilizzare l'uscita minima del riscaldamento.",
+          "output_max_cool": "Lascia vuoto per utilizzare l'uscita massima del riscaldamento.",
+          "out_clamp_low_cool": "Lascia vuoto per utilizzare la soglia bassa del riscaldamento.",
+          "out_clamp_high_cool": "Lascia vuoto per utilizzare la soglia alta del riscaldamento.",
+          "min_cycle_duration_cool": "Lascia vuoto per utilizzare la durata minima del ciclo del riscaldamento.",
+          "min_off_cycle_duration_cool": "Lascia vuoto per utilizzare la durata minima dell'arresto del riscaldamento."
+        },
+        "sections": {
+          "advanced_cool_options": {
+            "name": "Opzioni avanzate (Raffreddamento)",
+            "description": "Parametri avanzati per la modalità raffreddamento.",
+            "data": {
+              "min_cycle_duration_pid_off_cool": "Durata minima ciclo (PID OFF, Raffreddamento)",
+              "min_off_cycle_duration_pid_off_cool": "Durata minima arresto (PID OFF, Raffreddamento)"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off_cool": "Lascia vuoto per utilizzare la durata minima del ciclo (PID OFF) del riscaldamento.",
+              "min_off_cycle_duration_pid_off_cool": "Lascia vuoto per utilizzare la durata minima dell'arresto (PID OFF) del riscaldamento."
             }
           }
         }

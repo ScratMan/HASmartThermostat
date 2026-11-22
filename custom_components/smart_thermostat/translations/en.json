@@ -75,8 +75,8 @@
         }
       },
       "pid": {
-        "title": "PID Controller",
-        "description": "Configure PID controller gains and PWM period.",
+        "title": "PID Controller (Heating)",
+        "description": "Configure PID controller gains and PWM period for heating.",
         "data": {
           "kp": "Proportional Gain (Kp)",
           "ki": "Integral Gain (Ki)",
@@ -111,9 +111,27 @@
           }
         }
       },
+      "pid_cool": {
+        "title": "PID Controller (Cooling)",
+        "description": "Configure dedicated PID gains and PWM period for cooling mode (Leave blank to inherit heating values).",
+        "data": {
+          "kp_cool": "Proportional Gain (Kp Cool)",
+          "ki_cool": "Integral Gain (Ki Cool)",
+          "kd_cool": "Derivative Gain (Kd Cool)",
+          "ke_cool": "Outdoor Compensation Gain (Ke Cool)",
+          "pwm_cool": "PWM Period (Cooling)"
+        },
+        "data_description": {
+          "kp_cool": "Leave blank to use heating Kp value.",
+          "ki_cool": "Leave blank to use heating Ki value.",
+          "kd_cool": "Leave blank to use heating Kd value.",
+          "ke_cool": "Leave blank to use heating Ke value.",
+          "pwm_cool": "Leave blank to use heating PWM period."
+        }
+      },
       "advanced": {
-        "title": "Advanced Settings",
-        "description": "Cycle protection, output limits, and safety behavior.",
+        "title": "Advanced Settings (Heating)",
+        "description": "Cycle protection, output limits, and safety behavior for heating.",
         "data": {
           "output_precision": "Output Precision",
           "output_min": "Minimum Output",
@@ -153,6 +171,40 @@
               "invert_heater": "Enable if the actuator must be turned off to heat (e.g., inverted relay).",
               "force_off_state": "Ensures actuator is physically turned off when HVAC mode is OFF.",
               "debug": "Enable debug logging."
+            }
+          }
+        }
+      },
+      "advanced_cool": {
+        "title": "Advanced Settings (Cooling)",
+        "description": "Cycle protection and output limits for cooling mode (Leave blank to inherit heating values).",
+        "data": {
+          "output_min_cool": "Minimum Output (Cooling)",
+          "output_max_cool": "Maximum Output (Cooling)",
+          "out_clamp_low_cool": "Output Clamp Low (Cooling)",
+          "out_clamp_high_cool": "Output Clamp High (Cooling)",
+          "min_cycle_duration_cool": "Minimum Cycle Duration (Cooling)",
+          "min_off_cycle_duration_cool": "Minimum Off Cycle Duration (Cooling)"
+        },
+        "data_description": {
+          "output_min_cool": "Leave blank to use heating minimum output.",
+          "output_max_cool": "Leave blank to use heating maximum output.",
+          "out_clamp_low_cool": "Leave blank to use heating clamp low value.",
+          "out_clamp_high_cool": "Leave blank to use heating clamp high value.",
+          "min_cycle_duration_cool": "Leave blank to use heating minimum cycle duration.",
+          "min_off_cycle_duration_cool": "Leave blank to use heating minimum off cycle duration."
+        },
+        "sections": {
+          "advanced_cool_options": {
+            "name": "Advanced Options (Cooling)",
+            "description": "Advanced parameters for cooling mode.",
+            "data": {
+              "min_cycle_duration_pid_off_cool": "Minimum Cycle Duration (PID OFF, Cooling)",
+              "min_off_cycle_duration_pid_off_cool": "Minimum Off Cycle Duration (PID OFF, Cooling)"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off_cool": "Leave blank to use heating minimum cycle duration when PID is disabled.",
+              "min_off_cycle_duration_pid_off_cool": "Leave blank to use heating minimum off cycle duration when PID is disabled."
             }
           }
         }
@@ -235,8 +287,8 @@
         }
       },
       "pid": {
-        "title": "PID Controller",
-        "description": "Configure PID controller gains and PWM period.",
+        "title": "PID Controller (Heating)",
+        "description": "Configure PID controller gains and PWM period for heating.",
         "data": {
           "kp": "Proportional Gain (Kp)",
           "ki": "Integral Gain (Ki)",
@@ -271,9 +323,27 @@
           }
         }
       },
+      "pid_cool": {
+        "title": "PID Controller (Cooling)",
+        "description": "Configure dedicated PID gains and PWM period for cooling mode (Leave blank to inherit heating values).",
+        "data": {
+          "kp_cool": "Proportional Gain (Kp Cool)",
+          "ki_cool": "Integral Gain (Ki Cool)",
+          "kd_cool": "Derivative Gain (Kd Cool)",
+          "ke_cool": "Outdoor Compensation Gain (Ke Cool)",
+          "pwm_cool": "PWM Period (Cooling)"
+        },
+        "data_description": {
+          "kp_cool": "Leave blank to use heating Kp value.",
+          "ki_cool": "Leave blank to use heating Ki value.",
+          "kd_cool": "Leave blank to use heating Kd value.",
+          "ke_cool": "Leave blank to use heating Ke value.",
+          "pwm_cool": "Leave blank to use heating PWM period."
+        }
+      },
       "advanced": {
-        "title": "Advanced Settings",
-        "description": "Cycle protection, output limits, and safety behavior.",
+        "title": "Advanced Settings (Heating)",
+        "description": "Cycle protection, output limits, and safety behavior for heating.",
         "data": {
           "output_precision": "Output Precision",
           "output_min": "Minimum Output",
@@ -313,6 +383,40 @@
               "invert_heater": "Enable if the actuator must be turned off to heat (e.g., inverted relay).",
               "force_off_state": "Ensures actuator is physically turned off when HVAC mode is OFF.",
               "debug": "Enable debug logging."
+            }
+          }
+        }
+      },
+      "advanced_cool": {
+        "title": "Advanced Settings (Cooling)",
+        "description": "Cycle protection and output limits for cooling mode (Leave blank to inherit heating values).",
+        "data": {
+          "output_min_cool": "Minimum Output (Cooling)",
+          "output_max_cool": "Maximum Output (Cooling)",
+          "out_clamp_low_cool": "Output Clamp Low (Cooling)",
+          "out_clamp_high_cool": "Output Clamp High (Cooling)",
+          "min_cycle_duration_cool": "Minimum Cycle Duration (Cooling)",
+          "min_off_cycle_duration_cool": "Minimum Off Cycle Duration (Cooling)"
+        },
+        "data_description": {
+          "output_min_cool": "Leave blank to use heating minimum output.",
+          "output_max_cool": "Leave blank to use heating maximum output.",
+          "out_clamp_low_cool": "Leave blank to use heating clamp low value.",
+          "out_clamp_high_cool": "Leave blank to use heating clamp high value.",
+          "min_cycle_duration_cool": "Leave blank to use heating minimum cycle duration.",
+          "min_off_cycle_duration_cool": "Leave blank to use heating minimum off cycle duration."
+        },
+        "sections": {
+          "advanced_cool_options": {
+            "name": "Advanced Options (Cooling)",
+            "description": "Advanced parameters for cooling mode.",
+            "data": {
+              "min_cycle_duration_pid_off_cool": "Minimum Cycle Duration (PID OFF, Cooling)",
+              "min_off_cycle_duration_pid_off_cool": "Minimum Off Cycle Duration (PID OFF, Cooling)"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off_cool": "Leave blank to use heating minimum cycle duration when PID is disabled.",
+              "min_off_cycle_duration_pid_off_cool": "Leave blank to use heating minimum off cycle duration when PID is disabled."
             }
           }
         }

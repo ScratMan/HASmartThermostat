@@ -75,8 +75,8 @@
         }
       },
       "pid": {
-        "title": "Contrôleur PID",
-        "description": "Ajustez les gains du contrôleur PID et la période PWM.",
+        "title": "Contrôleur PID (Chauffage)",
+        "description": "Ajustez les gains du contrôleur PID et la période PWM pour le chauffage.",
         "data": {
           "kp": "Gain Proportionnel (Kp)",
           "ki": "Gain Intégral (Ki)",
@@ -111,9 +111,27 @@
           }
         }
       },
+      "pid_cool": {
+        "title": "Contrôleur PID (Refroidissement)",
+        "description": "Ajustez les gains PID et la période PWM dédiés au mode refroidissement (Laissez vide pour hériter des valeurs du chauffage).",
+        "data": {
+          "kp_cool": "Gain Proportionnel (Kp Froid)",
+          "ki_cool": "Gain Intégral (Ki Froid)",
+          "kd_cool": "Gain Dérivé (Kd Froid)",
+          "ke_cool": "Gain Compensation Extérieure (Ke Froid)",
+          "pwm_cool": "Période PWM (Refroidissement)"
+        },
+        "data_description": {
+          "kp_cool": "Laissez vide pour utiliser la valeur Kp du chauffage.",
+          "ki_cool": "Laissez vide pour utiliser la valeur Ki du chauffage.",
+          "kd_cool": "Laissez vide pour utiliser la valeur Kd du chauffage.",
+          "ke_cool": "Laissez vide pour utiliser la valeur Ke du chauffage.",
+          "pwm_cool": "Laissez vide pour utiliser la période PWM du chauffage."
+        }
+      },
       "advanced": {
-        "title": "Paramètres Avancés",
-        "description": "Protection de cycle, limites de sortie et sécurité.",
+        "title": "Paramètres Avancés (Chauffage)",
+        "description": "Protection de cycle, limites de sortie et sécurité pour le chauffage.",
         "data": {
           "output_precision": "Précision de la sortie",
           "output_min": "Sortie minimale",
@@ -153,6 +171,40 @@
               "invert_heater": "Activez si l'actionneur doit être éteint pour chauffer (ex: relais inversé).",
               "force_off_state": "S'assure que l'actionneur est physiquement éteint lorsque le mode HVAC est OFF.",
               "debug": "Active le mode débogage."
+            }
+          }
+        }
+      },
+      "advanced_cool": {
+        "title": "Paramètres Avancés (Refroidissement)",
+        "description": "Protection de cycle et limites de sortie pour le mode refroidissement (Laissez vide pour hériter des valeurs du chauffage).",
+        "data": {
+          "output_min_cool": "Sortie minimale (Refroidissement)",
+          "output_max_cool": "Sortie maximale (Refroidissement)",
+          "out_clamp_low_cool": "Clamp de sortie bas (Refroidissement)",
+          "out_clamp_high_cool": "Clamp de sortie haut (Refroidissement)",
+          "min_cycle_duration_cool": "Durée minimale de cycle (Refroidissement)",
+          "min_off_cycle_duration_cool": "Durée minimale d'arrêt (Refroidissement)"
+        },
+        "data_description": {
+          "output_min_cool": "Laissez vide pour utiliser la sortie minimale du chauffage.",
+          "output_max_cool": "Laissez vide pour utiliser la sortie maximale du chauffage.",
+          "out_clamp_low_cool": "Laissez vide pour utiliser la limite basse du chauffage.",
+          "out_clamp_high_cool": "Laissez vide pour utiliser la limite haute du chauffage.",
+          "min_cycle_duration_cool": "Laissez vide pour utiliser la durée minimale de cycle du chauffage.",
+          "min_off_cycle_duration_cool": "Laissez vide pour utiliser la durée minimale d'arrêt du chauffage."
+        },
+        "sections": {
+          "advanced_cool_options": {
+            "name": "Options avancées (Refroidissement)",
+            "description": "Paramètres avancés pour le mode refroidissement.",
+            "data": {
+              "min_cycle_duration_pid_off_cool": "Durée minimale de cycle (PID OFF, Froid)",
+              "min_off_cycle_duration_pid_off_cool": "Durée minimale d'arrêt (PID OFF, Froid)"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off_cool": "Laissez vide pour utiliser la durée minimale de cycle (PID OFF) du chauffage.",
+              "min_off_cycle_duration_pid_off_cool": "Laissez vide pour utiliser la durée minimale d'arrêt (PID OFF) du chauffage."
             }
           }
         }
@@ -235,8 +287,8 @@
         }
       },
       "pid": {
-        "title": "Contrôleur PID",
-        "description": "Ajustez les gains du contrôleur PID et la période PWM.",
+        "title": "Contrôleur PID (Chauffage)",
+        "description": "Ajustez les gains du contrôleur PID et la période PWM pour le chauffage.",
         "data": {
           "kp": "Gain Proportionnel (Kp)",
           "ki": "Gain Intégral (Ki)",
@@ -271,9 +323,27 @@
           }
         }
       },
+      "pid_cool": {
+        "title": "Contrôleur PID (Refroidissement)",
+        "description": "Ajustez les gains PID et la période PWM dédiés au mode refroidissement (Laissez vide pour hériter des valeurs du chauffage).",
+        "data": {
+          "kp_cool": "Gain Proportionnel (Kp Froid)",
+          "ki_cool": "Gain Intégral (Ki Froid)",
+          "kd_cool": "Gain Dérivé (Kd Froid)",
+          "ke_cool": "Gain Compensation Extérieure (Ke Froid)",
+          "pwm_cool": "Période PWM (Refroidissement)"
+        },
+        "data_description": {
+          "kp_cool": "Laissez vide pour utiliser la valeur Kp du chauffage.",
+          "ki_cool": "Laissez vide pour utiliser la valeur Ki du chauffage.",
+          "kd_cool": "Laissez vide pour utiliser la valeur Kd du chauffage.",
+          "ke_cool": "Laissez vide pour utiliser la valeur Ke du chauffage.",
+          "pwm_cool": "Laissez vide pour utiliser la période PWM du chauffage."
+        }
+      },
       "advanced": {
-        "title": "Paramètres Avancés",
-        "description": "Protection de cycle, limites de sortie et sécurité.",
+        "title": "Paramètres Avancés (Chauffage)",
+        "description": "Protection de cycle, limites de sortie et sécurité pour le chauffage.",
         "data": {
           "output_precision": "Précision de la sortie",
           "output_min": "Sortie minimale",
@@ -313,6 +383,40 @@
               "invert_heater": "Activez si l'actionneur doit être éteint pour chauffer (ex: relais inversé).",
               "force_off_state": "S'assure que l'actionneur est physiquement éteint lorsque le mode HVAC est OFF.",
               "debug": "Active le mode débogage."
+            }
+          }
+        }
+      },
+      "advanced_cool": {
+        "title": "Paramètres Avancés (Refroidissement)",
+        "description": "Protection de cycle et limites de sortie pour le mode refroidissement (Laissez vide pour hériter des valeurs du chauffage).",
+        "data": {
+          "output_min_cool": "Sortie minimale (Refroidissement)",
+          "output_max_cool": "Sortie maximale (Refroidissement)",
+          "out_clamp_low_cool": "Clamp de sortie bas (Refroidissement)",
+          "out_clamp_high_cool": "Clamp de sortie haut (Refroidissement)",
+          "min_cycle_duration_cool": "Durée minimale de cycle (Refroidissement)",
+          "min_off_cycle_duration_cool": "Durée minimale d'arrêt (Refroidissement)"
+        },
+        "data_description": {
+          "output_min_cool": "Laissez vide pour utiliser la sortie minimale du chauffage.",
+          "output_max_cool": "Laissez vide pour utiliser la sortie maximale du chauffage.",
+          "out_clamp_low_cool": "Laissez vide pour utiliser la limite basse du chauffage.",
+          "out_clamp_high_cool": "Laissez vide pour utiliser la limite haute du chauffage.",
+          "min_cycle_duration_cool": "Laissez vide pour utiliser la durée minimale de cycle du chauffage.",
+          "min_off_cycle_duration_cool": "Laissez vide pour utiliser la durée minimale d'arrêt du chauffage."
+        },
+        "sections": {
+          "advanced_cool_options": {
+            "name": "Options avancées (Refroidissement)",
+            "description": "Paramètres avancés pour le mode refroidissement.",
+            "data": {
+              "min_cycle_duration_pid_off_cool": "Durée minimale de cycle (PID OFF, Froid)",
+              "min_off_cycle_duration_pid_off_cool": "Durée minimale d'arrêt (PID OFF, Froid)"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off_cool": "Laissez vide pour utiliser la durée minimale de cycle (PID OFF) du chauffage.",
+              "min_off_cycle_duration_pid_off_cool": "Laissez vide pour utiliser la durée minimale d'arrêt (PID OFF) du chauffage."
             }
           }
         }

@@ -75,8 +75,8 @@
         }
       },
       "pid": {
-        "title": "PID-Regler",
-        "description": "PID-Reglergewinne und PWM-Perioden konfigurieren.",
+        "title": "PID-Regler (Heizen)",
+        "description": "PID-Reglergewinne und PWM-Perioden für den Heizbetrieb konfigurieren.",
         "data": {
           "kp": "Proportionalverstärkung (Kp)",
           "ki": "Integralverstärkung (Ki)",
@@ -111,9 +111,27 @@
           }
         }
       },
+      "pid_cool": {
+        "title": "PID-Regler (Kühlen)",
+        "description": "Spezifische PID-Gewinne und PWM-Periode für den Kühlmodus konfigurieren (Leer lassen, um Werte vom Heizbetrieb zu übernehmen).",
+        "data": {
+          "kp_cool": "Proportionalverstärkung (Kp Kühlen)",
+          "ki_cool": "Integralverstärkung (Ki Kühlen)",
+          "kd_cool": "Differentialverstärkung (Kd Kühlen)",
+          "ke_cool": "Außenkompensationsgewinn (Ke Kühlen)",
+          "pwm_cool": "PWM-Periode (Kühlen)"
+        },
+        "data_description": {
+          "kp_cool": "Leer lassen, um den Kp-Wert vom Heizbetrieb zu verwenden.",
+          "ki_cool": "Leer lassen, um den Ki-Wert vom Heizbetrieb zu verwenden.",
+          "kd_cool": "Leer lassen, um den Kd-Wert vom Heizbetrieb zu verwenden.",
+          "ke_cool": "Leer lassen, um den Ke-Wert vom Heizbetrieb zu verwenden.",
+          "pwm_cool": "Leer lassen, um die PWM-Periode vom Heizbetrieb zu verwenden."
+        }
+      },
       "advanced": {
-        "title": "Erweiterte Einstellungen",
-        "description": "Zyklusschutz, Ausgangsgrenzen und Sicherheitsverhalten.",
+        "title": "Erweiterte Einstellungen (Heizen)",
+        "description": "Zyklusschutz, Ausgangsgrenzen und Sicherheitsverhalten für den Heizbetrieb.",
         "data": {
           "output_precision": "Ausgangspräzision",
           "output_min": "Minimaler Ausgang",
@@ -153,6 +171,40 @@
               "invert_heater": "Aktivieren, wenn der Aktor ausgeschaltet werden muss, um zu heizen (z. B. inverses Relais).",
               "force_off_state": "Stellt sicher, dass der Aktor physisch ausgeschaltet wird, wenn der HVAC-Modus AUS ist.",
               "debug": "Debug-Modus aktivieren."
+            }
+          }
+        }
+      },
+      "advanced_cool": {
+        "title": "Erweiterte Einstellungen (Kühlen)",
+        "description": "Zyklusschutz und Ausgangsgrenzen für den Kühlmodus (Leer lassen, um Werte vom Heizbetrieb zu übernehmen).",
+        "data": {
+          "output_min_cool": "Minimaler Ausgang (Kühlen)",
+          "output_max_cool": "Maximaler Ausgang (Kühlen)",
+          "out_clamp_low_cool": "Ausgangsklemme niedrig (Kühlen)",
+          "out_clamp_high_cool": "Ausgangsklemme hoch (Kühlen)",
+          "min_cycle_duration_cool": "Mindestzyklusdauer (Kühlen)",
+          "min_off_cycle_duration_cool": "Mindestausschaltzeit (Kühlen)"
+        },
+        "data_description": {
+          "output_min_cool": "Leer lassen, um den minimalen Ausgang vom Heizbetrieb zu verwenden.",
+          "output_max_cool": "Leer lassen, um den maximalen Ausgang vom Heizbetrieb zu verwenden.",
+          "out_clamp_low_cool": "Leer lassen, um den unteren Ausgangsklemmwert vom Heizbetrieb zu verwenden.",
+          "out_clamp_high_cool": "Leer lassen, um den oberen Ausgangsklemmwert vom Heizbetrieb zu verwenden.",
+          "min_cycle_duration_cool": "Leer lassen, um die Mindestzyklusdauer vom Heizbetrieb zu verwenden.",
+          "min_off_cycle_duration_cool": "Leer lassen, um die Mindestausschaltzeit vom Heizbetrieb zu verwenden."
+        },
+        "sections": {
+          "advanced_cool_options": {
+            "name": "Erweiterte Optionen (Kühlen)",
+            "description": "Erweiterte Parameter für den Kühlmodus.",
+            "data": {
+              "min_cycle_duration_pid_off_cool": "Mindestzyklusdauer (PID AUS, Kühlen)",
+              "min_off_cycle_duration_pid_off_cool": "Mindestausschaltzeit (PID AUS, Kühlen)"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off_cool": "Leer lassen, um die Mindestzyklusdauer bei deaktiviertem PID vom Heizbetrieb zu verwenden.",
+              "min_off_cycle_duration_pid_off_cool": "Leer lassen, um die Mindestausschaltzeit bei deaktiviertem PID vom Heizbetrieb zu verwenden."
             }
           }
         }
@@ -235,8 +287,8 @@
         }
       },
       "pid": {
-        "title": "PID-Regler",
-        "description": "PID-Reglergewinne und PWM-Perioden konfigurieren.",
+        "title": "PID-Regler (Heizen)",
+        "description": "PID-Reglergewinne und PWM-Perioden für den Heizbetrieb konfigurieren.",
         "data": {
           "kp": "Proportionalverstärkung (Kp)",
           "ki": "Integralverstärkung (Ki)",
@@ -271,9 +323,27 @@
           }
         }
       },
+      "pid_cool": {
+        "title": "PID-Regler (Kühlen)",
+        "description": "Spezifische PID-Gewinne und PWM-Periode für den Kühlmodus konfigurieren (Leer lassen, um Werte vom Heizbetrieb zu übernehmen).",
+        "data": {
+          "kp_cool": "Proportionalverstärkung (Kp Kühlen)",
+          "ki_cool": "Integralverstärkung (Ki Kühlen)",
+          "kd_cool": "Differentialverstärkung (Kd Kühlen)",
+          "ke_cool": "Außenkompensationsgewinn (Ke Kühlen)",
+          "pwm_cool": "PWM-Periode (Kühlen)"
+        },
+        "data_description": {
+          "kp_cool": "Leer lassen, um den Kp-Wert vom Heizbetrieb zu verwenden.",
+          "ki_cool": "Leer lassen, um den Ki-Wert vom Heizbetrieb zu verwenden.",
+          "kd_cool": "Leer lassen, um den Kd-Wert vom Heizbetrieb zu verwenden.",
+          "ke_cool": "Leer lassen, um den Ke-Wert vom Heizbetrieb zu verwenden.",
+          "pwm_cool": "Leer lassen, um die PWM-Periode vom Heizbetrieb zu verwenden."
+        }
+      },
       "advanced": {
-        "title": "Erweiterte Einstellungen",
-        "description": "Zyklusschutz, Ausgangsgrenzen und Sicherheitsverhalten.",
+        "title": "Erweiterte Einstellungen (Heizen)",
+        "description": "Zyklusschutz, Ausgangsgrenzen und Sicherheitsverhalten für den Heizbetrieb.",
         "data": {
           "output_precision": "Ausgangspräzision",
           "output_min": "Minimaler Ausgang",
@@ -313,6 +383,40 @@
               "invert_heater": "Aktivieren, wenn der Aktor ausgeschaltet werden muss, um zu heizen (z. B. inverses Relais).",
               "force_off_state": "Stellt sicher, dass der Aktor physisch ausgeschaltet wird, wenn der HVAC-Modus AUS ist.",
               "debug": "Debug-Modus aktivieren."
+            }
+          }
+        }
+      },
+      "advanced_cool": {
+        "title": "Erweiterte Einstellungen (Kühlen)",
+        "description": "Zyklusschutz und Ausgangsgrenzen für den Kühlmodus (Leer lassen, um Werte vom Heizbetrieb zu übernehmen).",
+        "data": {
+          "output_min_cool": "Minimaler Ausgang (Kühlen)",
+          "output_max_cool": "Maximaler Ausgang (Kühlen)",
+          "out_clamp_low_cool": "Ausgangsklemme niedrig (Kühlen)",
+          "out_clamp_high_cool": "Ausgangsklemme hoch (Kühlen)",
+          "min_cycle_duration_cool": "Mindestzyklusdauer (Kühlen)",
+          "min_off_cycle_duration_cool": "Mindestausschaltzeit (Kühlen)"
+        },
+        "data_description": {
+          "output_min_cool": "Leer lassen, um den minimalen Ausgang vom Heizbetrieb zu verwenden.",
+          "output_max_cool": "Leer lassen, um den maximalen Ausgang vom Heizbetrieb zu verwenden.",
+          "out_clamp_low_cool": "Leer lassen, um den unteren Ausgangsklemmwert vom Heizbetrieb zu verwenden.",
+          "out_clamp_high_cool": "Leer lassen, um den oberen Ausgangsklemmwert vom Heizbetrieb zu verwenden.",
+          "min_cycle_duration_cool": "Leer lassen, um die Mindestzyklusdauer vom Heizbetrieb zu verwenden.",
+          "min_off_cycle_duration_cool": "Leer lassen, um die Mindestausschaltzeit vom Heizbetrieb zu verwenden."
+        },
+        "sections": {
+          "advanced_cool_options": {
+            "name": "Erweiterte Optionen (Kühlen)",
+            "description": "Erweiterte Parameter für den Kühlmodus.",
+            "data": {
+              "min_cycle_duration_pid_off_cool": "Mindestzyklusdauer (PID AUS, Kühlen)",
+              "min_off_cycle_duration_pid_off_cool": "Mindestausschaltzeit (PID AUS, Kühlen)"
+            },
+            "data_description": {
+              "min_cycle_duration_pid_off_cool": "Leer lassen, um die Mindestzyklusdauer bei deaktiviertem PID vom Heizbetrieb zu verwenden.",
+              "min_off_cycle_duration_pid_off_cool": "Leer lassen, um die Mindestausschaltzeit bei deaktiviertem PID vom Heizbetrieb zu verwenden."
             }
           }
         }
