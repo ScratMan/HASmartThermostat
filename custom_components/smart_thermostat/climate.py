@@ -251,6 +251,10 @@ def _register_entity_services(platform: entity_platform.EntityPlatform) -> None:
             vol.Optional("ki"): vol.Coerce(float),
             vol.Optional("kd"): vol.Coerce(float),
             vol.Optional("ke"): vol.Coerce(float),
+            vol.Optional("kp_cool"): vol.Coerce(float),
+            vol.Optional("ki_cool"): vol.Coerce(float),
+            vol.Optional("kd_cool"): vol.Coerce(float),
+            vol.Optional("ke_cool"): vol.Coerce(float),
         },
         "async_set_pid",
     )
@@ -714,101 +718,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
                 self._derivative_filter_seconds,
             )
 
-    # @property
-    # def kp_cool(self) -> float:
-    #     """Return the Kp value for cooling mode."""
-    #     if self._kp_cool is not None:
-    #         return self._kp_cool
-    #     return self._kp
-
-    # @property
-    # def ki_cool(self) -> float:
-    #     """Return the Ki value for cooling mode."""
-    #     if self._ki_cool is not None:
-    #         return self._ki_cool
-    #     return self._ki
-
-    # @property
-    # def kd_cool(self) -> float:
-    #     """Return the Kd value for cooling mode."""
-    #     if self._kd_cool is not None:
-    #         return self._kd_cool
-    #     return self._kd
-
-    # @property
-    # def ke_cool(self) -> float:
-    #     """Return the Ke value for cooling mode."""
-    #     if self._ke_cool is not None:
-    #         return self._ke_cool
-    #     return self._ke
-
-    # @property
-    # def pwm_cool(self) -> float:
-    #     """Return the PWM duration in seconds for cooling mode."""
-    #     if self._pwm_cool is not None:
-    #         return self._pwm_cool
-    #     return self._pwm
-
-    # @property
-    # def output_min_cool(self) -> float:
-    #     """Return the output min value for cooling mode."""
-    #     if self._output_min_cool is not None:
-    #         return self._output_min_cool
-    #     return -self._output_max
-
-    # @property
-    # def output_max_cool(self) -> float:
-    #     """Return the output max value for cooling mode."""
-    #     if self._output_max_cool is not None:
-    #         return self._output_max_cool
-    #     return -self._output_min
-
-    # @property
-    # def output_clamp_low_cool(self) -> Any:
-    #     """Return the low clamp value for cooling mode."""
-    #     if self._output_clamp_low_cool is not None:
-    #         return self._output_clamp_low_cool
-    #     if isinstance(self.output_clamp_high, (int, float)):
-    #         return -self.output_clamp_high
-    #     return self.output_clamp_high
-
-    # @property
-    # def output_clamp_high_cool(self) -> Any:
-    #     """Return the high clamp value for cooling mode."""
-    #     if self._output_clamp_high_cool is not None:
-    #         return self._output_clamp_high_cool
-    #     if isinstance(self.output_clamp_low, (int, float)):
-    #         return -self.output_clamp_low
-    #     return self.output_clamp_low
-
-    # @property
-    # def min_cycle_duration_cool(self) -> timedelta | None:
-    #     """Return the minimum cycle duration for cooling mode."""
-    #     if self._min_on_cycle_duration_pid_on_cool is not None:
-    #         return self._min_on_cycle_duration_pid_on_cool
-    #     return self._min_on_cycle_duration_pid_on
-
-    # @property
-    # def min_off_cycle_duration_cool(self) -> timedelta | None:
-    #     """Return the minimum off cycle duration for cooling mode."""
-    #     if self._min_off_cycle_duration_pid_on_cool is not None:
-    #         return self._min_off_cycle_duration_pid_on_cool
-    #     return self._min_off_cycle_duration_pid_on
-
-    # @property
-    # def min_cycle_duration_pid_off_cool(self) -> timedelta | None:
-    #     """Return the minimum cycle duration with PID off for cooling mode."""
-    #     if self._min_on_cycle_duration_pid_off_cool is not None:
-    #         return self._min_on_cycle_duration_pid_off_cool
-    #     return self._min_on_cycle_duration_pid_off
-
-    # @property
-    # def min_off_cycle_duration_pid_off_cool(self) -> timedelta | None:
-    #     """Return the minimum off cycle duration with PID off for cooling mode."""
-    #     if self._min_off_cycle_duration_pid_off_cool is not None:
-    #         return self._min_off_cycle_duration_pid_off_cool
-    #     return self._min_off_cycle_duration_pid_off
-
     @property
     def kp(self) -> float:
         """Return active Kp depending on current HVAC mode."""
@@ -1233,19 +1142,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             raise ValueError(f"Parameter {name} is not defined for this thermostat.")
         return value
 
-        # if self._hvac_mode == HVACMode.COOL:
-        #     if (
-        #         self.pid_mode == "off"
-        #         and self.min_cycle_duration_pid_off_cool is not None
-        #     ):
-        #         return self.min_cycle_duration_pid_off_cool
-        #     if self.min_cycle_duration_cool is not None:
-        #         return self.min_cycle_duration_cool
-
-        # if self.pid_mode == "off" and self._min_on_cycle_duration_pid_off is not None:
-        #     return self._min_on_cycle_duration_pid_off
-        # return self._min_on_cycle_duration_pid_on
-
     @property
     def min_off_cycle_duration(self):
         name = "min_off_cycle_duration"
@@ -1253,30 +1149,6 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         if value is None:
             return self._get_parameter("min_on_cycle_duration")
         return value
-
-        # if self._hvac_mode == HVACMode.COOL:
-        #     if (
-        #         self.pid_mode == "off"
-        #         and self.min_off_cycle_duration_pid_off_cool is not None
-        #     ):
-        #         return self.min_off_cycle_duration_pid_off_cool
-        #     if (
-        #         self.pid_mode == "off"
-        #         and self.min_cycle_duration_pid_off_cool is not None
-        #     ):
-        #         return self.min_cycle_duration_pid_off_cool
-        #     elif self.min_off_cycle_duration_cool is not None:
-        #         return self.min_off_cycle_duration_cool
-        #     elif self.min_cycle_duration_cool is not None:
-        #         return self.min_cycle_duration_cool
-
-        # if self.pid_mode == "off" and self._min_off_cycle_duration_pid_off is not None:
-        #     return self._min_off_cycle_duration_pid_off
-        # if self.pid_mode == "off" and self._min_on_cycle_duration_pid_off is not None:
-        #     return self._min_on_cycle_duration_pid_off
-        # elif self._min_off_cycle_duration_pid_on is not None:
-        #     return self._min_off_cycle_duration_pid_on
-        # return self.min_on_cycle_duration
 
     @property
     def pid_parm(self):
@@ -1625,12 +1497,24 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
 
     async def async_set_pid(self, **kwargs):
         """Set PID parameters."""
-        suffix = "_cool" if self._hvac_mode == HVACMode.COOL else ""
-        for pid_kx, gain in kwargs.items():
-            if gain is not None:
-                setattr(self, f"_{pid_kx}{suffix}", float(gain))
+        # Update the PID parameters if provided in kwargs
+        for param in (
+            "kp",
+            "ki",
+            "kd",
+            "ke",
+            "kp_cool",
+            "ki_cool",
+            "kd_cool",
+            "ke_cool",
+        ):
+            if kwargs.get(param) is not None:
+                setattr(self, f"_{param}", float(kwargs[param]))
+
+        # Apply the new PID parameters to the controller
         self._pid_controller.set_pid_param(self.kp, self.ki, self.kd, self.ke)
 
+        # Save new PID parameters to the config entry if available
         config_entry_id = (
             getattr(self.registry_entry, "config_entry_id", None)
             if hasattr(self, "registry_entry") and self.registry_entry is not None
@@ -1640,13 +1524,23 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         if config_entry_id:
             config_entry = self.hass.config_entries.async_get_entry(config_entry_id)
             if config_entry:
-                new_options = {
-                    **config_entry.options,
-                    f"kp{suffix}": self.kp,
-                    f"ki{suffix}": self.ki,
-                    f"kd{suffix}": self.kd,
-                    f"ke{suffix}": self.ke,
-                }
+                new_options = dict(config_entry.options)
+                for param in (
+                    "kp",
+                    "ki",
+                    "kd",
+                    "ke",
+                    "kp_cool",
+                    "ki_cool",
+                    "kd_cool",
+                    "ke_cool",
+                ):
+                    if (
+                        hasattr(self, f"_{param}")
+                        and getattr(self, f"_{param}") is not None
+                    ):
+                        new_options[param] = getattr(self, f"_{param}")
+
                 self.hass.config_entries.async_update_entry(
                     config_entry, options=new_options
                 )

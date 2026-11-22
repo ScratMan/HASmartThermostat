@@ -32,15 +32,15 @@ set_pid_mode:
             - 'off'
 set_pid_gain:
   name: Set PID gains
-  description: Sets the kp, ki and kd gains for the PID.
+  description: Sets the kp, ki, kd and ke gains for heating and cooling PID.
   target:
     entity:
       integration: smart_thermostat
       domain: climate
   fields:
     kp:
-      name: Kp gain
-      description: Proportional gain
+      name: Kp gain (heating)
+      description: Proportional gain for heating mode
       required: false
       advanced: false
       example: 12.5
@@ -51,8 +51,8 @@ set_pid_gain:
           step: 0.001
           mode: box
     ki:
-      name: Ki gain
-      description: Integral gain
+      name: Ki gain (heating)
+      description: Integral gain for heating mode
       required: false
       advanced: false
       example: 0.007
@@ -63,8 +63,8 @@ set_pid_gain:
           step: 0.001
           mode: box
     kd:
-      name: Kd gain
-      description: Derivative gain
+      name: Kd gain (heating)
+      description: Derivative gain for heating mode
       required: false
       advanced: false
       example: 345.12
@@ -75,8 +75,56 @@ set_pid_gain:
           step: 0.001
           mode: box
     ke:
-      name: Ke gain
-      description: External temperature compensation gain
+      name: Ke gain (heating)
+      description: External temperature compensation gain for heating mode
+      required: false
+      advanced: false
+      example: 1.2
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.001
+          mode: box
+    kp_cool:
+      name: Kp gain (cooling)
+      description: Proportional gain for cooling mode
+      required: false
+      advanced: false
+      example: 12.5
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.001
+          mode: box
+    ki_cool:
+      name: Ki gain (cooling)
+      description: Integral gain for cooling mode
+      required: false
+      advanced: false
+      example: 0.007
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.001
+          mode: box
+    kd_cool:
+      name: Kd gain (cooling)
+      description: Derivative gain for cooling mode
+      required: false
+      advanced: false
+      example: 345.12
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.001
+          mode: box
+    ke_cool:
+      name: Ke gain (cooling)
+      description: External temperature compensation gain for cooling mode
       required: false
       advanced: false
       example: 1.2
