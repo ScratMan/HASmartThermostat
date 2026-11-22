@@ -1659,11 +1659,12 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             self.entity_id,
             self._current_temp,
         )
-        self.hass.async_create_task(
-            self._async_control_heating(calc_pid=True),
-            eager_start=True,
-        )
-        self.async_write_ha_state()
+        if self.hass is not None:
+            self.hass.async_create_task(
+                self._async_control_heating(calc_pid=True),
+                eager_start=True,
+            )
+            self.async_write_ha_state()
 
     @callback
     def _async_ext_sensor_changed(self, event: Event) -> None:
@@ -1677,9 +1678,10 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         _LOGGER.debug(
             "%s: Received new external temperature: %s", self.entity_id, self._ext_temp
         )
-        self.hass.async_create_task(
-            self._async_control_heating(calc_pid=False), eager_start=True
-        )
+        if self.hass is not None:
+            self.hass.async_create_task(
+                self._async_control_heating(calc_pid=False), eager_start=True
+            )
 
     @callback
     def _async_switch_changed(self, event: Event) -> None:
@@ -1687,11 +1689,15 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
         new_state = event.data.get("new_state")
         if new_state is None:
             _LOGGER.debug(
-                f"{self.entity_id}: Switch {event.event_type} event received, new state is None, ignoring.",
+                "%s: Switch %s event received, new state is None, ignoring.",
+                self.entity_id,
+                event.event_type,
             )
             return
         _LOGGER.debug(
-            f"{self.entity_id}: Switch {event.event_type} event received, writing state to DB."
+            "%s: Switch %s event received, writing state to DB.",
+            self.entity_id,
+            event.event_type,
         )
         if event.data.get("entity_id") in self._all_heat_cool_entities:
             active = self._is_device_active
@@ -1701,7 +1707,8 @@ class SmartThermostat(ClimateEntity, RestoreEntity, ABC):
             ):
                 # The device was switched by another actor: restart the cycle timer from now.
                 self._mark_switch_state(active)
-        self.async_write_ha_state()
+        if self.hass is not None:
+            self.async_write_ha_state()
 
     @callback
     def _async_update_temp(self, state) -> None:
